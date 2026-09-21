@@ -1,0 +1,1382 @@
+/* Colour Vibes — generated from the single-file build by build/split.py.
+   Edit color-vibes-act1.html, then re-run the script. */
+:root{
+  --bg:#141210; --panel:#1d1a15; --panel-2:#252017; --line:#3a3227;
+  --ink:#f4efe3; --ink-2:#b5aa94; --ink-3:#7b7264;
+  --charcoal:#33353a; --bone:#e6dcc2; --parchment:#f2e5c4; --gold:#b8860d;
+  --you:#3fcdb5; --you-dim:#1d5c53; --opp:#d98f2f; --opp-dim:#6d4718;
+  --mix:#c07de0; --mix-dim:#4a2a5c; --target:#e8c334; --bad:#c9563f;
+  --coin:#e8c334; --relic:#8f86f0;
+  --radius:14px; --shadow:0 12px 34px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+/* colour drains from the world as curses take hold */
+.wrap,.overlay{filter:saturate(var(--sat,1));transition:filter 1.2s ease}
+body{background:radial-gradient(900px 600px at 12% -8%,#241f16 0%,transparent 62%),
+  radial-gradient(800px 600px at 108% 4%,#16241f 0%,transparent 58%),var(--bg);
+  color:var(--ink);font-family:'IBM Plex Sans',system-ui,-apple-system,sans-serif;min-height:100vh;
+  -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:'Big Shoulders Display',sans-serif;text-transform:uppercase;letter-spacing:.03em;margin:0;font-weight:800}
+.tag{font-family:'IBM Plex Mono',monospace}
+.muted{color:var(--ink-3)}
+.wrap{max-width:1200px;margin:0 auto;padding:14px 14px calc(28px + env(safe-area-inset-bottom))}
+
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.eyebrow{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.2em;color:var(--you);margin-bottom:2px}
+.head h1{font-size:clamp(21px,5vw,29px);line-height:1}
+.head h1 em{font-style:normal;color:var(--ink-3);font-weight:600}
+.btn{font:600 13px/1 'IBM Plex Sans',sans-serif;background:transparent;color:var(--ink-2);border:1px solid var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;transition:.15s}
+.btn:hover{color:var(--ink);border-color:var(--ink-3)}
+.btn.armed{border-color:var(--bad);color:var(--bad);background:rgba(201,86,63,.12)}
+
+/* menu: a single icon button that opens the utility actions as a dropdown,
+   so the runbar carries them instead of a separate row of header buttons. */
+.menu-wrap{position:relative}
+.menu-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  background:var(--panel-2);color:var(--ink-2);border:1px solid var(--line);border-radius:9px;
+  cursor:pointer;transition:.15s;padding:0}
+.menu-btn:hover,.menu-btn[aria-expanded="true"]{color:var(--ink);border-color:var(--you)}
+.menu-btn svg{width:18px;height:18px}
+.menu-btn svg line{stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.menu-dropdown{position:absolute;top:calc(100% + 6px);right:0;z-index:20;display:flex;
+  flex-direction:column;gap:6px;min-width:160px;padding:8px;background:var(--panel);
+  border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow)}
+.menu-dropdown[hidden]{display:none}
+.menu-dropdown .menu-item{width:100%;text-align:left}
+
+/* run bar */
+.runbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:10px 14px;margin-bottom:12px}
+.runbar .cell{display:flex;align-items:baseline;gap:7px}
+.runbar .tag{font-size:9px;letter-spacing:.16em;color:var(--ink-3)}
+.runbar b{font-family:'Big Shoulders Display',sans-serif;font-size:20px;line-height:1}
+.life{color:var(--bad);font-size:15px}
+.life.lost{color:var(--line)}
+#runGold{color:var(--coin)}
+.relic-strip{display:flex;gap:5px;flex-wrap:wrap;margin-left:auto}
+.deck-btn{font:600 12px/1 'IBM Plex Sans',sans-serif;background:var(--panel-2);color:var(--ink-2);
+  border:1px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer;transition:.15s}
+.deck-btn:hover{color:var(--ink);border-color:var(--you)}
+.deck-btn b{font-family:'Big Shoulders Display',sans-serif;font-size:16px;color:var(--ink);margin:0 1px}
+.relic-pip{font-size:10px;font-family:'IBM Plex Mono',monospace;background:#2c2748;color:#cfc9ff;
+  border:1px solid #4b4380;border-radius:6px;padding:3px 7px;cursor:help}
+
+.screen[hidden]{display:none}
+.panelbox{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:13px}
+/* The map screen's own panel is the one place a fully opaque background
+   actively hid something worth seeing: the act's room sits fixed behind every
+   screen already, drawn once and shared by all of them, but the map's panel
+   painted straight over it in a flat, opaque colour. A blur keeps the map's
+   thin lines and small node icons legible over whatever is happening in the
+   scene behind them; a full veil-strength value would fight the room-veil
+   gradient the art already carries and wash everything out twice over. */
+#screen-map .panelbox{background:rgba(29,26,21,.76);backdrop-filter:blur(2px)}
+.panelbox h2{font-size:15px;color:var(--ink-2);margin-bottom:11px}
+.screen-lead{font-size:13.5px;color:var(--ink-2);line-height:1.5;margin:0 0 12px}
+
+/* map */
+.map-legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+.legend-note{font-size:11.5px;color:var(--ink-3);margin:0 0 12px;padding-bottom:11px;border-bottom:1px dashed var(--line)}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+.legend-ic{width:19px;height:19px;flex:none}
+.legend-ic .mn-icon{stroke:var(--ink-2);fill:var(--ink-2)}
+.legend-item.t-elite .mn-icon{stroke:var(--opp);fill:var(--opp)}
+.legend-item.t-boss .mn-icon{stroke:var(--bad);fill:var(--bad)}
+.legend-item.t-shop .mn-icon{stroke:var(--coin);fill:none}
+.legend-item.t-lab .mn-icon{stroke:var(--mix);fill:none}
+.legend-item.t-event .mn-icon{stroke:var(--relic);fill:none}
+.legend-item.t-battle .mn-icon{stroke:var(--ink-2);fill:none}
+.map-scroll{max-height:min(62vh,620px);overflow-y:auto;overscroll-behavior:contain;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%)}
+.map-svg{width:100%;max-width:430px;height:auto;display:block;margin:0 auto}
+.map-edge{stroke:var(--line);stroke-width:2;fill:none}
+.map-edge.live{stroke:var(--you);stroke-width:2.6;opacity:.85}
+.map-edge.taken{stroke:var(--ink-3);stroke-width:2.6;stroke-dasharray:4 4}
+.map-node .mn-ring{stroke-width:3.5;stroke-linecap:butt;opacity:.9}
+.map-node.past .mn-ring{opacity:.4}
+.map-node .mn-disc{fill:var(--panel-2);stroke:var(--line);stroke-width:2}
+.map-node .mn-icon{stroke:var(--ink-3);fill:none;stroke-linecap:round}
+.map-node.t-boss .mn-icon{fill:var(--ink-3);stroke:var(--ink-3)}
+.map-node.past{opacity:.45}
+.map-node.taken .mn-disc{stroke:var(--ink-3)}
+.map-node.open{cursor:pointer}
+.map-node.open .mn-disc{fill:#1f2b28;stroke:var(--you);stroke-width:2.5}
+.map-node.open .mn-icon{stroke:var(--you)}
+.map-node.open.t-boss .mn-icon,.map-node.open.t-boss .mn-icon{fill:var(--you)}
+.map-node.open .mn-halo{stroke:var(--you);stroke-width:1.5;opacity:.35}
+.map-node.open:hover .mn-disc{fill:#27423b}
+.map-node.open:focus-visible .mn-disc{stroke:#fff;stroke-width:3}
+.map-node.t-elite .mn-icon{stroke:var(--opp)}
+.map-node.t-boss .mn-disc{stroke:var(--bad)}
+.map-node.t-shop .mn-icon{stroke:var(--coin)}
+.map-node.t-lab .mn-icon{stroke:var(--mix)}
+.map-node.t-event .mn-icon{stroke:var(--relic)}
+.map-node.t-volatile .mn-icon{stroke:var(--mix)}
+.map-node.t-volatile .mn-disc{stroke:var(--mix);fill:#241a2e}
+.map-node.t-volatile .vbub{fill:var(--mix);stroke:none;animation:bubble 2.4s ease-in-out infinite}
+.map-node.t-volatile .vbub.b2{animation-delay:.5s}
+.map-node.t-volatile .vbub.b3{animation-delay:1.1s}
+@keyframes bubble{0%{opacity:0;transform:translateY(4px) scale(.6)}
+  35%{opacity:.95;transform:translateY(-1px) scale(1)}
+  100%{opacity:0;transform:translateY(-8px) scale(.5)}}
+.map-node.t-volatile .mn-halo{stroke:var(--mix);animation:volpulse 1.9s ease-in-out infinite}
+@keyframes volpulse{0%,100%{opacity:.25;r:25}50%{opacity:.7;r:29}}
+.map-node.hidden-node .mn-disc{fill:#1b1712;stroke:var(--ink-3);stroke-dasharray:5 4}
+.map-node.hidden-node .mn-icon{stroke:var(--ink-3)}
+.map-node.danger .mn-disc{stroke:var(--bad)}
+.map-node.danger.open .mn-disc{stroke:var(--bad);fill:#2a1714}
+.map-node.danger .mn-icon{stroke:var(--bad)}
+.map-node.danger.open .mn-halo{stroke:var(--bad)}
+.legend-item.t-volatile .mn-icon{stroke:var(--mix);fill:var(--mix)}
+.legend-item.t-unknown .mn-icon{stroke:var(--ink-3);fill:none}
+.rot-note{margin:12px 0 0;padding:10px 12px;border-radius:9px;font-size:12.5px;line-height:1.5;
+  background:rgba(201,86,63,.12);border-left:3px solid var(--bad);color:var(--ink-2)}
+.rot-note b{color:#f0a493}
+.rot-note[hidden]{display:none}
+.deck-group{margin-bottom:14px}
+.dm-section{margin-bottom:18px}
+.dm-section h3{font-size:14px;color:var(--ink-2);margin-bottom:9px}
+.relic-line{display:flex;flex-direction:column;gap:2px;padding:7px 0;border-top:1px dashed var(--line)}
+.relic-line:first-of-type{border-top:none}
+.relic-line b{font-size:12.5px;color:var(--relic)}
+.relic-line span{font-size:11.5px;color:var(--ink-2);line-height:1.4}
+#deckCloseBtn{width:100%;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);
+  color:var(--ink);font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+#deckCloseBtn:hover{border-color:var(--you);color:var(--you)}
+.map-node{flex:1;min-width:0;text-align:left;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  border-radius:10px;padding:9px 11px;cursor:default;display:flex;flex-direction:column;gap:2px;font-family:inherit}
+.map-node.open{cursor:pointer;border-color:var(--you);color:var(--ink);background:#1f2b28}
+.map-node.open:hover{background:#254039}
+.map-node.past{opacity:.35}
+.map-node.taken{border-color:var(--ink-3)}
+
+/* mini cards */
+.mini-card{border-radius:9px;border:1px solid var(--line);border-top:4px solid var(--card,#555);background:var(--panel-2);
+  padding:7px 8px;display:flex;flex-direction:column;gap:3px;text-align:left;min-height:96px}
+.mini-top{align-self:flex-start;font-family:'Big Shoulders Display',sans-serif;font-size:20px;font-weight:800;line-height:1;
+  background:var(--card);color:var(--card-ink);border-radius:6px;padding:2px 7px;min-width:26px;text-align:center}
+.mini-card.spell .mini-top,.mini-card.hazard .mini-top{font-size:11px;background:#4a4438;color:var(--ink);padding:5px 7px}
+.mini-name{font-size:11px;font-weight:600;color:var(--ink);line-height:1.2}
+.mini-text{font-size:9px;line-height:1.35;color:var(--ink-3)}
+.mini-card.relicbox{border-top-color:var(--relic)}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.swap-card,.reward-pick,.shop-item{background:none;border:2px solid transparent;border-radius:11px;padding:0;cursor:pointer;font-family:inherit}
+.swap-card.picked{border-color:var(--you)}
+.reward-pick:hover,.shop-item:hover:not(:disabled),.swap-card:hover{border-color:var(--ink-3)}
+.shop-item:disabled{opacity:.4;cursor:not-allowed}
+.price{display:block;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--coin);padding:5px 0 2px}
+
+.lbl{display:block;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);margin-bottom:6px}
+.scout-card{display:inline-block;font-size:10.5px;font-family:'IBM Plex Mono',monospace;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:6px;padding:3px 7px;margin:0 4px 4px 0;color:var(--ink-2)}
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:600}
+.chip.mini{font-size:9.5px;padding:1px 6px}
+
+.lab-opts{display:grid;gap:9px;margin-bottom:12px}
+.lab-preview{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.lab-preview .mini-card{max-width:190px;margin-bottom:12px}
+.primary.danger{border-color:var(--bad);color:#f0a493}
+.primary.danger:hover{border-color:#e0705a;color:#fff;background:rgba(201,86,63,.18)}
+.vol-meter{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:12px}
+.vol-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.vol-row .lbl{margin:0}
+.vol-row b{font-family:'Big Shoulders Display',sans-serif;font-size:20px;margin-right:14px}
+.vol-row b.warm{color:var(--coin)}
+.vol-row b.hot{color:var(--bad)}
+.vol-bar{height:7px;border-radius:4px;background:#2b241b;margin:8px 0 10px;overflow:hidden}
+.vol-bar span{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--you),var(--coin) 55%,var(--bad));transition:width .3s}
+.vol-actions{display:flex;gap:9px;margin-bottom:14px}
+.vol-actions .primary{margin-top:0}
+.vol-log{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto}
+.vol-log li{font-size:12.5px;line-height:1.5;color:var(--ink-2);padding:9px 11px;margin-bottom:6px;
+  border-radius:9px;background:var(--panel-2);border-left:3px solid var(--line)}
+.vol-log li b{color:var(--ink)}
+.vol-log li.good{border-left-color:var(--you)}
+.vol-log li.big{border-left-color:var(--mix)}
+.vol-log li.cascade{border-left-color:var(--coin);background:rgba(232,195,52,.1)}
+.vol-log li.cascade b{color:var(--coin)}
+.vol-log li.curse{border-left-color:var(--bad);background:rgba(201,86,63,.1)}
+.vol-log li.curse b{color:#f0a493}
+.mini-card.curse{border-top-color:var(--bad)}
+.mini-card.curse .mini-top{background:#5a2018;color:#f6c2b8}
+.action-toast.curse{border-color:var(--bad);color:#f0a493}
+.lab-opt{text-align:left;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+  cursor:pointer;color:var(--ink);font:600 13.5px/1.3 'IBM Plex Sans',sans-serif}
+.lab-opt em{display:block;font-style:normal;font-weight:400;font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.lab-opt:hover{border-color:var(--you)}
+.picker{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.picker[hidden]{display:none}
+.pick{border:none;border-radius:8px;padding:7px 11px;font:600 11px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+/* ---- title screen ---- */
+.title-screen{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(6,8,12,.82);backdrop-filter:blur(3px);overflow-y:auto}
+.title-screen[hidden]{display:none}
+.title-inner{width:100%;max-width:420px;text-align:center}
+.title-name{font-family:'Big Shoulders Display',sans-serif;font-size:clamp(38px,13vw,64px);
+  line-height:.95;margin:4px 0 6px;letter-spacing:.01em}
+.title-sub{font-size:13px;color:var(--ink-2);margin:0 0 22px;line-height:1.5}
+.title-actions{display:flex;flex-direction:column;gap:9px}
+.title-btn{width:100%;margin:0}
+.title-btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink-2)}
+.title-warn{font-size:11.5px;color:var(--you);margin:11px 0 0}
+.title-warn[hidden]{display:none}
+.title-foot{font-size:11px;color:var(--ink-3);margin:20px 0 0}
+
+/* ---- glossary ---- */
+.glossary{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-start;justify-content:center;
+  padding:16px;background:rgba(6,8,12,.9);overflow-y:auto}
+.glossary[hidden]{display:none}
+.glossary-inner{width:100%;max-width:560px;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:15px}
+.glossary-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.glossary-head h2{margin:0}
+.icon-x{background:none;border:0;color:var(--ink-2);font-size:26px;line-height:1;cursor:pointer;padding:0 4px}
+.gl-tabs{display:flex;gap:6px;margin:12px 0 4px;flex-wrap:wrap}
+.gl-tab{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+  font-size:11.5px;color:var(--ink-2);cursor:pointer}
+.gl-tab.on{color:var(--ink);border-color:currentColor}
+.gl-body{margin-top:10px}
+.gl-group{margin-bottom:16px}
+.gl-group>.lbl{display:block;margin-bottom:7px}
+.gl-entry{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.gl-entry:last-child{border-bottom:0}
+.gl-swatch{width:26px;height:26px;border-radius:7px;flex:none;display:flex;align-items:center;
+  justify-content:center;font-family:'Big Shoulders Display',sans-serif;font-size:14px;font-weight:800}
+.gl-main{min-width:0;flex:1}
+.gl-name{font-weight:600;font-size:13px}
+.gl-meta{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-left:6px}
+.gl-text{font-size:11.5px;color:var(--ink-2);line-height:1.45;margin-top:2px}
+.gl-locked{opacity:.42}
+.gl-locked .gl-name{font-style:italic}
+.gl-note{font-size:11.5px;color:var(--ink-3);margin:0 0 12px;line-height:1.45}
+.gl-icon{display:flex;align-items:center;gap:10px;padding:7px 0}
+.gl-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---- the watcher in the Wastelands ----
+   Every other act's painting has a pair of eyes already in it. The Wastelands
+   is empty, so they are drawn: two almond shapes pinned to the same seam point
+   the aligner uses, cycling through the seven colours of the game. It is the
+   last road, and the thing at the end of it has not settled on a colour.
+
+   Sized from --eye-scale so the eyes grow and shrink with the painting behind
+   them rather than staying a fixed pixel size on every screen. */
+.room-eyes{position:absolute;left:50%;transform:translate(-50%,-50%);
+  display:flex;gap:calc(14px * var(--eye-scale,1));z-index:1;pointer-events:none;
+  animation:eyeColor 21s linear infinite}
+.room-eyes[hidden]{display:none}
+.room-eyes .eye{position:relative;display:block;
+  width:calc(17px * var(--eye-scale,1));height:calc(10px * var(--eye-scale,1));
+  border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+  background:radial-gradient(ellipse at 50% 45%, #fff 0%, currentColor 42%, rgba(0,0,0,0) 78%);
+  filter:drop-shadow(0 0 calc(7px * var(--eye-scale,1)) currentColor)
+         drop-shadow(0 0 calc(18px * var(--eye-scale,1)) currentColor);
+  animation:eyeBlink 6.5s ease-in-out infinite}
+/* Both eyes blink on the same frame. The 120ms offset was meant to look
+   organic and instead read as a twitch — two things blinking, rather than one
+   thing with two eyes. */
+
+/* ---- how each secret road watches ----
+   Rather than copy the Wastelands' pair into every room, each secret act gets a
+   watcher that says what the road is about. One flag on the layer, three
+   variants, no extra markup or placement logic. */
+
+/* The extra pairs exist only for the Choir. */
+.room-eyes .eye.extra{display:none}
+
+/* THE ROTTING CHOIR — it is a choir, so it is not one thing looking at you.
+   Six eyes at uneven heights, blinking out of step: several throats, none of
+   them quite together. The colour cycle is switched off; rot does not shimmer,
+   it sits. */
+.room-eyes.eyes-choir{color:#7d9b52;animation:none;gap:calc(9px * var(--eye-scale,1))}
+.room-eyes.eyes-choir .eye.extra{display:block}
+.room-eyes.eyes-choir .eye{
+  width:calc(12px * var(--eye-scale,1));height:calc(7px * var(--eye-scale,1))}
+.room-eyes.eyes-choir .eye:nth-child(1){transform:translateY(calc(-5px * var(--eye-scale,1)));animation-duration:5.5s}
+.room-eyes.eyes-choir .eye:nth-child(2){transform:translateY(calc(2px * var(--eye-scale,1)));animation-duration:7.5s;animation-delay:.7s}
+.room-eyes.eyes-choir .eye:nth-child(3){transform:translateY(calc(6px * var(--eye-scale,1)));animation-duration:6.2s;animation-delay:1.9s}
+.room-eyes.eyes-choir .eye:nth-child(4){transform:translateY(calc(-8px * var(--eye-scale,1)));animation-duration:8.1s;animation-delay:3.1s}
+.room-eyes.eyes-choir .eye:nth-child(5){transform:translateY(calc(4px * var(--eye-scale,1)));animation-duration:6.9s;animation-delay:2.3s}
+.room-eyes.eyes-choir .eye:nth-child(6){transform:translateY(calc(-3px * var(--eye-scale,1)));animation-duration:7.1s;animation-delay:4.4s}
+
+/* THE SUNDERED GROUND — the crack ran between them. Two eyes knocked out of
+   alignment, one riding higher than the other, and the gap between them is
+   wider than it should be. They twitch rather than blink cleanly. */
+.room-eyes.eyes-sundered{color:#5fd8dd;animation:none;gap:calc(30px * var(--eye-scale,1))}
+.room-eyes.eyes-sundered .eye:nth-child(1){transform:translateY(calc(-7px * var(--eye-scale,1))) rotate(-9deg)}
+.room-eyes.eyes-sundered .eye:nth-child(2){transform:translateY(calc(7px * var(--eye-scale,1))) rotate(9deg)}
+.room-eyes.eyes-sundered .eye{animation:eyeShift 4.5s steps(1,end) infinite}
+@keyframes eyeShift{
+  0%,88%{opacity:1}
+  90%,93%{opacity:.25}
+  95%,100%{opacity:1}
+}
+
+/* THE UNBROKEN LIGHT — it does not blink, because it is not hiding and never
+   was. It holds every colour at once instead of cycling through them. */
+.room-eyes.eyes-unblinking{animation:none;
+  color:#fff8e8;gap:calc(20px * var(--eye-scale,1))}
+/* A white glow on a white terrace disappears. These need a dark core to read
+   against noon light \u2014 the halo stays prismatic, but the eye itself is a hole
+   in the brightness rather than more of it. */
+.room-eyes.eyes-unblinking .eye{animation:none;
+  background:radial-gradient(ellipse at 50% 45%, #2a2418 0%, #6b5a34 38%, rgba(255,246,220,.55) 72%, rgba(255,255,255,0) 92%);
+  filter:drop-shadow(0 0 calc(6px * var(--eye-scale,1)) #fff3d2)
+         drop-shadow(0 0 calc(16px * var(--eye-scale,1)) #b9e4ff)
+         drop-shadow(0 0 calc(30px * var(--eye-scale,1)) #f0b8ff)}
+.room-eyes.eyes-unblinking .eye i{background:#f6ecd2;opacity:.9}
+
+@media (prefers-reduced-motion:reduce){
+  .room-eyes.eyes-choir .eye,.room-eyes.eyes-sundered .eye{animation:none}
+}
+/* the slit pupil */
+.room-eyes .eye i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:calc(2.4px * var(--eye-scale,1));height:calc(7px * var(--eye-scale,1));
+  border-radius:50%;background:rgba(6,4,10,.85)}
+@keyframes eyeColor{
+  0%   {color:#e04a3c}
+  14.3%{color:#e8c334}
+  28.6%{color:#43a94c}
+  42.9%{color:#3ec6cf}
+  57.2%{color:#3d76d4}
+  71.5%{color:#c451b5}
+  85.8%{color:#8a7fb5}
+  100% {color:#e04a3c}
+}
+/* A blink is a fast vertical squash, held open most of the cycle. */
+@keyframes eyeBlink{
+  0%,88%,100%{transform:scaleY(1)}
+  92%{transform:scaleY(.08)}
+  96%{transform:scaleY(1)}
+}
+@media (prefers-reduced-motion:reduce){
+  .room-eyes,.room-eyes .eye{animation:none}
+  .room-eyes{color:#8a7fb5}
+}
+
+/* ---- the enemy's pass marker ----
+   The opponent passing used to be silent: the turn simply came back and the
+   player had to infer it from the log. A physical token laid beside the board
+   says it without a popup to dismiss. Sits in the stage's top-left corner,
+   clear of the board's own bounding box. */
+/* Laid flat on the table, not stuck to the screen. The board is tilted away
+   from the viewer, so a marker resting on the same surface has to lean the same
+   way — an upright disc floating beside a receding board reads as interface,
+   not as a piece someone put down. Same rotateX as the board, and the label is
+   counter-tilted just enough to stay legible.
+
+   --pass-tilt and --pass-y are written by the aligner so the marker tracks the
+   board's own perspective and sits level with its near edge. */
+.pass-puck{position:absolute;left:6px;top:var(--pass-y,6px);z-index:12;pointer-events:none;
+  width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  transform:perspective(var(--pass-persp,1000px)) rotateX(var(--pass-tilt,40deg));
+  transform-origin:50% 100%;
+  background:
+    radial-gradient(ellipse at 50% 34%, rgba(255,255,255,.30) 0%, rgba(255,255,255,0) 55%),
+    repeating-linear-gradient(96deg, rgba(43,26,13,.30) 0 2px, rgba(122,83,48,.16) 2px 5px),
+    linear-gradient(168deg, #8a5f33 0%, #6b4726 52%, #4a301a 100%);
+  border:1px solid #2b1a0d;
+  box-shadow:0 5px 0 #34210f, 0 7px 12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,222,170,.28);
+  animation:passDrop .34s cubic-bezier(.2,1.3,.5,1)}
+.pass-puck[hidden]{display:none}
+.pass-puck span{font-family:'Big Shoulders Display',sans-serif;font-weight:800;
+  font-size:15px;letter-spacing:.09em;text-transform:uppercase;color:#f2dcb4;
+  /* the disc leans away; the word leans back so it stays readable on it */
+  transform:rotateX(calc(var(--pass-tilt,40deg) * -0.55));
+  text-shadow:0 1px 0 #2b1a0d,0 0 8px rgba(0,0,0,.6)}
+/* The drop keeps the tilt: animating `transform` wholesale would flatten the
+   puck for the duration and it would snap upright mid-fall. */
+@keyframes passDrop{
+  0%{opacity:0;transform:perspective(var(--pass-persp,1000px)) rotateX(var(--pass-tilt,40deg)) translateY(-18px) scale(.84)}
+  60%{opacity:1}
+  100%{opacity:1;transform:perspective(var(--pass-persp,1000px)) rotateX(var(--pass-tilt,40deg)) translateY(0) scale(1)}
+}
+@media (max-width:360px){
+  .pass-puck{width:42px;height:42px;left:4px;top:4px}
+  .pass-puck span{font-size:12px}
+}
+@media (prefers-reduced-motion:reduce){ .pass-puck{animation:none} }
+
+/* ---- enemy rank + rule icons ---- */
+.enemy-rank{display:inline-flex;vertical-align:-3px;margin-right:5px}
+.enemy-rank .ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.enemy-rank .rank-boss{color:#f3c86a}
+.enemy-rank .rank-boss svg{fill:currentColor;stroke:none}
+.enemy-rank .rank-elite{color:#d8a0e8}
+.enemy-rank .rank-elite svg{fill:currentColor;stroke:none}
+/* The rules sit in their own layer above the play area. They used to be in the
+   flow, which meant the board lost height to them and then shifted again every
+   time a rule was tapped open \u2014 the whole board resizing under the player's
+   thumb as they read. Absolute positioning costs the layout nothing, so opening
+   and closing a rule now changes nothing but the rule. */
+#screen-battle{position:relative}
+.enemy-rules-layer{position:absolute;left:0;right:0;top:0;z-index:14;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:5px 10px 0;pointer-events:none}
+.enemy-rules-layer[hidden]{display:none}
+.enemy-rules{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;margin:0;
+  pointer-events:auto}
+.enemy-rules[hidden]{display:none}
+.rule-ic{display:inline-flex;align-items:center;gap:1px;cursor:pointer;
+  background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:7px;
+  padding:3px 5px;color:inherit;font:inherit;line-height:1}
+.rule-ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.rule-ic .icn{font-size:9.5px;font-style:normal;opacity:.9}
+.rule-ic.on,.rule-ic:hover{border-color:currentColor;background:rgba(255,255,255,.07)}
+.enemy-rule-text{margin:0;max-width:340px;font-size:11.5px;line-height:1.4;
+  color:var(--ink);text-align:center;pointer-events:auto;
+  background:rgba(10,12,18,.93);border:1px solid var(--line);border-radius:9px;
+  padding:8px 11px;box-shadow:0 8px 22px rgba(0,0,0,.5)}
+.enemy-rule-text[hidden]{display:none}
+.enemy-icons .ic{display:inline-flex;align-items:center;gap:1px;margin-right:4px}
+.enemy-icons .ic svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.enemy-icons .icn{font-size:9px;font-style:normal;opacity:.9}
+
+/* A trophy pick should not look like a routine one. */
+.screen.trophy .reward-pick{border-color:var(--gold-t,#f3c86a);box-shadow:0 0 0 1px rgba(243,200,106,.35),0 6px 18px rgba(0,0,0,.35)}
+.screen.trophy #rewardHead{color:var(--gold-t,#f3c86a)}
+.rarity-legendary{color:var(--gold-t,#f3c86a)}
+
+/* ---- act select ---- */
+.act-picks{display:flex;flex-direction:column;gap:11px;margin:6px 0 16px}
+.act-pick{position:relative;isolation:isolate;overflow:hidden;display:block;text-align:left;cursor:pointer;
+  background:var(--panel-2);border:1px solid var(--line);border-left:5px solid var(--act,#888);
+  border-radius:11px;padding:0;color:inherit;font:inherit;min-height:118px;
+  transition:transform .12s,border-color .12s}
+.act-pick:hover,.act-pick:focus-visible{transform:translateY(-2px);border-color:var(--act,#888)}
+.act-pick .act-art{position:absolute;inset:0;z-index:0;
+  background-image:var(--act-art,none);background-size:cover;
+  background-position:50% var(--act-art-y,25%);
+  filter:var(--act-art-filter,none)}
+/* Reads bottom-heavy because the words sit low: nearly opaque under the text,
+   thinning toward the top so the room is still visible above it. */
+.act-pick .act-scrim{position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,
+    rgba(8,10,14,.34) 0%, rgba(8,10,14,.58) 42%, rgba(8,10,14,.88) 100%)}
+.act-pick .act-copy{position:relative;z-index:2;display:flex;flex-direction:column;gap:5px;
+  padding:13px 14px}
+.act-pick .act-name{font-family:'Big Shoulders Display',sans-serif;font-size:21px;letter-spacing:.03em;
+  color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.85),0 0 14px rgba(0,0,0,.6)}
+.act-pick .act-blurb{font-size:12.5px;color:#e7e2d8;line-height:1.45;
+  text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.act-pick .act-boss{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:#c9c2b4;
+  text-shadow:0 1px 3px rgba(0,0,0,.9)}
+.act-shut{border-top:1px dashed var(--line);padding-top:11px}
+.act-shut .lbl{display:block;font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);margin-bottom:7px}
+.act-shut ul{list-style:none;margin:0 0 9px;padding:0;display:flex;flex-direction:column;gap:6px}
+.act-shut li{font-size:12px;color:var(--ink-2)}
+.act-shut i{color:var(--ink-3);font-size:11px}
+
+.summary{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.summary div{flex:1;min-width:90px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px;text-align:center}
+.summary .tag{display:block;font-size:9px;letter-spacing:.14em;color:var(--ink-3)}
+.summary b{font-family:'Big Shoulders Display',sans-serif;font-size:23px}
+.primary{width:100%;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);
+  color:var(--ink);font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer;margin-top:4px}
+.primary:hover{border-color:var(--you);color:var(--you)}
+
+/* battle */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(310px,362px);gap:18px;align-items:start}
+.layout>*{min-width:0}
+.board-panel,.hand-panel,.hand{min-width:0;max-width:100%}
+@media (max-width:940px){.layout{grid-template-columns:1fr}}
+.board-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);margin-bottom:13px}
+.omens{display:flex;align-items:center;gap:5px}
+.omen-dot{width:13px;height:13px;border-radius:50%;border:2px solid rgba(255,255,255,.55);
+  animation:omen 2.6s ease-in-out infinite}
+@keyframes omen{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.12)}}
+.omen-pip{width:7px;height:13px;border-radius:3px;background:var(--mix);opacity:.85}
+.haz-mark{cursor:pointer}
+.haz-mark .hm-disc{fill:var(--panel-2);stroke-width:3}
+.haz-mark.colorless .hm-disc{stroke:#8f86f0}
+.haz-mark.scorch .hm-disc{stroke:#d8703a}
+.haz-mark .hm-icon{fill:none;stroke-width:3.5;stroke-linecap:round}
+.haz-mark.colorless .hm-icon{stroke:#8f86f0}
+.haz-mark.scorch .hm-icon{stroke:#d8703a}
+.haz-mark:hover .hm-disc{filter:brightness(1.4)}
+.haz-mark.selected .hm-disc{fill:#33302a;stroke-width:4}
+svg#board{width:100%;height:auto;display:block;touch-action:manipulation;overflow:visible}
+.board-stage{position:relative}
+
+/* opponent hand — card backs, not just a number */
+.action-bar{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 14px;margin-bottom:13px;box-shadow:var(--shadow)}
+.enemy-hand{display:flex;align-items:center;justify-content:center;min-height:63px}
+/* A symmetric margin (half the overlap on each side, no first/last exception)
+   fans the stack the same as a one-sided negative margin, but centers cleanly:
+   an asymmetric margin — zero on one end, full on the other — pulls the
+   flex line's centering point off by half the overlap, which is small but
+   measurable and made the whole fan sit visibly off-centre. */
+.card-back{width:46px;height:63px;flex:none;border-radius:6px;margin:0 -8px;
+  border:1px solid #7a4d16;
+  background:repeating-linear-gradient(135deg,#6d4718 0 4px,#8a5c22 4px 8px);
+  box-shadow:0 2px 5px rgba(0,0,0,.5);animation:dealIn .28s ease-out backwards;
+  animation-delay:calc(var(--i) * 40ms)}
+@keyframes dealIn{from{opacity:0;transform:translateY(-10px) rotate(-8deg)}to{opacity:1;transform:none}}
+.deckcount{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-3);margin-left:auto}
+
+/* action banner for opponent moves */
+.action-toast{position:absolute;top:6px;left:50%;transform:translateX(-50%) translateY(-8px);
+  z-index:4;padding:8px 15px;border-radius:999px;font:600 12.5px/1 'IBM Plex Sans',sans-serif;
+  background:rgba(30,26,20,.96);border:1px solid var(--line);color:var(--ink);
+  box-shadow:0 6px 20px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.22s}
+.action-toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.action-toast.enemy{border-color:var(--opp);color:#f6dcb6}
+
+/* board effects */
+.fx-layer{pointer-events:none}
+.fx-burst{fill:none;stroke-width:6;opacity:.9;animation:burst .8s ease-out forwards}
+@keyframes burst{from{r:34;opacity:.95;stroke-width:9}to{r:96;opacity:0;stroke-width:2}}
+.fx-fly{transition:transform .42s cubic-bezier(.5,0,.3,1);opacity:.95}
+.fx-fly.going{opacity:.15}
+.fx-fly-text{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:44px}
+.fx-haz{opacity:0;animation:hazsweep 1.1s ease-out forwards}
+.fx-haz.colorless{fill:#8f86f0}
+.fx-haz.scorch{fill:#d8703a}
+@keyframes hazsweep{0%{opacity:0}25%{opacity:.65}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  .fx-burst,.fx-haz,.card-back{animation:none}
+  .fx-fly{transition:none}
+}
+
+.tile{cursor:default;outline:none}
+/* fill:none is what makes the tile click-through by default — an unfilled
+   SVG shape isn't hit-tested in its interior, so taps fall to the board
+   canvas underneath instead of the tile. pointer-events:all is the actual
+   fix (hit-test the geometry regardless of paint), so the fill can go back
+   to none without losing the ability to tap the tile — no visible fill is
+   needed to keep it clickable. */
+.tile-shape{stroke:#ff6a00;stroke-width:4;fill:none;pointer-events:all;transition:filter .15s}
+.tile.hazard-scorch .tile-shape{filter:saturate(.35) brightness(.72)}
+.tile.hazard-colorless .tile-shape{stroke:#8f86f0;stroke-width:6;stroke-dasharray:9 6}
+.tile-min{font-family:'IBM Plex Mono',monospace;font-size:26px;opacity:.45;pointer-events:none;display:none}
+.tile.row1.side-bottom .tile-min,.tile.row3.side-bottom .tile-min{fill:#efeade}
+.tile.row2.side-bottom .tile-min{fill:#2a2620}
+.tile.row1.side-top .tile-min,.tile.row3.side-top .tile-min{fill:#2a2415}
+.tile.row2.side-top .tile-min{fill:#2a1f06}
+.tile.occupied .tile-min{display:none}
+.tile-owner,.tile-token,.tile-token-text,.tile-fx,
+.tile-puck-side,.tile-grain,.tile-sheen,.tile-contact,.tile-side-grain{display:none;pointer-events:none}
+.tile.occupied .tile-owner,.tile.occupied .tile-token,.tile.occupied .tile-token-text,
+.tile.occupied .tile-fx,.tile.occupied .tile-puck-side,.tile.occupied .tile-grain,
+.tile.occupied .tile-sheen,.tile.occupied .tile-contact,.tile.occupied .tile-side-grain{display:block}
+.tile-side-grain{pointer-events:none;mix-blend-mode:multiply;opacity:.75}
+/* ---- the puck ----
+   Drawn back to front: the shadow it casts on the board, the side wall, the
+   coloured top face, the grain over that face, then the sheen. */
+.tile-contact{fill:rgba(0,0,0,.42);filter:blur(3px)}
+.tile-puck-side{stroke:#120c07;stroke-width:2}
+/* The grain has to survive being drawn over seven very different colours, so
+   it is a dark multiply rather than a tinted overlay: it darkens whatever is
+   underneath instead of trying to add its own brown on top. */
+.tile-grain{pointer-events:none;mix-blend-mode:multiply;opacity:.85}
+.tile-sheen{fill:url(#puckSheen);pointer-events:none}
+.tile.colorless .tile-grain{opacity:.35}
+.tile-owner{stroke-width:0}
+.tile.side-bottom .tile-owner{fill:var(--you)}
+.tile.side-top .tile-owner{fill:var(--opp)}
+.tile.frontline .tile-owner{stroke:#fff;stroke-width:4}
+.tile-token{stroke:#0d0b09;stroke-width:2;transform-box:fill-box;transform-origin:center}
+.tile.colorless .tile-token{stroke-dasharray:6 5;stroke:#8f86f0;stroke-width:3}
+.tile-token-text{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:44px}
+.tile-fx{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:28px;fill:#fff;paint-order:stroke;stroke:#0d0b09;stroke-width:5}
+.tile-ring{fill:none;stroke:var(--you);stroke-width:5;opacity:0;pointer-events:none;transition:opacity .15s}
+.tile.inspected .tile-ring{opacity:1}
+.tile.side-top.inspected .tile-ring{stroke:var(--opp)}
+.tile.placeable,.tile.mixable,.tile.targetable{cursor:pointer}
+.tile.placeable .tile-shape{stroke:var(--you);stroke-width:6.5;filter:brightness(1.12)}
+.tile.mixable .tile-shape{stroke:var(--mix);stroke-width:6.5;filter:brightness(1.15)}
+.tile.targetable .tile-shape{stroke:var(--target);stroke-width:7.5;filter:brightness(1.2)}
+.tile.mix-base .tile-ring{opacity:1;stroke:var(--mix);stroke-dasharray:7 6}
+.tile.placeable:hover .tile-shape,.tile.targetable:hover .tile-shape{filter:brightness(1.35)}
+.tile:focus-visible .tile-shape{stroke:#fff;stroke-width:7.5}
+.tile.just-placed .tile-token{animation:pop .28s ease-out}
+@keyframes pop{from{transform:scale(.35)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.tile.just-placed .tile-token{animation:none}}
+.conn-layer{pointer-events:none}
+.lane-line{stroke:rgba(240,235,225,.26);stroke-width:3;stroke-dasharray:5 8}
+.lane-line.you-win{stroke:var(--you);stroke-width:5;stroke-dasharray:none;opacity:.9}
+.lane-line.opp-win{stroke:var(--opp);stroke-width:5;stroke-dasharray:none;opacity:.9}
+.lane-line.both{stroke:var(--mix);stroke-width:5;stroke-dasharray:none;opacity:.9}
+
+/* A fissure is drawn as a split in the table itself: a dark gap with a pale
+   lip on one side, so it reads as depth rather than as another lane line. */
+.fissure-layer{pointer-events:none}
+.fissure path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.fissure-glow{stroke:#8ff2ff;stroke-width:16;opacity:.30;filter:blur(5px)}
+.fissure-halo{stroke:#dcfbff;stroke-width:6.5;opacity:.75}
+.fissure-core{stroke:#fff;stroke-width:2.2;opacity:1}
+.fissure{filter:drop-shadow(0 0 5px rgba(180,245,255,.9)) drop-shadow(0 0 13px rgba(120,225,255,.55))}
+/* A bridge is the board folded shut rather than split open: same light, but a
+   smooth span instead of a jagged tear, and dashed so it never reads as an
+   edge that was always there. */
+.fissure-bridge .fissure-core{stroke-dasharray:9 7}
+.fissure-bridge .fissure-halo{stroke-width:5.5;opacity:.6}
+/* Deepening scars burn harder. Power is capped at 4, so is this ramp. */
+.fissure-p2 .fissure-glow{stroke-width:22;opacity:.42}
+.fissure-p2 .fissure-halo{stroke-width:8.5}
+.fissure-p2 .fissure-core{stroke-width:3}
+.fissure-p2{filter:drop-shadow(0 0 8px rgba(200,248,255,.95)) drop-shadow(0 0 20px rgba(120,225,255,.7))}
+.fissure-p3 .fissure-glow{stroke-width:28;opacity:.55}
+.fissure-p3 .fissure-halo{stroke-width:11}
+.fissure-p3 .fissure-core{stroke-width:3.8}
+.fissure-p3{filter:drop-shadow(0 0 11px rgba(215,250,255,1)) drop-shadow(0 0 28px rgba(140,230,255,.8))}
+.fissure-p4 .fissure-glow{stroke-width:36;opacity:.68}
+.fissure-p4 .fissure-halo{stroke-width:14}
+.fissure-p4 .fissure-core{stroke-width:4.6}
+.fissure-p4{filter:drop-shadow(0 0 15px #eafcff) drop-shadow(0 0 38px rgba(150,235,255,.9));
+  animation:scarPulse 2.6s ease-in-out infinite}
+@keyframes scarPulse{50%{filter:drop-shadow(0 0 22px #fff) drop-shadow(0 0 52px rgba(170,240,255,1))}}
+@media (prefers-reduced-motion:reduce){.fissure-p4{animation:none}}
+.fissure-new path{animation:tear .6s ease-out}
+@keyframes tear{from{opacity:0;stroke-width:30}}
+@media (prefers-reduced-motion:reduce){.fissure-new path{animation:none}}
+#rewindBtn:hover:not(:disabled){border-color:var(--mix);color:var(--mix)}
+/* Icon-only, so it stays square next to a Pass button whose label changes
+   length. The cross is drawn over the arrow once the round's Rewind is spent. */
+#rewindBtn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px}
+#rewindBtn .rw{width:20px;height:20px;display:block;overflow:visible}
+#rewindBtn .rw path,#rewindBtn .rw line{fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#rewindBtn .rw .rw-arrow{fill:currentColor;stroke:none}
+#rewindBtn .rw .rw-cross{stroke:#d2553f;stroke-width:2.4;opacity:0}
+#rewindBtn.spent .rw-cross{opacity:1}
+#rewindBtn.spent .rw-loop,#rewindBtn.spent .rw-arrow{opacity:.4}
+
+.hand-panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px;box-shadow:var(--shadow)}
+.hand-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.hand-head h2{font-size:14px;color:var(--ink-2)}
+.hand-head span{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-3)}
+.hand{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 8px}
+.card{flex:0 0 auto;width:104px;min-height:120px;border-radius:11px;border:2px solid transparent;background:var(--panel-2);
+  color:var(--ink);cursor:pointer;display:flex;flex-direction:column;gap:5px;padding:8px;transition:.14s;text-align:left;
+  font-family:'IBM Plex Sans',sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.4);border-top:5px solid var(--card)}
+.card:hover:not(:disabled){transform:translateY(-4px)}
+.card.selected{border-color:#fff;transform:translateY(-7px)}
+.card:disabled{opacity:.45;cursor:not-allowed}
+.card.unplayable{opacity:.4}
+.card-top{align-self:flex-start;font-family:'Big Shoulders Display',sans-serif;font-size:26px;font-weight:800;line-height:1;
+  background:var(--card);color:var(--card-ink);border-radius:7px;padding:3px 9px;min-width:34px;text-align:center}
+.card.spell .card-top,.card.hazard .card-top{font-size:14px;padding:6px 8px;background:#4a4438;color:var(--ink)}
+.card-name{font-size:11.5px;font-weight:600;line-height:1.2}
+.card-text{font-size:9.5px;line-height:1.35;color:var(--ink-2)}
+/* Cards stretch to the tallest in the hand, so a wordy card no longer leaves
+   its neighbours short. min-height stays as the floor for a near-empty hand. */
+.hand{align-items:stretch;padding-top:34px}
+.card{position:relative;transform-origin:bottom center}
+.card .iconrow{margin-top:auto}
+.card:hover:not(:disabled),.card.selected{transform:translateY(-6px);z-index:6;
+  box-shadow:0 14px 30px rgba(0,0,0,.65)}
+.card.selected{border-color:#fff}
+.card .card-blurb{display:none}
+/* Card rules text wraps and the box grows to hold it. It used to be a fixed
+   30px with nowrap and overflow:hidden, which silently ate the end of any
+   longer rule. */
+/* Fixed at two lines. A min-height still let the panel grow the moment a card
+   wrapped, which shunted the board down mid-hover; a definite height means the
+   longest card in the game and the shortest reserve exactly the same space. */
+.card-peek{height:calc(2 * 1.35em + 8px);display:flex;align-items:center;gap:9px;padding:3px 2px;
+  font-size:11.5px;line-height:1.35;color:var(--ink-2);white-space:normal;
+  overflow-wrap:anywhere;overflow:hidden;width:100%;min-width:0;
+  /* Now a real button, so it needs its own reset — the tap target that used to
+     show a silently truncated two lines is the same element that now opens the
+     full text, and it should look inviting to tap, not like plain text. */
+  background:none;border:none;border-radius:8px;text-align:left;font-family:inherit;cursor:pointer;
+  margin:0;-webkit-appearance:none;appearance:none;
+  transition:background-color .12s}
+.card-peek:hover,.card-peek:focus-visible{background:rgba(255,255,255,.06)}
+.card-peek:active{background:rgba(255,255,255,.1)}
+/* The clipped strip is still a fair two-line summary; this hint is the one
+   honest signal that there is more to read, so a fused card's third and
+   fourth sentence do not just silently vanish below the fold the way they
+   used to. Shown only once a real card is loaded (see the `.has-more` class
+   toggled alongside the peek content itself), never on the empty prompt. */
+.card-peek.has-more::after{content:'\2026 tap to read all';flex:none;align-self:flex-end;
+  font-size:9.5px;font-style:italic;color:var(--ink-3);white-space:nowrap;padding-left:2px}
+.card-peek b{color:var(--ink);font-size:12px}
+.card-peek .peek-empty{color:var(--ink-3);font-style:italic}
+.card-peek .glyph{width:15px;height:15px}
+/* the mix card lives in the hand instead of a button */
+.card.mixcard{background:linear-gradient(160deg,#2e2140,#241a2e);border-top-color:var(--mix)}
+.card.mixcard .card-top{background:var(--mix);color:#fff}
+.card.mixcard .glyph path{stroke:#e3d3f5}
+
+.enemy-colors{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 10px}
+.tut-modal{max-width:600px}
+.tut-art{background:#131110;border:1px solid var(--line);border-radius:12px;padding:8px 4px;margin:0 0 14px}
+.tut-art.plain{background:transparent;border:none;padding:0}
+.tut-ui .lbl{margin-bottom:7px}
+.tut-rack{display:flex;gap:8px;margin-bottom:14px}
+.tut-card{position:relative;flex:1;min-width:0;border-radius:11px;border:2px solid transparent;
+  border-top:5px solid var(--card);background:var(--panel-2);padding:8px;display:flex;flex-direction:column;gap:4px}
+.tut-card .card-top{align-self:flex-start;font-family:'Big Shoulders Display',sans-serif;font-size:22px;
+  font-weight:800;line-height:1;background:var(--card);color:var(--card-ink);border-radius:6px;padding:2px 8px;min-width:28px;text-align:center}
+.tut-card .card-name{font-size:11px;font-weight:600;line-height:1.2}
+.tut-card .card-text{font-size:9px;line-height:1.35;color:var(--ink-2)}
+.tut-actions-mock{display:flex;gap:8px}
+.tut-fakebtn{position:relative;flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--ink);font:600 13.5px/1 'IBM Plex Sans',sans-serif;text-align:center}
+.tut-fakebtn-icon{display:flex;align-items:center;justify-content:center}
+.tut-fakebtn-icon .rw{width:20px;height:20px;overflow:visible}
+.tut-fakebtn-icon .rw path{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tut-fakebtn-icon .rw .rw-arrow{fill:currentColor;stroke:none}
+.tut-pin{position:absolute;top:-11px;left:-11px;width:26px;height:26px;border-radius:50%;
+  background:var(--target);color:#20180a;border:3px solid #fdf6e0;
+  font:800 15px/20px 'Big Shoulders Display',sans-serif;text-align:center;z-index:2}
+.tut-lanepill{fill:#161a19;stroke:rgba(63,205,181,.4);stroke-width:2}
+.tut-flow{fill:none;stroke-width:7;opacity:.75;stroke-linecap:round}
+.tut-arrow{opacity:.9}
+.tut-amtbox{fill:#131110;stroke-width:3}
+.tut-amt{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:36px}
+.tut-owner.front{stroke:#fff;stroke-width:5}
+.tut-fx{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:40px;fill:#fff;
+  paint-order:stroke;stroke:#0d0b09;stroke-width:7}
+.tut-svg{width:100%;height:auto;display:block}
+.tut-tile{stroke:#0d0b09;stroke-width:3}
+.tut-tile.row1.side-bottom,.tut-tile.row3.side-bottom{fill:var(--charcoal)}
+.tut-tile.row2.side-bottom{fill:var(--bone)}
+.tut-tile.row1.side-top,.tut-tile.row3.side-top{fill:var(--parchment)}
+.tut-tile.row2.side-top{fill:var(--gold)}
+.tut-lane{fill:rgba(63,205,181,.07);stroke:rgba(63,205,181,.28);stroke-width:2;stroke-dasharray:8 7}
+.tut-laneno{font-family:'IBM Plex Mono',monospace;font-size:30px;letter-spacing:.12em;fill:var(--you);opacity:.75}
+.tut-owner{stroke-width:0}
+.tut-owner.you{fill:var(--you)}
+.tut-owner.foe{fill:var(--opp)}
+.tut-token{stroke:#0d0b09;stroke-width:3}
+.tut-str{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:50px}
+.tut-owner.faded,.tut-token.faded,.tut-str.faded{opacity:.28}
+.tut-lead{stroke:var(--target);stroke-width:3.5;stroke-dasharray:9 7;opacity:.9}
+.tut-badge{fill:var(--target);stroke:#fdf6e0;stroke-width:5}
+.tut-badgeno{font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:38px;fill:#20180a}
+.tut-legend{list-style:none;counter-reset:tl;margin:0 0 16px;padding:0}
+.tut-legend li{counter-increment:tl;position:relative;padding:7px 0 7px 34px;font-size:13px;
+  line-height:1.5;color:var(--ink-2);border-top:1px dashed var(--line)}
+.tut-legend li:first-child{border-top:none}
+.tut-legend li::before{content:counter(tl);position:absolute;left:0;top:8px;width:22px;height:22px;
+  border-radius:50%;background:var(--target);color:#20180a;font:800 13px/22px 'Big Shoulders Display',sans-serif;
+  text-align:center}
+.tut-legend b{color:var(--ink)}
+.tut-count{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.16em;color:var(--you)}
+.tut-modal h2{font-size:22px;margin:6px 0 10px}
+.tut-text{font-size:14px;line-height:1.6;color:var(--ink-2);margin:0 0 16px}
+.tut-text b{color:var(--ink)}
+.tut-dots{display:flex;gap:6px;margin-bottom:16px}
+.tut-dot{width:22px;height:3px;border-radius:2px;background:var(--line)}
+.tut-dot.on{background:var(--you)}
+.tut-off{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-3);margin-bottom:14px;cursor:pointer}
+.tut-off input{width:16px;height:16px;accent-color:var(--you)}
+.tut-actions{display:flex;gap:8px}
+.tut-btn{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);background:var(--you-dim);
+  color:var(--ink);font:600 13.5px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+.tut-btn:hover:not(:disabled){border-color:var(--you);color:#fff}
+.tut-btn.ghost{background:var(--panel-2);color:var(--ink-2)}
+.tut-btn:disabled{opacity:.35;cursor:not-allowed}
+.ease-note{font-size:11.5px;color:var(--you);margin:0 0 10px}
+.ease-note[hidden]{display:none}
+.rule-note{font-size:12px;color:var(--ink-3);line-height:1.5;margin:0 0 14px;padding-top:10px;border-top:1px dashed var(--line)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{flex:1;min-width:92px;padding:12px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);
+  color:var(--ink);font:600 13.5px/1 'IBM Plex Sans',sans-serif;cursor:pointer;transition:.15s}
+.actions button:hover:not(:disabled){border-color:var(--you);color:var(--you)}
+#mixBtn:hover:not(:disabled){border-color:var(--mix);color:var(--mix)}
+#mixBtn.armed{background:var(--mix-dim);border-color:var(--mix);color:#fff}
+#wildBtn{border-color:var(--relic);color:#cfc9ff}
+#cancelBtn{border-color:var(--target);color:var(--target)}
+.actions button:disabled{opacity:.35;cursor:not-allowed}
+.lane-row{display:grid;grid-template-columns:18px 1fr auto 1fr;align-items:center;gap:7px;padding:8px 0;border-top:1px dashed var(--line)}
+.lane-row:first-child{border-top:none}
+.lane-row.quiet{opacity:.38}
+.lane-id{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3);text-align:center}
+.lane-side{display:flex}
+.lane-side.opp{justify-content:flex-end;text-align:right}
+.lane-empty{color:var(--ink-3);font-size:12px}
+.lane-unit{display:flex;flex-direction:column;line-height:1.25;border-left:3px solid var(--c);padding-left:8px}
+.lane-side.opp .lane-unit{border-left:none;border-right:3px solid var(--c);padding-left:0;padding-right:8px;align-items:flex-end}
+.lane-tot{display:flex;align-items:baseline;gap:4px}
+.lane-unit b{font-family:'Big Shoulders Display',sans-serif;font-size:21px}
+.lane-unit .x2{font-style:normal;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--mix)}
+.lane-unit em{font-style:normal;font-size:10px;color:var(--ink-3)}
+.lane-unit .brk{font-size:9.5px;opacity:.85}
+.mid{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-3);text-align:center;white-space:nowrap;padding:0 2px}
+.mid.you{color:var(--you);font-weight:600}.mid.opp{color:var(--opp);font-weight:600}.mid.both{color:var(--mix);font-weight:600}
+#inspector{font-size:13px;line-height:1.55;color:var(--ink-2)}
+#inspector b{color:var(--ink)}
+.inspect-sub{margin:0 0 8px;display:flex;align-items:center;gap:7px}
+.card-rules{font-size:12px;color:var(--ink-2);margin:0 0 9px;padding:8px 10px;background:var(--panel-2);border-radius:8px;line-height:1.45}
+.link-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px dashed var(--line)}
+.inspect-note{margin:9px 0 0;font-size:12px;color:var(--ink-3);line-height:1.45}
+.inspect-note .good{color:var(--you)}
+.inspect-note .bad{color:var(--opp)}
+.matchup{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px dashed var(--line)}
+.matchup .lbl{margin:0;flex:none;width:96px}
+.mchips{display:flex;gap:4px;flex-wrap:wrap}
+#logList{list-style:none;margin:0;padding:0;max-height:160px;overflow-y:auto}
+#logList li{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-2);padding:6px 0;border-top:1px dashed var(--line);line-height:1.45}
+#logList li:first-child{border-top:none;color:var(--ink)}
+
+.overlay{position:fixed;inset:0;background:rgba(10,9,7,.78);display:flex;align-items:center;justify-content:center;padding:18px;z-index:60}
+.overlay[hidden]{display:none}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;max-width:720px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow)}
+.modal h2{font-size:21px;margin-bottom:10px}
+.result-score{display:flex;align-items:baseline;gap:10px;font-family:'Big Shoulders Display',sans-serif;font-size:28px;font-weight:800;margin:0 0 8px}
+.result-score .you{color:var(--you)}.result-score .opp{color:var(--opp)}.result-score .vs{color:var(--ink-3)}
+.tiebreak{font-size:12.5px;color:#e0a530;margin:0 0 10px}
+.lane-table{width:100%;border-collapse:collapse;font-size:11.5px;margin:10px 0}
+.lane-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.08em;color:var(--ink-3);font-weight:500;padding:5px;border-bottom:1px solid var(--line)}
+.lane-table td{padding:7px 5px;border-bottom:1px dashed var(--line);color:var(--ink-2);vertical-align:middle}
+.lane-table td.lane-no{color:var(--ink-3);font-family:'IBM Plex Mono',monospace}
+.lane-table td.num{font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.lane-table .tot{font-family:'Big Shoulders Display',sans-serif;font-size:18px;color:var(--ink);margin-left:7px}
+.lane-table .fx{color:var(--mix);font-family:'IBM Plex Mono',monospace;font-size:10px}
+.lane-table .detail{display:block;font-style:normal;font-size:9.5px;color:var(--ink-3);margin-top:3px}
+.match-line{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-2);margin:6px 0 14px}
+.test-list{list-style:none;margin:0 0 14px;padding:0}
+.test-list li{display:flex;gap:10px;font-size:12.5px;padding:6px 0;border-top:1px dashed var(--line);color:var(--ink-2)}
+.test-list li span:first-child{font-family:'IBM Plex Mono',monospace;font-size:10px;flex:none;width:38px;padding-top:2px}
+.test-list li.ok span:first-child{color:var(--you)}
+.test-list li.bad{color:var(--bad)}.test-list li.bad span:first-child{color:var(--bad)}
+.test-list em{color:var(--ink-3);font-style:normal}
+#continueBtn{width:100%;padding:13px;border-radius:11px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+#continueBtn:hover{border-color:var(--you);color:var(--you)}
+footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:20px}
+
+/* ===== battle fits one screen, never scrolls ===== */
+body.battle-mode,html.battle-mode{overflow:hidden;height:100%}
+html{background:#141210}
+/* pin the art to the visual viewport so nothing can leave a gutter beside it */
+.room{width:100vw;height:100dvh}
+body.battle-mode .wrap{position:relative;z-index:1}
+/* one continuous space: the panels lose their frames */
+body.battle-mode .board-panel,
+body.battle-mode .hand-panel,
+body.battle-mode .action-bar,
+body.battle-mode .runbar{background:transparent;border:none;box-shadow:none;border-radius:0}
+body.battle-mode .runbar{border-bottom:1px solid rgba(196,150,96,.14);padding-left:2px;padding-right:2px}
+body.battle-mode .hand-panel{border-top:1px solid rgba(196,150,96,.14);padding-left:2px;padding-right:2px}
+body.battle-mode .board-panel{padding-left:0;padding-right:0;padding-bottom:0}
+/* The enemy's cards are the top of the play area; the board starts immediately
+   under them so no dead band sits between the two. Deliberately NOT
+   overriding .enemy-hand's min-height to 0 here (an earlier version of this
+   rule did) — that let the row collapse to near-nothing between rounds, in
+   the moment the enemy's hand is genuinely empty before the new one is
+   dealt, and since the board's own size is computed from how much space
+   this row takes up, that collapse made the board visibly resize itself
+   mid-battle. Keeping a stable min-height regardless of card count is what
+   keeps the board's size constant through a battle, which matters more than
+   the little reclaimed space ever did. */
+body.battle-mode .enemy-hand-row{margin-bottom:0}
+body.battle-mode .board-panel{padding-top:0;margin-top:0}
+body.battle-mode .wrap{height:100dvh;display:flex;flex-direction:column;padding-bottom:10px}
+body.battle-mode footer{display:none}
+body.battle-mode .eyebrow{display:none}
+body.battle-mode .head{margin-bottom:7px;align-items:center}
+body.battle-mode .head h1{font-size:16px;letter-spacing:.04em}
+body.battle-mode .head h1 em{display:none}
+body.battle-mode .runbar{padding:7px 12px;margin-bottom:7px;flex-wrap:nowrap}
+/* A narrower column on wide screens: full-width plaques read as empty banners,
+   and the room deserves the margins. */
+body.battle-mode .wrap{max-width:1060px}
+body.battle-mode .runbar b{font-size:16px}
+body.battle-mode #screen-battle{flex:1;min-height:0;display:flex;flex-direction:column}
+/* The board is the game; it never gets squeezed below a third of the viewport.
+   The hand gives up the space instead, its cards scaling with the room left. */
+/* The board's height is set directly in JS as "whatever is left after the other
+   rows," which sidesteps flexbox/dvh edge cases that either starved the board on
+   desktop or pushed the hand off-screen on short phones — both were seen in
+   testing. flex:none so grow/shrink never fight the explicit height. */
+body.battle-mode .board-panel{flex:none;display:flex;flex-direction:column;margin-bottom:4px;min-height:60px}
+/* The floor sits on the stage so it can actually grow to hold the board — a floor
+   on the tilt alone just overflowed the stage and got clipped. Narrow screens need
+   more because the scoreboard shares the stage there. */
+body.battle-mode .hand-panel{flex:0 1 auto;min-height:0}
+body.battle-mode .card{width:clamp(76px,21vw,104px);min-height:clamp(64px,12dvh,104px)}
+body.battle-mode .hand{overflow-x:auto;overflow-y:hidden}
+body.battle-mode svg#board{width:100%;height:100%}
+body.battle-mode .action-bar{margin-bottom:4px;padding:6px 10px}
+body.battle-mode .hand-panel{flex:none}
+body.battle-mode .enemy-colors .chip{font-size:9px;padding:1px 6px}
+body.battle-mode .deckcount{white-space:nowrap;font-size:9.5px}
+/* relics live in the deck viewer now, so the run bar stays on one line */
+body.battle-mode .relic-strip{display:none}
+body.battle-mode .runbar .cell .tag{font-size:8px;letter-spacing:.1em}
+body.battle-mode .deck-btn{padding:6px 10px;font-size:11px}
+body.battle-mode .deck-btn b{font-size:14px}
+body.battle-mode .menu-btn{width:30px;height:30px}
+
+/* a compact hand so the board keeps the room */
+body.battle-mode .hand-panel{padding:4px 11px 5px}
+body.battle-mode .hand-head{margin-bottom:3px}
+body.battle-mode .hand-head h2{font-size:12px}
+body.battle-mode .hand{gap:7px;padding-top:8px;padding-bottom:2px;align-items:stretch}
+body.battle-mode .card{width:94px;min-height:96px;padding:6px;gap:3px;border-top-width:4px}
+body.battle-mode .card-top{font-size:20px;padding:2px 7px;min-width:26px;border-radius:6px}
+body.battle-mode .card-name{font-size:10.5px}
+body.battle-mode .card-text{font-size:8.5px;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+body.battle-mode .ease-note{margin-bottom:5px}
+
+/* narrow screens: colour chips become dots so the enemy's name survives */
+@media (max-width:520px){
+  body.battle-mode .enemy-colors{flex-wrap:nowrap;gap:4px}
+  body.battle-mode .enemy-colors .chip{font-size:0;width:13px;height:13px;padding:0;border-radius:50%;
+    border:1px solid rgba(255,255,255,.3)}
+  body.battle-mode .card-back{width:35px;height:48px;margin:0 -6.3px}
+  body.battle-mode .enemy-colors .chip{width:14px;height:14px}
+  body.battle-mode .runbar{gap:9px}
+  body.battle-mode .runbar .cell:nth-of-type(3){display:none}
+  body.battle-mode .deckcount{display:none}
+}
+
+/* very short screens: strip the chrome back to what the turn actually needs */
+@media (max-height:730px){
+  body.battle-mode .head h1{display:none}
+  body.battle-mode .head{margin-bottom:5px}
+  body.battle-mode .runbar{padding:5px 10px;margin-bottom:5px}
+  body.battle-mode .board-panel{margin-bottom:3px;padding:4px 0}
+  body.battle-mode .action-bar{margin-bottom:3px;padding:5px 8px}
+  body.battle-mode .actions button{padding:9px}
+  body.battle-mode .hand-panel{padding:3px 8px 4px}
+  body.battle-mode .ease-note{display:none}
+  body.battle-mode .card-peek{height:calc(2 * 1.35em + 10px);margin-bottom:0;padding:3px 9px}
+  .peek-row{gap:3px;margin-bottom:3px}
+  .board-flank{gap:4px}
+  .peek-row{margin-bottom:3px}
+  body.battle-mode .side-btn{font-size:12.5px;padding:6px 14px}
+  body.battle-mode .hand-head{display:none}
+  body.battle-mode .card{width:78px;min-height:66px;gap:2px}
+  body.battle-mode .card-text{display:none}
+  body.battle-mode .card-name{font-size:9.5px}
+  body.battle-mode .card-top{font-size:17px}
+}
+
+/* ===== the room =====
+   A vibrant space with plants that drains toward ash as curses take hold.
+   --ash runs 0..1 with corruption and is set alongside --sat. */
+/* The painted scene, embedded so the build stays a single self-contained file.
+   It drains toward ash with corruption exactly as the drawn room did. */
+.room{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  filter:saturate(calc(1 - var(--ash,0) * .78)) brightness(calc(1 - var(--ash,0) * .12))}
+.room-art{position:absolute;inset:0;background-image:var(--bg-art);
+  background-size:cover;background-position:50% 42%;background-repeat:no-repeat;
+  /* --art-filter lets an act reuse another act's painting in a different key.
+     It sits on .room-art rather than .room so the corruption drain on the
+     parent still composes over the top of it. */
+  filter:var(--art-filter,none)}
+/* --room-dim lets a bright painting carry a heavier veil than a dark one. The
+   Radiant Grove is lit like an afternoon; at the Indigo Hollow's veil strength
+   its floor washed out the board's orange grid and the warm-up note on top of
+   it. The scene still reads, it just stops competing with the cards. */
+.room-veil{position:absolute;inset:0;background:
+  radial-gradient(120% 78% at 50% 46%, rgba(6,8,14,0) 34%, rgba(6,8,14,calc(.62 + var(--room-dim,0) * .22)) 100%),
+  linear-gradient(180deg,
+    rgba(8,10,16,calc(.58 + var(--room-dim,0) * .12)) 0%,
+    rgba(8,10,16,calc(.10 + var(--room-dim,0) * .30)) 22%,
+    rgba(6,10,18,calc(.16 + var(--room-dim,0) * .34)) 62%,
+    rgba(4,8,16,calc(.55 + var(--room-dim,0) * .20)) 100%)}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* as the world greys, the leaves wither toward ash */
+
+
+/* ===== the table ===== */
+/* The board owns the full stage now. Pass and Rewind used to hold their own
+   grid columns, which capped the board at whatever width was left over; they
+   now float on top of the board's outer bottom corners instead, so the board
+   itself can claim the full stage width. A little visual overlap with the
+   button edges is the accepted trade for the extra size. */
+.board-stage{overflow:hidden;position:relative;flex:1 1 auto;min-height:0}
+.board-flank{position:absolute;bottom:0;display:flex;flex-direction:column;
+  justify-content:flex-end;align-items:center;gap:6px;z-index:4;min-width:0}
+.flank-left{left:0}
+.flank-right{right:0}
+/* A near perspective splays the bottom edge wider than the box, which is how
+   the board used to creep under the scoreboard. A small horizontal inset
+   keeps the projected quad inside the stage's own clip so nothing gets cut
+   off — this is the only remaining margin; the flank buttons no longer
+   reserve any width of their own. */
+.board-tilt{position:relative;min-width:0;min-height:0;width:100%;height:100%;padding:0 1%;
+  perspective:3600px;perspective-origin:50% 46%;
+  display:flex;align-items:center;justify-content:center}
+/* The projected quad must stay inside its box or the stage clips the player's own
+   half off the bottom. Perspective swells the near edge a few percent, so the svg
+   is inset to absorb it — measured, not guessed. Width is the binding constraint
+   (the board letterboxes vertically at this aspect ratio), so height can run to
+   the full box; width keeps a sliver back to absorb the swell. */
+.board-tilt svg#board{width:99%;height:100%;transform:rotateX(26deg);transform-origin:50% 52%;
+  filter:drop-shadow(0 24px 26px rgba(0,0,0,.55))}
+@media (prefers-reduced-motion:reduce){.board-tilt svg#board{transform:none}}
+
+.sb-pips{display:flex;gap:3px}
+.pip{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--line);background:transparent}
+
+/* pass sits at your elbow, on your side of the table */
+.hand-panel{position:relative}
+/* Pass/Wild/Cancel now sit in normal flex flow beside the peek strip, rather
+   than floating over it — a fixed-width dodge broke whenever the button's own
+   text got longer (e.g. "Pass — ends round"), causing real overlap. Flow layout
+   can't overlap regardless of text length, on any device. */
+/* Buttons on their own row, the rules box full width beneath them. Column
+   layout so the box can use the whole panel width instead of sharing it. */
+.peek-row{display:flex;flex-direction:column;align-items:stretch;gap:4px;margin-bottom:4px}
+.side-btn{padding:11px 15px;border-radius:11px;border:1px solid var(--line);background:rgba(30,26,20,.94);
+  color:var(--ink);font:600 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer;transition:.15s;
+  text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.side-btn:hover:not(:disabled){border-color:var(--you);color:var(--you)}
+.side-btn:disabled{opacity:.35;cursor:not-allowed}
+#wildBtn{border-color:var(--relic);color:#cfc9ff}
+#cancelBtn{border-color:var(--target);color:var(--target)}
+
+/* ===== effect icons ===== */
+.iconrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.ic{position:relative;display:flex;align-items:center}
+.glyph{width:17px;height:17px}
+.glyph path{fill:none;stroke:var(--ink);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.icn{position:absolute;right:-5px;bottom:-4px;font-style:normal;font-family:'Big Shoulders Display',sans-serif;
+  font-weight:800;font-size:12px;color:var(--ink);background:var(--panel-2);border-radius:6px;padding:0 3px;
+  line-height:1.1}
+.modal.compact{max-width:520px}
+/* A large version of the card, not a document about it: same colour bar,
+   same badge, same icon row — just room enough that a three-effect fusion's
+   text has nowhere left to hide. */
+.card-detail-modal{max-width:380px;padding:0;overflow:hidden}
+.card-detail-modal .cd-card{border-top:6px solid var(--card,#555);padding:20px 22px 22px;
+  display:flex;flex-direction:column;gap:10px}
+.card-detail-modal .cd-top{display:flex;align-items:center;gap:12px}
+.card-detail-modal .cd-badge{font-family:'Big Shoulders Display',sans-serif;font-size:30px;font-weight:800;
+  line-height:1;background:var(--card);color:var(--card-ink);border-radius:9px;
+  padding:6px 14px;min-width:40px;text-align:center;flex:none}
+.card-detail-modal .cd-name{font-size:19px;font-weight:700;color:var(--ink);line-height:1.25}
+.card-detail-modal .cd-meta{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:2px}
+.card-detail-modal .cd-icons{display:flex;flex-wrap:wrap;gap:6px}
+.card-detail-modal .cd-text{font-size:14px;line-height:1.5;color:var(--ink-2);
+  padding-top:6px;border-top:1px solid var(--line)}
+.card-detail-modal #cardDetailCloseBtn{margin:0 22px 20px;width:calc(100% - 44px)}
+.sheet-close{width:100%;padding:12px;margin-top:14px;border-radius:11px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--ink);font:600 13.5px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+.sheet-close:hover{border-color:var(--you);color:var(--you)}
+#logOverlay #logList{max-height:52vh}
+#infoBody .matchup:first-of-type{border-top:none}
+@media (max-width:940px){
+  .wrap{padding-top:12px}.panelbox{padding:13px}
+  .board-panel{padding:9px;margin-bottom:10px}.card{width:104px;min-height:124px}
+}
+/* On narrow screens the flank buttons shrink a little so they don't eat into
+   the board they now sit on top of. Scoped to match (and beat) the carved-plaque
+   battle-mode padding rule below, or that rule's higher specificity wins and
+   the button overflows its own max-width, throwing the label off-centre. */
+@media (max-width:700px){
+  body.battle-mode .board-flank .side-btn{padding:6px 8px;font-size:11px;white-space:normal;
+    max-width:62px;line-height:1.15;text-align:center}
+  body.battle-mode .board-flank #rewindBtn{padding:6px}
+}
+
+
+
+/* =====================================================================
+   STORYBOOK SKIN
+   Carved wood plaques, a mossy plank table and parchment cards. Appended
+   last so it re-dresses the interface without disturbing the layout maths
+   that keeps the battle on one screen.
+   ===================================================================== */
+:root{
+  /* Each act is a room. The paintings live here as separate variables and
+     --bg-art points at whichever act you are currently walking through, so
+     swapping a theme is one property write rather than a repaint. */
+  --art-green:url('../assets/art/green.jpg');
+  --art-red:url('../assets/art/red.jpg');
+  --art-blue:url('../assets/art/blue.jpg');
+  --art-yellow:url('../assets/art/yellow.jpg');
+  --art-magenta:url('../assets/art/magenta.jpg');
+  --art-cyan:url('../assets/art/cyan.jpg');
+  --art-black:url('../assets/art/black.jpg');
+  --art-white:url('../assets/art/white.jpg');
+  --art-rot:url('../assets/art/rot.jpg');
+  --art-rift:url('../assets/art/rift.jpg');
+  --bg-art:var(--art-green);
+  --wood-d:#2b1c0f; --wood:#5d3f23; --wood-l:#7d5731; --wood-edge:#a1753f;
+  --parch:#eddcb2; --parch-2:#dcc48d; --parch-ink:#3b2a14;
+  --gold-t:#f3c86a; --moss:#4f7a3a;
+}
+body.battle-mode{font-family:'Alegreya',Georgia,serif}
+body.battle-mode .head h1,
+body.battle-mode .hand-head h2,
+body.battle-mode .card-peek b{font-family:'Cinzel',Georgia,serif;letter-spacing:.02em}
+
+/* ---- the room: wooden planks under a canopy ---- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---- carved plaques ---- */
+body.battle-mode .runbar,
+body.battle-mode .menu-btn,
+body.battle-mode .menu-dropdown .menu-item,
+body.battle-mode .deck-btn,
+body.battle-mode .side-btn{
+  background:
+    linear-gradient(180deg, rgba(255,214,150,.13), rgba(0,0,0,.22)),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.05) 0 7px, rgba(255,255,255,.02) 7px 14px),
+    linear-gradient(180deg,#6b4726 0%,#4a3018 60%,#38240f 100%);
+  border:2px solid #241708;
+  border-radius:11px;
+  box-shadow:inset 0 2px 0 rgba(255,209,146,.22), inset 0 -4px 8px rgba(0,0,0,.5),
+             0 4px 10px rgba(0,0,0,.55);
+  color:#f0dfba}
+body.battle-mode .runbar{padding:9px 14px;margin-bottom:8px}
+body.battle-mode .runbar .tag{color:#c8a875}
+body.battle-mode .menu-btn{color:#f0dfba}
+body.battle-mode .menu-btn:hover,body.battle-mode .menu-btn[aria-expanded="true"]{color:#fff;border-color:#3b2812}
+body.battle-mode .menu-dropdown{background:#2a1c0f;border:2px solid #241708;box-shadow:0 4px 10px rgba(0,0,0,.55)}
+body.battle-mode .menu-dropdown .menu-item{padding:8px 13px;color:#f0dfba;font-family:'Cinzel',Georgia,serif;font-size:12px}
+body.battle-mode .menu-dropdown .menu-item:hover{color:#fff;border-color:#3b2812}
+body.battle-mode .deck-btn{color:#f0dfba}
+body.battle-mode .deck-btn b{color:#fff}
+body.battle-mode #runGold{color:var(--gold-t)}
+/* The parchment theme restyles every element it touches, .life included —
+   but this rule applied to every life pip alike, so .life.lost's colour was
+   overridden right back to full red by the more specific selector further down
+   the cascade. Battle was the one screen where a lost life was invisible,
+   which is exactly backwards: it is the screen where losing one matters most. */
+body.battle-mode .life{color:#e0574c}
+body.battle-mode .life.lost{color:#5a4632}
+body.battle-mode .ease-note{color:#7fd8c4;font-style:italic;padding-left:4px}
+body.battle-mode .head h1{display:none}
+body.battle-mode .head{justify-content:flex-start}
+
+/* the enemy's colours read as painted dots */
+body.battle-mode .enemy-colors .chip{font-size:0;width:17px;height:17px;padding:0;border-radius:50%;
+  border:2px solid rgba(20,12,6,.7);box-shadow:inset 0 2px 3px rgba(255,255,255,.35)}
+
+/* score plaque */
+body.battle-mode .pip{border-color:#8a6238;background:rgba(0,0,0,.35)}
+
+/* pass plaque */
+body.battle-mode .side-btn{font-family:'Cinzel',Georgia,serif;font-size:15px;padding:10px 22px;color:#f6e6c2}
+body.battle-mode .side-btn:hover:not(:disabled){color:#fff;border-color:#3b2812}
+
+/* ---- the board sits on the table ---- */
+/* Tilted toward the opponent rather than the player: the far (enemy) edge
+   is the one that reads as closer/larger, so a negative rotation is what's
+   needed here — positive tips the near (player) edge forward instead.
+   Pushed from -28 to -40 for a more pronounced 3D read; re-tested for
+   clipping at this steeper angle across the nine reference sizes (still
+   none — full 100%/100% sizing holds up, see the note by the svg dimensions
+   below) since a steeper angle swells the projected quad more each time it
+   increases. */
+/* The sign matters: rotateX(-40deg) tipped the *opponent's* edge toward the
+   viewer, so their half rendered slightly larger than the player's — the board
+   read as leaning back at the player rather than receding away from them.
+   Positive tips the far edge away, which is the direction a table actually
+   goes, and it matches the non-battle tilt above.
+
+   The perspective distance is what turns foreshortening into convergence: at
+   3600px the far row was 1.3% *wider* than the near one; at 1000px it is ~5%
+   narrower, so the board tapers toward the enemy. Any shorter and the near edge
+   swells enough to clip against the stage. */
+body.battle-mode .board-tilt svg#board{transform:rotateX(40deg);
+  filter:drop-shadow(0 18px 20px rgba(0,0,0,.6));
+  width:100%;height:100%}
+body.battle-mode .board-tilt{perspective:1000px;perspective-origin:50% 40%}
+body.battle-mode .board-tilt{padding:0}
+body.battle-mode .tile-shape{stroke:#ff6a00;stroke-width:5}
+
+/* ---- parchment peek scroll ---- */
+body.battle-mode .card-peek{
+  background:linear-gradient(180deg,#eedcb2,#d9c089);
+  border:2px solid #8a6238;border-radius:9px;cursor:pointer;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.4), 0 3px 8px rgba(0,0,0,.45);
+  color:var(--parch-ink);height:calc(2 * 1.35em + 12px);padding:5px 12px;width:100%;min-width:0;
+  white-space:normal;overflow-wrap:anywhere;overflow:hidden;line-height:1.35;
+  transition:filter .12s}
+body.battle-mode .card-peek:hover,body.battle-mode .card-peek:focus-visible{filter:brightness(1.05)}
+body.battle-mode .card-peek:active{filter:brightness(0.96)}
+body.battle-mode .card-peek b{color:#5a2f1a;font-size:14px}
+body.battle-mode .card-peek .peek-empty{color:#8a6a42}
+body.battle-mode .card-peek .glyph path{stroke:var(--parch-ink)}
+body.battle-mode .card-peek .icn{color:var(--parch-ink);background:rgba(255,255,255,.5)}
+body.battle-mode .card-peek.has-more::after{color:#6b4a28}
+
+/* ---- parchment cards ---- */
+body.battle-mode .hand-panel{border-top:none}
+body.battle-mode .hand-head h2{color:#e8d3a6}
+body.battle-mode .card{
+  background:linear-gradient(180deg,#f0dfb6 0%,#e2caa0 60%,#d3b984 100%);
+  border:3px solid var(--card);border-top:3px solid var(--card);
+  border-radius:11px;color:var(--parch-ink);
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.35), 0 4px 10px rgba(0,0,0,.5)}
+body.battle-mode .card-name{color:#4a3218;font-family:'Cinzel',Georgia,serif;font-size:11px;line-height:1.15}
+body.battle-mode .card .glyph path{stroke:var(--parch-ink);stroke-width:2.3}
+body.battle-mode .card .icn{color:var(--parch-ink);background:rgba(255,255,255,.55)}
+body.battle-mode .card-top{background:var(--card);color:var(--card-ink);
+  border:2px solid rgba(30,18,8,.55);border-radius:7px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+body.battle-mode .card.selected{border-color:#5ce0c6;
+  box-shadow:0 0 0 3px rgba(92,224,198,.5), 0 10px 22px rgba(0,0,0,.6)}
+body.battle-mode .card.mixcard{background:linear-gradient(180deg,#e6d3f0,#cdb4e0);border-color:var(--mix)}
+body.battle-mode .card.mixcard .glyph path{stroke:#3d2450}
+body.battle-mode .card.mixcard .card-name{color:#3d2450}
+body.battle-mode .card:disabled{filter:saturate(.5) brightness(.8)}
+
+/* card backs as carved wood */
+body.battle-mode .card-back{
+  background:
+    repeating-linear-gradient(58deg, rgba(0,0,0,.16) 0 5px, rgba(255,255,255,.05) 5px 10px),
+    linear-gradient(180deg,#8a5c25,#5d3c17);
+  border:2px solid #2b1b0b;border-radius:5px;box-shadow:0 2px 5px rgba(0,0,0,.55)}
+
+/* overlays keep the parchment voice */
+.modal{background:linear-gradient(180deg,#2d1f11,#211609);border:2px solid #4a3018;
+  box-shadow:0 18px 40px rgba(0,0,0,.7)}
+.modal h2{font-family:'Cinzel',Georgia,serif;color:var(--gold-t)}
+
+/* ===== merged battle header: lives/gold/deck + opponent + scoreboard, one box =====
+   The battle-hud markup existed with no matching CSS, so its children rendered
+   as unstyled blocks and blew the header up to several hundred pixels tall,
+   overlapping the rest of the screen. This is the CSS that was missing. */
+.runbar{display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.battle-hud{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-width:0}
+.battle-hud[hidden]{display:none}
+.hud-div{width:1px;align-self:stretch;background:var(--line);flex:none}
+.hud-stack{display:flex;flex-direction:column;gap:4px;min-width:0}
+.hud-enemy{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.hud-enemy b{font-family:'Big Shoulders Display',sans-serif;font-size:15px;font-weight:800;
+  letter-spacing:.02em;text-transform:uppercase;color:var(--opp);white-space:nowrap;
+  /* 34vw clipped "THE HOLLOW SUN" to "THE HOLLOW S...". Boss names carry the
+     act's identity now, so they get the room; the plaque is width:max-content
+     and centred, and the viewport sweep confirms no overflow at 280px. */
+  overflow:hidden;text-overflow:ellipsis;max-width:48vw}
+.hud-enemy .enemy-colors{display:flex;gap:4px;flex-wrap:wrap}
+.hud-score{display:flex;flex-direction:row;align-items:center;gap:8px}
+.hud-row{display:flex;align-items:center;gap:6px}
+.hud-lbl{font-family:'IBM Plex Mono',monospace;font-size:8.5px;letter-spacing:.14em;width:38px;flex:none}
+.hud-row.opp .hud-lbl{color:var(--opp)}
+.hud-row.you .hud-lbl{color:var(--you)}
+.hud-row b{font-family:'Big Shoulders Display',sans-serif;font-size:15px;line-height:1;min-width:16px;text-align:right}
+.hud-row.opp b{color:var(--opp)}
+.hud-row.you b{color:var(--you)}
+.hud-row.opp .pip.on{background:var(--opp);border-color:var(--opp)}
+.hud-row.you .pip.on{background:var(--you);border-color:var(--you)}
+.hud-chain{display:flex;align-items:center;gap:4px;flex:none;padding:0 10px;
+  border-left:1px dashed var(--line);border-right:1px dashed var(--line);opacity:.3}
+.hud-chain.live{opacity:1}
+.hud-chain svg{width:14px;height:14px}
+.hud-chain svg path{fill:none;stroke:var(--mix);stroke-width:2.2;stroke-linecap:round}
+.hud-chain b{font-family:'Big Shoulders Display',sans-serif;font-size:15px;color:var(--mix)}
+#battleHud.turn-you .hud-row.you,#battleHud.turn-opp .hud-row.opp{
+  animation:turnGlow 1.6s ease-in-out infinite}
+@keyframes turnGlow{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* The enemy banner and the scoreboard (you – pips | chain | pips – enemy) are
+   both shared match state rather than either player's own thing, so both
+   float centred on the runbar instead of living wherever the flex flow
+   happens to leave them — true at every width, since each is taken out of
+   flow and centred against the full bar. Stacked in their own reserved strip
+   below the Lives/Gold/Deck/Menu row: enemy banner on top, score beneath it.
+   With both pulled out, the old battle-hud/hud-stack/hud-div wrapper trio
+   carries no visible content of its own any more, so it's left inert rather
+   than removed outright — deleting it would mean re-threading three levels
+   of DOM nesting for no visual gain, since position:absolute already looks
+   straight through them to the runbar.
+   width:max-content on both is load-bearing, not decoration: an absolutely
+   positioned box with left:50% and no right sizes its shrink-to-fit width
+   against the space from that 50% mark to the container's edge — half the
+   bar — before the translateX(-50%) that re-centres it is ever applied. A
+   real enemy name (Chromatic Knight, not just a short one) blew past that
+   phantom ceiling and wrapped its colour chips onto a second line, which
+   then sat on top of the Deck button. max-width:34vw already caps how wide
+   the name itself gets; max-content lets the row size to that instead of
+   the bogus half-width budget, and flex-wrap:nowrap is the belt to that
+   braces so a wrap can't reappear the same way for some other content. */
+.runbar{position:relative}
+body.battle-mode .runbar{padding-bottom:64px}
+body.battle-mode .hud-div{display:none}
+.hud-enemy{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);
+  justify-content:center;white-space:nowrap;width:max-content;flex-wrap:nowrap}
+.hud-score{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);white-space:nowrap;width:max-content}
+@media (max-height:730px){
+  body.battle-mode .runbar{padding-bottom:58px}
+  .hud-enemy{bottom:24px}
+  .hud-score{bottom:5px}
+}
+
+/* Small screens: the menu icon must never be pushed onto its own line, so the
+   rest of the runbar shrinks instead of wrapping. This is the last word in the
+   cascade on purpose — several earlier rules at various breakpoints already
+   touch these same properties, and only the block that wins visually matters. */
+@media (max-width:400px){
+  .runbar{gap:4px;padding:7px 7px}
+  .runbar .tag{font-size:7.5px}
+  .runbar b{font-size:13px}
+  .life{font-size:12px}
+  .deck-btn{padding:5px 6px;font-size:8.5px}
+  .deck-btn b{font-size:11px}
+  .menu-btn{width:26px;height:26px}
+  .menu-btn svg{width:13px;height:13px}
+  .menu-dropdown{min-width:140px;padding:6px}
+  .menu-dropdown .menu-item{padding:8px 10px;font-size:12px}
+  body.battle-mode .runbar{gap:6px;padding:6px 9px 58px}
+  body.battle-mode .runbar b{font-size:13px}
+  body.battle-mode .life{font-size:11px}
+  body.battle-mode .deck-btn{padding:5px 7px;font-size:9px}
+  body.battle-mode .deck-btn b{font-size:11px}
+  body.battle-mode .menu-btn{width:24px;height:24px}
+  body.battle-mode .menu-btn svg{width:13px;height:13px}
+  body.battle-mode .enemy-hand{min-height:48px}
+  .hud-lbl{width:auto}
+  .hud-score{gap:5px}
+  .hud-chain{padding:0 6px}
+  .hud-enemy{bottom:24px}
+}
+
+/* Below ~300px the .wrap container's own 14px side padding eats into the
+   budget enough that the 400px tier still overflows by a few pixels — one
+   more turn of the screw, measured against the actual rendered content width
+   (including that outer padding), not just the runbar's own box. */
+@media (max-width:300px){
+  .runbar{gap:3px;padding:6px 6px}
+  .deck-btn{padding:4px 5px;font-size:8px}
+  .deck-btn b{font-size:10px}
+  .runbar b{font-size:12px}
+  .menu-btn{width:22px;height:22px}
+  .menu-btn svg{width:11px;height:11px}
+  .menu-dropdown{min-width:118px;padding:5px}
+  .menu-dropdown .menu-item{padding:7px 8px;font-size:11px}
+  body.battle-mode .runbar{gap:4px;padding:5px 7px 54px}
+  body.battle-mode .runbar b{font-size:11px}
+  body.battle-mode .life{font-size:10px}
+  body.battle-mode .deck-btn{padding:4px 5px;font-size:8px}
+  body.battle-mode .deck-btn b{font-size:9.5px}
+  body.battle-mode .menu-btn{width:20px;height:20px}
+  body.battle-mode .menu-btn svg{width:11px;height:11px}
+  .hud-enemy{bottom:22px}
+}

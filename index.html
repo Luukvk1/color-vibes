@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141210">
+<title>Colour Vibes — The Long Road</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=Big+Shoulders+Display:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles/game.css">
+  <meta name="color-scheme" content="dark">
+</head>
+<body>
+<div class="room" id="room" aria-hidden="true"><div class="room-art"></div><div class="room-veil"></div>
+  <!-- Drawn eyes, for the one act whose painting has nothing watching in it.
+       Positioned by alignRoomBackground onto the same seam point every other
+       act's painted eyes occupy. -->
+  <!-- Two eyes by default. The Rotting Choir shows all six: it is a choir, and
+       one pair could never say that. The extra pairs stay hidden elsewhere. -->
+  <div class="room-eyes" id="roomEyes" hidden>
+    <span class="eye"><i></i></span><span class="eye"><i></i></span>
+    <span class="eye extra"><i></i></span><span class="eye extra"><i></i></span>
+    <span class="eye extra"><i></i></span><span class="eye extra"><i></i></span>
+  </div>
+</div>
+
+<!-- ============ TITLE SCREEN ============
+     Sits outside .wrap and above it, so the run interface behind it never has
+     to be torn down and rebuilt: the title is shown, the game continues to
+     exist underneath, and dismissing it is a single hidden flag. -->
+<div class="title-screen" id="titleScreen">
+  <div class="title-inner">
+    <span class="eyebrow">A ROGUELITE TACTICAL DECKBUILDER</span>
+    <h1 class="title-name">Colour Vibes</h1>
+    <p class="title-sub">Every colour you can make is a road you can walk.</p>
+    <div class="title-actions">
+      <button class="primary title-btn" id="titleContinue" hidden>Continue your run</button>
+      <button class="primary title-btn" id="titleNew">New run</button>
+      <button class="primary title-btn ghost" id="titleGlossary">Glossary</button>
+    </div>
+    <p class="title-warn" id="titleNewWarn" hidden>This ends the run you have saved. Tap again to be sure.</p>
+    <p class="title-foot">Runs entirely offline in your browser. Single self-contained file.</p>
+  </div>
+</div>
+
+<!-- ============ GLOSSARY ============ -->
+<div class="glossary" id="glossary" hidden>
+  <div class="glossary-inner">
+    <div class="glossary-head">
+      <h2>Glossary</h2>
+      <button class="icon-x" id="glossaryClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="gl-tabs">
+      <button class="gl-tab on" data-tab="cards">Cards</button>
+      <button class="gl-tab" data-tab="foes">Bosses &amp; elites</button>
+      <button class="gl-tab" data-tab="roads">Roads</button>
+      <button class="gl-tab" data-tab="icons">Icons</button>
+    </div>
+    <div class="gl-body" id="glossaryBody"></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="head">
+    <div>
+      <span class="eyebrow">A ROGUELITE TACTICAL DECKBUILDER</span>
+      <h1>Colour Vibes <em>— The Long Road</em></h1>
+    </div>
+  </header>
+
+  <div class="runbar" id="runbar">
+    <div class="cell"><span class="tag">LIVES</span><span id="runLives"></span></div>
+    <div class="cell"><span class="tag">GOLD</span><b id="runGold">0</b></div>
+    <div class="cell"><span class="tag">ACT</span><b id="runAct">—</b></div>
+    <div class="cell"><span class="tag">DEPTH</span><b id="runDepth">1</b></div>
+    <button class="deck-btn" id="deckBtn">Deck <b id="deckBtnCount">10</b> · Relics <b id="relicBtnCount">0</b></button>
+    <div class="menu-wrap">
+      <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <line x1="4" y1="7" x2="20" y2="7"/>
+          <line x1="4" y1="12" x2="20" y2="12"/>
+          <line x1="4" y1="17" x2="20" y2="17"/>
+        </svg>
+      </button>
+      <div class="menu-dropdown" id="menuDropdown" hidden>
+        <button id="logBtn" class="btn menu-item">Battle log</button>
+        <button id="tutorialToggle" class="btn menu-item">Tutorial: on</button>
+        <button id="glossaryBtn" class="btn menu-item">Glossary</button>
+        <button id="titleBtn" class="btn menu-item">Main menu</button>
+        <button id="selfTestBtn" class="btn menu-item">Run self test</button>
+        <button id="newRunBtn" class="btn menu-item">New run</button>
+      </div>
+    </div>
+    <div class="relic-strip" id="runRelics"></div>
+
+    <!-- Battle-only extension: same plaque, folded in rather than a second box.
+         Hidden outside battle; populated by renderControls()/renderStatus(). -->
+    <div class="battle-hud" id="battleHud" hidden>
+      <span class="hud-div" aria-hidden="true"></span>
+      <div class="hud-stack">
+        <!-- The plaque line is absolutely positioned and must stay one row, so
+             the rank mark and the rule icons ride inside it and the explanation
+             lives below the plaque, in the flow, next to the warm-up note. -->
+        <div class="hud-enemy">
+          <span class="enemy-rank" id="enemyRank"></span>
+          <b id="enemyName"></b>
+          <span class="enemy-colors" id="enemyColors"></span>
+          <span class="omens" id="enemyOmens"></span>
+        </div>
+        <div class="hud-score">
+          <div class="hud-row you"><span class="hud-lbl">YOU</span><span class="sb-pips" id="pipsYou"></span><b id="scoreYou">0</b></div>
+          <div class="hud-chain" id="chainBadge">
+            <svg viewBox="-11 -11 22 22" aria-hidden="true">
+              <path d="M-7,-2 a4.2,4.2 0 0,1 0,-6 a4.2,4.2 0 0,1 6,0 M7,2 a4.2,4.2 0 0,1 0,6 a4.2,4.2 0 0,1 -6,0 M-3,1 L3,-1"/>
+            </svg><b id="chainCount">0</b>
+          </div>
+          <div class="hud-row opp"><b id="scoreOpp">0</b><span class="sb-pips" id="pipsOpp"></span><span class="hud-lbl">ENEMY</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAP ============ -->
+  <section class="screen" id="screen-map">
+    <div class="panelbox">
+      <h2>The road ahead</h2>
+      <p class="screen-lead">Pick your next stop and follow the lines to plan a route. Elites and the boss always drop a relic.</p>
+      <div class="map-legend" id="mapLegend"></div>
+      <p class="legend-note">The ring around a fight shows the colours it brings — plan your counters from the map.</p>
+      <div class="map-scroll" id="mapScroll"><div id="mapBody"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ ACT SELECT ============ -->
+  <section class="screen" id="screen-act" hidden>
+    <div class="panelbox" id="actBody"></div>
+  </section>
+
+  <!-- ============ VICTORY ============ -->
+  <section class="screen" id="screen-victory" hidden>
+    <div class="panelbox" id="victoryBody"></div>
+  </section>
+
+  <!-- ============ BATTLE ============ -->
+  <section class="screen" id="screen-battle" hidden>
+
+    <p class="ease-note" id="easeNote" hidden>Warm-up fight — this enemy is holding back.</p>
+    <!-- What this enemy does, in icons. Not inside the plaque: that is absolutely
+         positioned and locked to one nowrap row, so anything added there pushes
+         the name into an ellipsis. Not in the flow either, because then the
+         board loses height to it and shifts again whenever a rule is opened.
+         An overlay costs the layout nothing either way. -->
+    <div class="enemy-rules-layer" id="enemyRulesLayer" hidden>
+      <div class="enemy-rules" id="enemyRules"></div>
+      <p class="enemy-rule-text" id="enemyRuleText" hidden></p>
+    </div>
+    <p class="deckcount" id="enemyDeckCount"></p>
+
+    <!-- The opponent's hand: now right above the board rather than right below
+         the header, so the gap above it (where the eyes sit) reads as the
+         eyes looking down at the cards, not the cards floating below them. -->
+    <div class="enemy-hand-row">
+      <div class="enemy-hand" id="enemyHand"></div>
+    </div>
+
+    <div class="board-panel">
+      <div class="board-stage">
+        <!-- A wooden marker laid down beside the board when the enemy passes.
+             Off the board on purpose: it is a note about the turn, not a piece
+             in play, and putting it on a tile would read as a unit. -->
+        <div class="pass-puck" id="passPuck" hidden aria-hidden="true"><span>Pass</span></div>
+        <div class="action-toast" id="actionToast" hidden></div>
+        <div class="board-flank flank-left">
+          <button id="passBtn" class="side-btn">Pass</button>
+          <button id="wildBtn" class="side-btn" hidden>Wild</button>
+        </div>
+        <div class="board-tilt">
+          <svg id="board" xmlns="http://www.w3.org/2000/svg" aria-label="Color Vibes board"></svg>
+        </div>
+        <div class="board-flank flank-right">
+          <button id="rewindBtn" class="side-btn" aria-label="Rewind">
+            <svg class="rw" viewBox="0 0 24 24" aria-hidden="true">
+              <path class="rw-loop" d="M20 11a8 8 0 1 0-2.3 5.6"/>
+              <path class="rw-arrow" d="M20 4.6v6.1h-6.1z"/>
+              <line class="rw-cross" x1="4.4" y1="19.6" x2="19.6" y2="4.4"/>
+            </svg>
+          </button>
+          <button id="cancelBtn" class="side-btn" hidden>Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-bar" id="controls">
+      <div class="picker" id="colorPicker" hidden></div>
+    </div>
+
+    <div class="hand-panel">
+      <div class="peek-row">
+        <button type="button" class="card-peek" id="cardPeek" aria-label="Show full card text"><span class="peek-empty">Hover or tap a card to read it</span></button>
+      </div>
+      <div class="hand-head"><h2>Your hand</h2><span id="handCount"></span></div>
+      <div class="hand" id="hand"></div>
+    </div>
+  </section>
+
+  <!-- ============ REWARD ============ -->
+  <section class="screen" id="screen-reward" hidden>
+    <div class="panelbox">
+      <h2 id="rewardHead">Spoils</h2>
+      <p class="screen-lead" id="rewardLead">You earned <b id="rewardGold">0</b> gold.</p>
+      <div class="deck-grid" id="rewardCards"></div>
+      <p class="rot-note" id="rewardRot" hidden></p>
+      <div id="rewardRelic" style="margin-top:12px" hidden></div>
+      <button class="primary" id="skipRewardBtn" style="margin-top:14px">Skip</button>
+    </div>
+  </section>
+
+  <!-- ============ SHOP ============ -->
+  <section class="screen" id="screen-shop" hidden>
+    <div class="panelbox">
+      <h2>Pigment Trader</h2>
+      <p class="screen-lead">Trade coin for cards and relics — or pay to cut something out of the deck for good.</p>
+      <span class="lbl">Cards</span><div class="deck-grid" id="shopCards"></div>
+      <span class="lbl" style="margin-top:14px">Relics</span><div class="deck-grid" id="shopRelics"></div>
+      <button class="primary" id="shopRemove" style="margin-top:14px">Remove a card — 50g</button>
+      <div id="shopRemovePick" hidden></div>
+      <button class="primary" id="leaveShopBtn">Leave</button>
+    </div>
+  </section>
+
+  <!-- ============ COLOUR LAB ============ -->
+  <section class="screen" id="screen-lab" hidden>
+    <div class="panelbox"><h2>Colour Lab</h2><div id="labBody"></div></div>
+  </section>
+
+  <!-- ============ EVENT ============ -->
+  <section class="screen" id="screen-event" hidden>
+    <div class="panelbox" id="eventBody"></div>
+  </section>
+
+  <!-- ============ SUMMARY ============ -->
+  <section class="screen" id="screen-gameover" hidden>
+    <div class="panelbox">
+      <div id="gameoverBody"></div>
+      <button class="primary" id="restartBtn">Start a new run</button>
+    </div>
+  </section>
+
+  <footer>Runs entirely offline in your browser. Single self-contained file — nothing else needed.</footer>
+</div>
+
+<div class="overlay" id="lanesOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal compact">
+    <h2>Lanes — frontline totals</h2>
+    <div id="lanes"></div>
+    <button class="sheet-close" data-close="lanesOverlay">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="logOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal compact">
+    <h2>Battle log</h2>
+    <ul id="logList"></ul>
+    <button class="sheet-close" data-close="logOverlay">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="infoOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal compact">
+    <h2 id="infoTitle">Detail</h2>
+    <div id="infoBody"></div>
+    <button class="sheet-close" data-close="infoOverlay">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="tutorialOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal tut-modal">
+    <div id="tutorialBody"></div>
+    <label class="tut-off"><input type="checkbox" id="tutorialOff"> Don't show this again</label>
+    <div class="tut-actions">
+      <button id="tutorialBack" class="tut-btn ghost">Back</button>
+      <button id="tutorialSkip" class="tut-btn ghost">Skip</button>
+      <button id="tutorialNext" class="tut-btn">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="deckOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal">
+    <h2>Deck &amp; Relics</h2>
+    <div id="deckModalBody"></div>
+    <button id="deckCloseBtn">Close</button>
+  </div>
+</div>
+
+<!-- The peek strip clips a fused card's third and fourth sentence with no
+     sign anything is missing. This is where a tap on it lands: the same
+     card, full size, every line intact. -->
+<div class="overlay" id="cardDetailOverlay" hidden role="dialog" aria-modal="true">
+  <div class="modal card-detail-modal">
+    <div id="cardDetailBody"></div>
+    <button id="cardDetailCloseBtn">Close</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden role="dialog" aria-modal="true">
+  <div class="modal">
+    <h2 id="resultsTitle">Result</h2>
+    <div id="resultsBody"></div>
+    <button id="continueBtn">Continue</button>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
