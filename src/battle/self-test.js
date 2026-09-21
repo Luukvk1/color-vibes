@@ -1282,14 +1282,19 @@ export function createSelfTest(ctx) {
       if (!s) return true;
       var saved = {
         board: s.board, hands: s.hands, wins: s.wins, turn: s.turn,
-        pending: s.pending, mixTokens: s.mixTokens
+        pending: s.pending, mixTokens: s.mixTokens, power: s.power, enemy: s.enemy
       };
+      /* Holding a won round is tier-gated, and tier comes from the enemy in
+         front of you. Borrowing whatever battle happens to be open made this
+         assert the opposite of the truth in a warm-up fight, where a tier-0
+         enemy is *supposed* to overcommit — so the enemy is pinned here. */
       function blank() {
         s.board = C.emptyBoard();
         s.hands = { bottom: [], top: [] };
         for (var i = 0; i < 5; i++) s.hands[ENEMY].push({ id: 'red_brute', up: false, uid: -200 - i });
         s.mixTokens = { bottom: 0, top: 0 };
         s.pending = null; s.turn = ENEMY;
+        s.power = 45; s.enemy = ENEMIES.brawler;
       }
       blank(); s.wins = { bottom: 0, top: 0 };
       s.board[ENEMY].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
@@ -1306,6 +1311,7 @@ export function createSelfTest(ctx) {
 
       s.board = saved.board; s.hands = saved.hands; s.wins = saved.wins;
       s.turn = saved.turn; s.pending = saved.pending; s.mixTokens = saved.mixTokens;
+      s.power = saved.power; s.enemy = saved.enemy;
       render();
       return holdsWhenAhead && fightsWhenBehind && opensOnLevelBoard;
     })());

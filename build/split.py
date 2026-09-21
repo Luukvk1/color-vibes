@@ -407,10 +407,25 @@ battle_text = battle_src
 battle_text = retoken(battle_text.replace('global.CV_BATTLE =', 'const CV_BATTLE ='),
                       'global', 'window')
 
-hook = ('/* The suite lives in ./self-test.js; it is handed the module scope it reads. */\n'
-        'const selfTest = createSelfTest({ %s });\n\n' % ', '.join(bind))
+hook = ('/* The suite lives in ./self-test.js. It is 44KB gzipped of code no player\n'
+        '   ever runs, so it is fetched the first time it is asked for rather than\n'
+        '   shipped with the game -- which is most of what having it in its own file\n'
+        '   is worth. Both ways in return a promise: the menu button and\n'
+        '   CV_BATTLE.selfTest(). */\n'
+        'let builtSelfTest = null;\n'
+        'async function selfTest() {\n'
+        '  if (!builtSelfTest) {\n'
+        "    const { createSelfTest } = await import('./self-test.js');\n"
+        '    builtSelfTest = createSelfTest({ %s });\n'
+        '  }\n'
+        '  return builtSelfTest();\n'
+        '}\n\n' % ', '.join(bind))
 at = battle_text.index('function runSelfTestUI()')
 battle_text = battle_text[:at] + hook + battle_text[at:]
+# the one caller now awaits it
+battle_text = battle_text.replace('function runSelfTestUI() {\n  var r = selfTest(),',
+                                  'async function runSelfTestUI() {\n  var r = await selfTest(),', 1)
+assert 'async function runSelfTestUI' in battle_text, 'runSelfTestUI call site changed shape'
 
 battle_doc = (BANNER +
               "\n/* The battle layer: the table itself.\n"
@@ -420,8 +435,7 @@ battle_doc = (BANNER +
               "   One file for the same reason run/ is: shared mutable render state that every\n"
               "   section reassigns. The self-test suite, being self-contained, has been\n"
               "   lifted out to ./self-test.js. Navigate by the section banners. */\n\n"
-              "import '../run/index.js';\n"
-              "import { createSelfTest } from './self-test.js';\n\n")
+              "import '../run/index.js';\n\n")
 with open(os.path.join(OUT, 'src', 'battle', 'index.js'), 'w', encoding='utf-8') as fh:
     fh.write(battle_doc + battle_text.strip() +
              '\n\nwindow.CV_BATTLE = CV_BATTLE;\nexport default CV_BATTLE;\n')

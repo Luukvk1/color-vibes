@@ -11,7 +11,6 @@
    lifted out to ./self-test.js. Navigate by the section banners. */
 
 import '../run/index.js';
-import { createSelfTest } from './self-test.js';
 
 var C = window.CV_CORE, RUN = window.CV_RUN;
 var SVG_NS = C.SVG_NS, COLORS = C.COLORS, COLOR_KEYS = C.COLOR_KEYS, CARDS = C.CARDS,
@@ -1926,11 +1925,22 @@ function endBattle(won) {
   }
 }
 
-/* The suite lives in ./self-test.js; it is handed the module scope it reads. */
-const selfTest = createSelfTest({ S, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD });
+/* The suite lives in ./self-test.js. It is 44KB gzipped of code no player
+   ever runs, so it is fetched the first time it is asked for rather than
+   shipped with the game -- which is most of what having it in its own file
+   is worth. Both ways in return a promise: the menu button and
+   CV_BATTLE.selfTest(). */
+let builtSelfTest = null;
+async function selfTest() {
+  if (!builtSelfTest) {
+    const { createSelfTest } = await import('./self-test.js');
+    builtSelfTest = createSelfTest({ S, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD });
+  }
+  return builtSelfTest();
+}
 
-function runSelfTestUI() {
-  var r = selfTest(), p = r.filter(function (x) { return x.pass; }).length;
+async function runSelfTestUI() {
+  var r = await selfTest(), p = r.filter(function (x) { return x.pass; }).length;
   els.resultsTitle.textContent = 'Self test — ' + p + ' / ' + r.length + ' passed';
   els.resultsBody.innerHTML = '<ul class="test-list">' + r.map(function (x) {
     return '<li class="' + (x.pass ? 'ok' : 'bad') + '"><span>' + (x.pass ? 'PASS' : 'FAIL') + '</span><span>' + x.name +
