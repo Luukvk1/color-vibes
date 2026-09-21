@@ -4,8 +4,7 @@ A roguelite deckbuilder about mixing colours. Battles are best-of-three on a
 shared triangular board; colours beat other colours; two cards can be mixed into
 the colour they make, and mixing is where most of the game's ceiling lives.
 
-**Play it:** `https://<your-github-username>.github.io/color-vibes/`
-*(replace the placeholder once Pages is switched on — see "Putting it online")*
+**Play it:** `https://Luukvk1.github.io/color-vibes/`
 
 No install, no account, no build step. Progress is kept in the browser's local
 storage, so a run survives a refresh but does not follow you to another device.
@@ -25,16 +24,6 @@ python3 -m http.server 8000
 
 Any static server does; `npx serve`, `php -S localhost:8000` and the VS Code
 Live Server extension all work the same way.
-
-## Putting it online
-
-The repository is already a working site — every file a browser needs is
-committed, and there is nothing to compile.
-
-1. Push this directory to a GitHub repository.
-2. **Settings → Pages → Source: Deploy from a branch**, branch `main`, folder
-   `/ (root)`.
-3. Wait a minute and open `https://<user>.github.io/<repo>/`.
 
 `.nojekyll` is in the root on purpose: without it, Pages runs the repo through
 Jekyll, which silently drops any path beginning with an underscore.
