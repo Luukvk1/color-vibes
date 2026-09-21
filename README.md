@@ -102,15 +102,23 @@ generation, opponent behaviour and layout invariants. Run them from the in-game
 menu, or from the browser console:
 
 ```js
-CV_BATTLE.selfTest().filter(t => !t.pass)   // [] when everything passes
+(await CV_BATTLE.selfTest()).filter(t => !t.pass)   // [] when everything passes
 ```
+
+It returns a promise because the suite is fetched on demand — it is 44KB
+gzipped that no player ever runs, so it is not part of the page's payload.
 
 Headlessly, with Playwright:
 
 ```js
 await page.goto('http://localhost:8000');
-await page.evaluate(() => CV_BATTLE.selfTest().filter(t => !t.pass));
+await page.evaluate(async () => (await CV_BATTLE.selfTest()).filter(t => !t.pass));
 ```
+
+Five of the 304 begin `if (!s) return true` and skip unless a battle is open,
+which means they do not run from a cold page. Start a run and enter a fight
+before running the suite if you want the opponent-AI and hand-pricing checks to
+mean anything.
 
 ## Known gaps
 
