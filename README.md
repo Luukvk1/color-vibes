@@ -4,7 +4,8 @@ A roguelite deckbuilder about mixing colours. Battles are best-of-three on a
 shared triangular board; colours beat other colours; two cards can be mixed into
 the colour they make, and mixing is where most of the game's ceiling lives.
 
-**Play it:** https://YOUR-USERNAME.github.io/colour-vibes/
+**Play it:** `https://<your-github-username>.github.io/color-vibes/`
+*(replace the placeholder once Pages is switched on — see "Putting it online")*
 
 No install, no account, no build step. Progress is kept in the browser's local
 storage, so a run survives a refresh but does not follow you to another device.
