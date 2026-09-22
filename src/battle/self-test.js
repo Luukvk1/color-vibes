@@ -15,16 +15,16 @@ export function createSelfTest(ctx) {
      =================================================================== */
   function selfTest() {
     var out = [];
-    function check(n, c, d) { out.push({ name: n, pass: !!c, detail: d || '' }); }
+    function check(name, pass, detail) { out.push({ name: name, pass: !!pass, detail: detail || '' }); }
     function fresh(relics) {
       return { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         relics: relics || [], mixChain: 0, chains: { bottom: 0, top: 0 },
         mixesThisRound: 0, freeMixesThisRound: 0, cascadeDepth: 0 };
     }
-    function put(g, side, row, i, cardId, str, color) {
-      var d = CARDS[cardId];
-      g.board[side][row][i] = { cardId: cardId, color: color || d.color, strength: str || d.strength, temp: 0, cracked: 0 };
+    function put(battleState, side, row, index, cardId, strength, color) {
+      var cardDef = CARDS[cardId];
+      battleState.board[side][row][index] = { cardId: cardId, color: color || cardDef.color, strength: strength || cardDef.strength, temp: 0, cracked: 0 };
     }
 
     // --- board and lanes still intact ---
@@ -36,38 +36,38 @@ export function createSelfTest(ctx) {
     }));
 
     // --- mixing baseline ---
-    var g = fresh();
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3); put(g, 'bottom', 'row2', 0, 'blue_scout', 4);
-    var res = RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+    var battleState = fresh();
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
+    var res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
     check('Plain mix is A + B + 1', res.color === 'magenta' && res.strength === 8, res.color + ' ' + res.strength);
-    check('A normal mix opens the chain at 1', g.chains.bottom === 1, 'chain ' + g.chains.bottom);
+    check('A normal mix opens the chain at 1', battleState.chains.bottom === 1, 'chain ' + battleState.chains.bottom);
 
     // --- relic: Stable Fusion ---
-    g = fresh(['stable_fusion']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3); put(g, 'bottom', 'row2', 0, 'blue_scout', 4);
-    res = RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+    battleState = fresh(['stable_fusion']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
+    res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
     check('Stable Fusion makes mixing add 2', res.strength === 9, 'got ' + res.strength);
 
     // --- relic: Prism Core, first mix only ---
-    g = fresh(['prism_core']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3); put(g, 'bottom', 'row2', 0, 'blue_scout', 4);
-    put(g, 'bottom', 'row1', 2, 'red_brute', 3); put(g, 'bottom', 'row2', 2, 'blue_scout', 4);
-    var first = RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-    var second = RUN.applyMix(g, 'bottom', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
+    battleState = fresh(['prism_core']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
+    put(battleState, 'bottom', 'row1', 2, 'red_brute', 3); put(battleState, 'bottom', 'row2', 2, 'blue_scout', 4);
+    var first = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+    var second = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
     check('Prism Core boosts only the first mix of the round',
       first.strength === 10 && second.strength === 8, first.strength + ' then ' + second.strength);
 
     // --- relic: Double Rainbow ---
-    g = fresh(['double_rainbow']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3); put(g, 'bottom', 'row2', 0, 'blue_scout', 4);
-    RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
-    check('Double Rainbow makes the first Free Mix worth 3 links', g.chains.bottom === 3, 'chain ' + g.chains.bottom);
+    battleState = fresh(['double_rainbow']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
+    RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
+    check('Double Rainbow makes the first Free Mix worth 3 links', battleState.chains.bottom === 3, 'chain ' + battleState.chains.bottom);
 
     // --- Black Singularity scales off the chain ---
-    g = fresh();
-    g.chains.bottom = 2;                       // two links already built this turn
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3); put(g, 'bottom', 'row2', 0, 'black_singularity', 6);
-    res = RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
+    battleState = fresh();
+    battleState.chains.bottom = 2;                       // two links already built this turn
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'black_singularity', 6);
+    res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
     check('Black Singularity adds 2 per earlier link', res.strength === 3 + 6 + 2 + (2 * 2), 'got ' + res.strength);
 
     // --- Black Devourer takes the CURRENT (aura-inclusive) strength, and eats the card for good ---
@@ -263,84 +263,84 @@ export function createSelfTest(ctx) {
     })());
 
     // --- Volatile Fusion cascades and terminates ---
-    g = fresh(['volatile_fusion']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 2); put(g, 'bottom', 'row2', 0, 'blue_scout', 2);
-    put(g, 'bottom', 'row1', 2, 'red_brute', 2); put(g, 'bottom', 'row2', 1, 'green_seed', 2);
-    put(g, 'bottom', 'row1', 3, 'red_brute', 2); put(g, 'bottom', 'row2', 2, 'blue_scout', 2);
+    battleState = fresh(['volatile_fusion']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 2); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 2);
+    put(battleState, 'bottom', 'row1', 2, 'red_brute', 2); put(battleState, 'bottom', 'row2', 1, 'green_seed', 2);
+    put(battleState, 'bottom', 'row1', 3, 'red_brute', 2); put(battleState, 'bottom', 'row2', 2, 'blue_scout', 2);
     var notes = [];
-    RUN.doMixCascade(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false, notes);
-    var left = 0; eachUnit(g.board, 'bottom', function () { left++; });
-    check('Volatile Fusion cascades without looping forever', g.chains.bottom >= 1 && left >= 1 && left <= 6,
-      'chain ' + g.chains.bottom + ', ' + left + ' units left');
+    RUN.doMixCascade(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false, notes);
+    var left = 0; eachUnit(battleState.board, 'bottom', function () { left++; });
+    check('Volatile Fusion cascades without looping forever', battleState.chains.bottom >= 1 && left >= 1 && left <= 6,
+      'chain ' + battleState.chains.bottom + ', ' + left + ' units left');
 
     // --- relic: Colour Lens ---
-    g = fresh(['color_lens']);
-    put(g, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(g, 'top', 'row1', 0, 'red_brute', 2);
-    var ev = C.evaluateBoard(g.board, g.hazards, { relics: ['color_lens'] });
+    battleState = fresh(['color_lens']);
+    put(battleState, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
+    var ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['color_lens'] });
     check('Colour Lens lifts the best effective lane to x2.5',
       ev.lanes[0].bottom.multiplier === 2.5 && ev.lanes[0].bottom.final === 10, 'x' + ev.lanes[0].bottom.multiplier + ' = ' + ev.lanes[0].bottom.final);
 
     // --- relic: Glass Cannon ---
-    g = fresh(['glass_cannon']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 2);
-    ev = C.evaluateBoard(g.board, g.hazards, { relics: ['glass_cannon'] });
+    battleState = fresh(['glass_cannon']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 2);
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['glass_cannon'] });
     check('Glass Cannon adds 1 to a frontline unit', ev.lanes[0].bottom.frontStrength === 3, 'front ' + ev.lanes[0].bottom.frontStrength);
-    RUN.buildApi(g, 'bottom', []).damage('bottom', 'row1', 0, 1);
-    ev = C.evaluateBoard(g.board, g.hazards, { relics: ['glass_cannon'] });
+    RUN.buildApi(battleState, 'bottom', []).damage('bottom', 'row1', 0, 1);
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['glass_cannon'] });
     check('Glass Cannon cracks hard when damaged', ev.lanes[0].bottom.frontStrength === 0,
       'front now ' + ev.lanes[0].bottom.frontStrength);
 
     // --- relic: Empty Palette ---
-    g = fresh(['empty_palette']);
-    g.hazards.bottom.row1 = 'colorless';
-    put(g, 'bottom', 'row1', 0, 'red_brute', 4); put(g, 'top', 'row1', 0, 'red_brute', 2);
-    ev = C.evaluateBoard(g.board, g.hazards, { relics: ['empty_palette'] });
+    battleState = fresh(['empty_palette']);
+    battleState.hazards.bottom.row1 = 'colorless';
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['empty_palette'] });
     check('Empty Palette pays 1.25x for a colourless frontline', ev.lanes[0].bottom.multiplier === 1.25,
       'x' + ev.lanes[0].bottom.multiplier);
 
     // --- relic: Heavy Brush on placement ---
-    g = fresh(['heavy_brush']);
-    RUN.resolveCard(g, 'bottom', C.makeCard('green_titan'), { row: 'row3', index: 0 }, []);
-    check('Heavy Brush adds 1 when entering Row 3', g.board.bottom.row3[0].strength === 6, 'got ' + g.board.bottom.row3[0].strength);
-    RUN.resolveCard(g, 'bottom', C.makeCard('green_gardener'), { row: 'row2', index: 0 }, []);
-    check('Heavy Brush does nothing outside Row 3', g.board.bottom.row2[0].strength === 3);
+    battleState = fresh(['heavy_brush']);
+    RUN.resolveCard(battleState, 'bottom', C.makeCard('green_titan'), { row: 'row3', index: 0 }, []);
+    check('Heavy Brush adds 1 when entering Row 3', battleState.board.bottom.row3[0].strength === 6, 'got ' + battleState.board.bottom.row3[0].strength);
+    RUN.resolveCard(battleState, 'bottom', C.makeCard('green_gardener'), { row: 'row2', index: 0 }, []);
+    check('Heavy Brush does nothing outside Row 3', battleState.board.bottom.row2[0].strength === 3);
 
     // --- relic: Black Paint ---
-    g = fresh(['black_paint']);
+    battleState = fresh(['black_paint']);
     /* Two secondaries, not a primary against one — Red against a card recoloured
        Cyan used to reach Black by raw bits, and that pairing is exactly the one
        the mixing rule now redirects instead of allowing through. */
-    put(g, 'bottom', 'row1', 0, 'red_brute', 3, 'yellow'); put(g, 'bottom', 'row2', 0, 'blue_scout', 3, 'cyan');
-    RUN.applyMix(g, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-    check('Black Paint rewards making Black', g.board.bottom.row1[0].color === 'black' && g.board.bottom.row1[0].temp === 3,
-      'temp ' + g.board.bottom.row1[0].temp);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 3, 'yellow'); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 3, 'cyan');
+    RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+    check('Black Paint rewards making Black', battleState.board.bottom.row1[0].color === 'black' && battleState.board.bottom.row1[0].temp === 3,
+      'temp ' + battleState.board.bottom.row1[0].temp);
 
     // --- relic: Echo Chamber ---
-    g = fresh(['echo_chamber']);
-    g.decks.bottom = [C.makeCard('red_brute'), C.makeCard('red_brute'), C.makeCard('red_brute')];
-    RUN.buildApi(g, 'bottom', []).draw('bottom', 1);
-    check('Echo Chamber doubles the first draw of the round', g.hands.bottom.length === 2, 'drew ' + g.hands.bottom.length);
-    RUN.buildApi(g, 'bottom', []).draw('bottom', 1);
-    check('Echo Chamber only fires once a round', g.hands.bottom.length === 3, 'now ' + g.hands.bottom.length);
+    battleState = fresh(['echo_chamber']);
+    battleState.decks.bottom = [C.makeCard('red_brute'), C.makeCard('red_brute'), C.makeCard('red_brute')];
+    RUN.buildApi(battleState, 'bottom', []).draw('bottom', 1);
+    check('Echo Chamber doubles the first draw of the round', battleState.hands.bottom.length === 2, 'drew ' + battleState.hands.bottom.length);
+    RUN.buildApi(battleState, 'bottom', []).draw('bottom', 1);
+    check('Echo Chamber only fires once a round', battleState.hands.bottom.length === 3, 'now ' + battleState.hands.bottom.length);
 
     // --- relic: Chromatic Memory ---
-    g = fresh(['chromatic_memory']);
-    put(g, 'bottom', 'row1', 0, 'red_brute', 8);
-    RUN.buildApi(g, 'bottom', []).recolor('bottom', { row: 'row1', index: 0 }, 'cyan');
-    check('Chromatic Memory pays a quarter on a repaint', g.board.bottom.row1[0].temp === 2, 'temp ' + g.board.bottom.row1[0].temp);
+    battleState = fresh(['chromatic_memory']);
+    put(battleState, 'bottom', 'row1', 0, 'red_brute', 8);
+    RUN.buildApi(battleState, 'bottom', []).recolor('bottom', { row: 'row1', index: 0 }, 'cyan');
+    check('Chromatic Memory pays a quarter on a repaint', battleState.board.bottom.row1[0].temp === 2, 'temp ' + battleState.board.bottom.row1[0].temp);
 
     // --- upgrades ---
     check('An upgraded unit is 1 stronger', C.cardStrength({ id: 'red_brute', up: true }) === 3);
     check('Upgrade marks the name', C.cardName({ id: 'red_brute', up: true }) === 'Red Brute+');
 
     // --- enemy modifiers ---
-    g = fresh();
-    put(g, 'top', 'row1', 0, 'black_voidling', 2, 'black');
-    ev = C.evaluateBoard(g.board, g.hazards, { enemyMod: { colorBonus: { black: 1 } } });
+    battleState = fresh();
+    put(battleState, 'top', 'row1', 0, 'black_voidling', 2, 'black');
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { colorBonus: { black: 1 } } });
     check('Colour bonus modifiers apply to the enemy', ev.strengthOf(ev.get('top', 'row1', 0)) === 3);
-    g = fresh();
-    put(g, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(g, 'top', 'row1', 0, 'red_brute', 2);
-    ev = C.evaluateBoard(g.board, g.hazards, { enemyMod: { punishEffective: 2 } });
+    battleState = fresh();
+    put(battleState, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { punishEffective: 2 } });
     check('Chromatic Knight punishes your effective lanes', ev.lanes[0].top.frontStrength === 4,
       'enemy front ' + ev.lanes[0].top.frontStrength);
     check('The Knight bonus does not compound across lanes', (function () {
@@ -368,9 +368,9 @@ export function createSelfTest(ctx) {
       var e2 = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { punishEffective: 2 } });
       return e2.lanes[1].top.frontStrength === 3;
     })());
-    g = fresh();
-    put(g, 'top', 'row1', 0, 'red_brute', 2, 'red');
-    ev = C.evaluateBoard(g.board, g.hazards, { enemyMod: { rotatingColor: 2 }, spectrumColor: 'red' });
+    battleState = fresh();
+    put(battleState, 'top', 'row1', 0, 'red_brute', 2, 'red');
+    ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { rotatingColor: 2 }, spectrumColor: 'red' });
     check('The Spectrum boosts its chosen colour', ev.strengthOf(ev.get('top', 'row1', 0)) === 4);
 
     // --- run structure ---
@@ -2023,8 +2023,8 @@ export function createSelfTest(ctx) {
         f = C.fuseCards(f, { id: 'yellow_banner', up: false });
         var beforeSet = CARDS[f.id].effectSources.slice();
         var union = beforeSet.concat(['green_titan']);
-        var g = C.fuseCards(f, { id: 'green_titan', up: false });
-        var afterSet = CARDS[g.id].effectSources;
+        var fused = C.fuseCards(f, { id: 'green_titan', up: false });
+        var afterSet = CARDS[fused.id].effectSources;
         if (afterSet.length !== C.FUSED_EFFECT_CAP) return false;
         if (!afterSet.every(function (k) { return union.indexOf(k) !== -1; })) return false;
         if (!union.some(function (k) { return afterSet.indexOf(k) === -1; })) return false;
@@ -3448,11 +3448,11 @@ export function createSelfTest(ctx) {
       return okAll;
     })());
     check('The AI plans on the cracked board, not the pristine one', (function () {
-      var g = { board: C.emptyBoard(), hazards: C.emptyHazards(),
+      var battleState = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         fissures: [{ kind: 'sever', side: 'bottom', row: 'row2', index: 1, lane: 2 }] };
-      var sim = RUN.simGame(g);
-      return sim.fissures.length === 1 && RUN.evalCtx(g).fissures.length === 1;
+      var sim = RUN.simGame(battleState);
+      return sim.fissures.length === 1 && RUN.evalCtx(battleState).fissures.length === 1;
     })());
 
     check('Every map node lists at least one onward path', (function () {
