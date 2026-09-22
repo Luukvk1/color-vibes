@@ -161,8 +161,8 @@ export function createSelfTest(ctx) {
       CARDS.black_devourer.onPlay(state, PLAYER, at, targets, RUN.buildApi(state, PLAYER, []));
       state.wins[PLAYER] = 2; state.battleOver = true;
       endBattle(true);
-      var rr = RUN.getRun();
-      if (rr.screen === 'reward') { rr.reward.cardTaken = true; rr.reward.taken = true; RUN.advance(); }
+      var run = RUN.getRun();
+      if (run.screen === 'reward') { run.reward.cardTaken = true; run.reward.taken = true; RUN.advance(); }
       RUN.saveRun();
       var wantLen = RUN.getRun().deck.length, wantIds = RUN.getRun().deck.map(function (c) { return c.id; });
       var back = RUN.loadRun();
@@ -826,10 +826,10 @@ export function createSelfTest(ctx) {
       put(battleState2, 'bottom', 'row3', 0, 'red_brute', 8);      // support behind it
       var pen = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { supportPenalty: 0.5 } });
       var full = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
-      var lp = pen.lanes.filter(function (l) { return l.bottom; })[0];
-      var lf = full.lanes.filter(function (l) { return l.bottom; })[0];
-      return lp.bottom.frontStrength === lf.bottom.frontStrength &&
-             lp.bottom.support < lf.bottom.support &&
+      var lanePenalized = pen.lanes.filter(function (lane) { return lane.bottom; })[0];
+      var laneFull = full.lanes.filter(function (lane) { return lane.bottom; })[0];
+      return lanePenalized.bottom.frontStrength === laneFull.bottom.frontStrength &&
+             lanePenalized.bottom.support < laneFull.bottom.support &&
              pen.totals.bottom < full.totals.bottom;
     })());
     check('The Undertow answers only the lane you invested in most', (function () {
@@ -877,9 +877,9 @@ export function createSelfTest(ctx) {
     check('A boss leans on its rule, not on raw colour bonus', (function () {
       return RUN.ACT_KEYS.every(function (key) {
         var a = RUN.ACTS[key], mod = ENEMIES[a.boss].mod || {};
-        var cb = (mod.colorBonus && mod.colorBonus[a.color]) || 0;
+        var colorBonus = (mod.colorBonus && mod.colorBonus[a.color]) || 0;
         // elites are the +2 stat check; bosses must not simply be +3 versions
-        return cb <= 1;
+        return colorBonus <= 1;
       });
     })());
 
@@ -2608,7 +2608,7 @@ export function createSelfTest(ctx) {
     check('Frontline and round-break are deferred lessons',
       typeof RUN.TUTORIAL_LESSONS.frontline === 'function' && typeof RUN.TUTORIAL_LESSONS.roundbreak === 'function');
     check('Every opening card carries art or prose',
-      RUN.TUTORIAL_STEPS.every(function (st) { return st.title && (st.body || st.art || st.artHtml); }));
+      RUN.TUTORIAL_STEPS.every(function (step) { return step.title && (step.body || step.art || step.artHtml); }));
     check('Lessons build from a live board and describe its own units', (function () {
       try {
         var battleState2 = fresh();
@@ -3415,13 +3415,13 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
-      var st = RUN.newBattle(run.pendingNode);
-      RUN.setState(st);
-      st.turn = PLAYER;
+      var newState = RUN.newBattle(run.pendingNode);
+      RUN.setState(newState);
+      newState.turn = PLAYER;
       var noneYet = !canRewind();                       // nothing to take back
       markRewindPoint(PLAYER);
       var armed = canRewind();
-      st.rewindUsedThisRound = true;
+      newState.rewindUsedThisRound = true;
       var spent = !canRewind();                         // hard cap holds
       RUN.setState(savedState); RUN.setRun(savedRun);
       return noneYet && armed && spent;
@@ -3431,19 +3431,19 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
-      var st = RUN.newBattle(run.pendingNode);
-      RUN.setState(st);
-      st.turn = PLAYER;
-      var snap = snapshotForRewind(st);
-      var beforeBoard = JSON.stringify(st.board), beforeHand = st.hands.bottom.length;
+      var newState = RUN.newBattle(run.pendingNode);
+      RUN.setState(newState);
+      newState.turn = PLAYER;
+      var snap = snapshotForRewind(newState);
+      var beforeBoard = JSON.stringify(newState.board), beforeHand = newState.hands.bottom.length;
       // mangle the state the way a played turn would
-      st.board.bottom.row1[0] = { cardId: 'red_brute', color: 'red', strength: 5, temp: 0 };
-      st.hands.bottom.pop();
-      st.turn = ENEMY; st.finalTurn = true; st.mixTokens.bottom = 0;
-      restoreRewind(st, snap);
-      var okAll = JSON.stringify(st.board) === beforeBoard &&
-                  st.hands.bottom.length === beforeHand &&
-                  st.turn === PLAYER && st.finalTurn === false && st.mixTokens.bottom === 1;
+      newState.board.bottom.row1[0] = { cardId: 'red_brute', color: 'red', strength: 5, temp: 0 };
+      newState.hands.bottom.pop();
+      newState.turn = ENEMY; newState.finalTurn = true; newState.mixTokens.bottom = 0;
+      restoreRewind(newState, snap);
+      var okAll = JSON.stringify(newState.board) === beforeBoard &&
+                  newState.hands.bottom.length === beforeHand &&
+                  newState.turn === PLAYER && newState.finalTurn === false && newState.mixTokens.bottom === 1;
       RUN.setState(savedState); RUN.setRun(savedRun);
       return okAll;
     })());
