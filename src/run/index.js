@@ -2347,22 +2347,22 @@ var TUTORIAL_LESSONS = {
   /* Mixing waits until a mix would actually buy you an effective matchup —
      which is also the natural moment to explain effectiveness at all. */
   mixing: function (ctx) {
-    var board = ctx.board, ev = ctx.ev, opt = ctx.opt;
+    var board = ctx.board, evaluation = ctx.ev, opt = ctx.opt;
     if (!opt) return null;
-    var a = C.unitAt(board, 'bottom', opt.base.row, opt.base.index);
-    var b = C.unitAt(board, 'bottom', opt.other.row, opt.other.index);
-    var resColor = C.mixResultColor(a.color, b.color);
+    var unitA = C.unitAt(board, 'bottom', opt.base.row, opt.base.index);
+    var unitB = C.unitAt(board, 'bottom', opt.other.row, opt.other.index);
+    var resColor = C.mixResultColor(unitA.color, unitB.color);
     var marks = [
       { n: 1, at: { side: 'bottom', row: opt.base.row, index: opt.base.index } },
       { n: 2, at: { side: 'bottom', row: opt.other.row, index: opt.other.index } },
       { n: 3, at: { side: 'top', row: opt.foe.row, index: opt.foe.index } }
     ];
     return [{ title: 'Mix for the colour you need',
-      art: function () { return tutorialBoard({ units: liveUnits(board, ev), marks: marks }); },
+      art: function () { return tutorialBoard({ units: liveUnits(board, evaluation), marks: marks }); },
       legend: [
-        'Your <b>' + unitName(board, ev, 'bottom', opt.base.row, opt.base.index) +
+        'Your <b>' + unitName(board, evaluation, 'bottom', opt.base.row, opt.base.index) +
           '</b> can absorb a touching friendly unit. Spend your Mix token and the result lands here.',
-        'It swallows your <b>' + unitName(board, ev, 'bottom', opt.other.row, opt.other.index) +
+        'It swallows your <b>' + unitName(board, evaluation, 'bottom', opt.other.row, opt.other.index) +
           '</b>. Colours combine like paint and the strengths add together, plus one.',
         'That makes <b>' + C.colorInfo(resColor).name + ' ' + opt.strength + '</b> — and ' +
           C.colorInfo(resColor).name + ' beats the <b>' + C.colorInfo(opt.foeColor).name +
@@ -2372,10 +2372,10 @@ var TUTORIAL_LESSONS = {
 
   /* Passing explained the moment it is genuinely the right move. */
   passing: function (ctx) {
-    var reason = ctx.reason, ev = ctx.ev;
-    var lead = ev.totals.bottom - ev.totals.top;
+    var reason = ctx.reason, evaluation = ctx.ev;
+    var lead = evaluation.totals.bottom - evaluation.totals.top;
     return [{ title: reason === 'stuck' ? 'Nothing left to play' : 'Bank the round',
-      art: function () { return tutorialBoard({ units: liveUnits(ctx.board, ev) }); },
+      art: function () { return tutorialBoard({ units: liveUnits(ctx.board, evaluation) }); },
       legend: reason === 'stuck'
         ? ['You have no legal card and no mix available, so <b>Pass</b> is your only move.',
            'Passing gives the enemy exactly one more action, then the round ends and the totals are compared.',
@@ -2386,8 +2386,8 @@ var TUTORIAL_LESSONS = {
   },
 
   frontline: function (ctx) {
-    var ev = ctx.ev, board = ctx.board, best = null;
-    ev.lanes.forEach(function (lane) {
+    var evaluation = ctx.ev, board = ctx.board, best = null;
+    evaluation.lanes.forEach(function (lane) {
       if (!lane.bottom || !lane.top) return;
       // prefer the most instructive lane: one with support, or a deep frontline
       var score = (lane.bottom.support ? 2 : 0) +
@@ -2397,34 +2397,34 @@ var TUTORIAL_LESSONS = {
     });
     if (!best) return null;
 
-    var lane = best.lane, mine = lane.bottom, theirs = lane.top, L = lane.index + 1;
-    var ch = mine.champion, marks = [], legend = [], n = 1;
+    var lane = best.lane, mine = lane.bottom, theirs = lane.top, laneNumber = lane.index + 1;
+    var champion = mine.champion, marks = [], legend = [], markNumber = 1;
 
-    marks.push({ n: n, at: { side: 'bottom', row: ch.row, index: ch.index } });
-    legend.push('Your <b>' + unitName(board, ev, 'bottom', ch.row, ch.index) + '</b> on ' +
-      rowLabel(ch.row) + ' is the frontline of lane ' + L + ' — your frontmost unit there. ' +
-      (ch.row === 'row1' ? 'Row 1 always leads when it is occupied.'
+    marks.push({ n: markNumber, at: { side: 'bottom', row: champion.row, index: champion.index } });
+    legend.push('Your <b>' + unitName(board, evaluation, 'bottom', champion.row, champion.index) + '</b> on ' +
+      rowLabel(champion.row) + ' is the frontline of lane ' + laneNumber + ' — your frontmost unit there. ' +
+      (champion.row === 'row1' ? 'Row 1 always leads when it is occupied.'
                          : 'Row 1 is empty in this lane, so this deeper unit leads instead.') +
       ' Only a frontline\u2019s colour fights.');
-    n++;
+    markNumber++;
 
-    var sup = null;
-    mine.members.forEach(function (m) {
-      if (sup) return;
-      if (m.row === ch.row && m.index === ch.index) return;
-      sup = m;
+    var support = null;
+    mine.members.forEach(function (member) {
+      if (support) return;
+      if (member.row === champion.row && member.index === champion.index) return;
+      support = member;
     });
-    if (sup) {
-      marks.push({ n: n, at: { side: 'bottom', row: sup.row, index: sup.index } });
-      legend.push('Your <b>' + unitName(board, ev, 'bottom', sup.row, sup.index) + '</b> is support here: it adds ' +
-        ev.shares['bottom-' + sup.row + '-' + sup.index][lane.index] +
+    if (support) {
+      marks.push({ n: markNumber, at: { side: 'bottom', row: support.row, index: support.index } });
+      legend.push('Your <b>' + unitName(board, evaluation, 'bottom', support.row, support.index) + '</b> is support here: it adds ' +
+        evaluation.shares['bottom-' + support.row + '-' + support.index][lane.index] +
         ' strength to the lane, but its colour is ignored.');
-      n++;
+      markNumber++;
     }
 
-    var tc = theirs.champion;
-    marks.push({ n: n, at: { side: 'top', row: tc.row, index: tc.index } });
-    legend.push('They front <b>' + unitName(board, ev, 'top', tc.row, tc.index) + '</b>. ' +
+    var theirChampion = theirs.champion;
+    marks.push({ n: markNumber, at: { side: 'top', row: theirChampion.row, index: theirChampion.index } });
+    legend.push('They front <b>' + unitName(board, evaluation, 'top', theirChampion.row, theirChampion.index) + '</b>. ' +
       (mine.effective ? C.colorInfo(mine.color).name + ' beats ' + C.colorInfo(theirs.color).name +
           ', so your whole lane doubles — that is the <b>\u00d7' + mine.multiplier + '</b> under your unit.'
        : theirs.effective ? C.colorInfo(theirs.color).name + ' beats ' + C.colorInfo(mine.color).name +
@@ -2432,48 +2432,48 @@ var TUTORIAL_LESSONS = {
        : 'Neither colour beats the other, so both sides count flat here.'));
 
     return [{ title: 'Only the frontline fights',
-      art: function () { return tutorialBoard({ units: liveUnits(board, ev), marks: marks }); },
+      art: function () { return tutorialBoard({ units: liveUnits(board, evaluation), marks: marks }); },
       legend: legend }];
   },
 
   roundbreak: function (ctx) {
-    var ev = ctx.ev, board = ctx.board, after = ctx.after, fallen = ctx.fallen;
+    var evaluation = ctx.ev, board = ctx.board, after = ctx.after, fallen = ctx.fallen;
     var faded = [];
-    ['bottom', 'top'].forEach(function (sd) {
-      fallen[sd].forEach(function (k) { faded.push(sd + '-' + k.split('|')[0] + '-' + k.split('|')[1]); });
+    ['bottom', 'top'].forEach(function (side) {
+      fallen[side].forEach(function (key) { faded.push(side + '-' + key.split('|')[0] + '-' + key.split('|')[1]); });
     });
     if (!faded.length) return null;      // nothing fell; wait for a round that teaches it
 
-    var marks = [], legend = [], n = 1, mineFell = fallen.bottom[0], used = [];
+    var marks = [], legend = [], markNumber = 1, mineFell = fallen.bottom[0], used = [];
     var total = fallen.bottom.length + fallen.top.length;
     if (mineFell) {
-      var p = mineFell.split('|'), row = p[0], idx = +p[1];
-      marks.push({ n: n, at: { side: 'bottom', row: row, index: idx } });
+      var parts = mineFell.split('|'), row = parts[0], idx = +parts[1];
+      marks.push({ n: markNumber, at: { side: 'bottom', row: row, index: idx } });
       used.push(row + '-' + idx);
       legend.push('Every frontline in a <b>contested</b> lane is removed — both sides, all of them. ' +
         'That took ' + total + ' unit' + (total === 1 ? '' : 's') + ' here, including your <b>' +
-        unitName(board, ev, 'bottom', row, idx) + '</b>, shown faded. Whatever stood behind them steps up.');
-      n++;
+        unitName(board, evaluation, 'bottom', row, idx) + '</b>, shown faded. Whatever stood behind them steps up.');
+      markNumber++;
     }
 
     /* Point at a unit that came through untouched, and never the same one twice. */
     var survivor = null;
-    ev.lanes.forEach(function (lane) {
+    evaluation.lanes.forEach(function (lane) {
       if (survivor || !lane.bottom || lane.top) return;
-      var c = lane.bottom.champion;
-      if (used.indexOf(c.row + '-' + c.index) !== -1) return;
-      survivor = c;
+      var champion = lane.bottom.champion;
+      if (used.indexOf(champion.row + '-' + champion.index) !== -1) return;
+      survivor = champion;
     });
     if (survivor) {
-      marks.push({ n: n, at: { side: 'bottom', row: survivor.row, index: survivor.index } });
-      legend.push('Your <b>' + unitName(board, ev, 'bottom', survivor.row, survivor.index) +
+      marks.push({ n: markNumber, at: { side: 'bottom', row: survivor.row, index: survivor.index } });
+      legend.push('Your <b>' + unitName(board, evaluation, 'bottom', survivor.row, survivor.index) +
         '</b> was never contested — nothing fought there, so it <b>stays</b> for the next round.');
     } else {
       legend.push('A lane the enemy never contests costs you nothing: units there survive the break.');
     }
 
     return [{ title: 'The line breaks between rounds',
-      art: function () { return tutorialBoard({ units: liveUnits(board, ev, faded), marks: marks }); },
+      art: function () { return tutorialBoard({ units: liveUnits(board, evaluation, faded), marks: marks }); },
       legend: legend }];
   }
 };
