@@ -84,8 +84,8 @@ export function createSelfTest(ctx) {
       battleState2.board[PLAYER].row1[1] = { cardId: 'red_brute', color: 'red', strength: 5, temp: 0 };
       battleState2.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0 };
       var at = { row: 'row2', index: 1 };
-      var t = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      C.CARDS.black_devourer.onPlay(battleState2, PLAYER, at, t, RUN.buildApi(battleState2, PLAYER, []));
+      var targets = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      C.CARDS.black_devourer.onPlay(battleState2, PLAYER, at, targets, RUN.buildApi(battleState2, PLAYER, []));
       var got = battleState2.board[PLAYER].row2[1].strength + (battleState2.board[PLAYER].row2[1].temp || 0);
       // devourer's own 3 + red_brute's raw 5 would be 8; the aura must push it past that
       return got > 8;
@@ -104,8 +104,8 @@ export function createSelfTest(ctx) {
       state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
       var beforeLen = RUN.getRun().deck.length;
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(state, PLAYER, at, t, RUN.buildApi(state, PLAYER, []));
+      var targets = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, targets, RUN.buildApi(state, PLAYER, []));
       var afterDeck = RUN.getRun().deck;
       var ok = afterDeck.length === beforeLen - 1 &&
                !afterDeck.some(function (c) { return c.id === 'green_gardener'; });
@@ -134,8 +134,8 @@ export function createSelfTest(ctx) {
       state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
       var api = RUN.buildApi(state, PLAYER, []);
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(state, PLAYER, at, t, api);
+      var targets = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, targets, api);
       // blue_scout's deckIndex must now point at ITS card, not whatever shifted into the old slot
       var idx = state.board[PLAYER].row3[0].deckIndex;
       var slotIsBlueScout = RUN.getRun().deck[idx] && RUN.getRun().deck[idx].id === 'blue_scout';
@@ -157,8 +157,8 @@ export function createSelfTest(ctx) {
       state.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
       state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(state, PLAYER, at, t, RUN.buildApi(state, PLAYER, []));
+      var targets = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, targets, RUN.buildApi(state, PLAYER, []));
       state.wins[PLAYER] = 2; state.battleOver = true;
       endBattle(true);
       var rr = RUN.getRun();
@@ -1031,12 +1031,12 @@ export function createSelfTest(ctx) {
                                    strength: 5, temp: 0, deckIndex: 0 };
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 20);
       var at = { row: 'row2', index: 0 };
-      var t = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devouring_star.targets[0], [], at);
-      CARDS.black_devouring_star.onPlay(battleState2, PLAYER, at, t, RUN.buildApi(battleState2, PLAYER, []));
-      var u = battleState2.board[PLAYER].row2[0];
-      var total = u.strength + (u.temp || 0);
+      var targets = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devouring_star.targets[0], [], at);
+      CARDS.black_devouring_star.onPlay(battleState2, PLAYER, at, targets, RUN.buildApi(battleState2, PLAYER, []));
+      var unit = battleState2.board[PLAYER].row2[0];
+      var total = unit.strength + (unit.temp || 0);
       // twice a 20 is still a 45-strength unit for the fight
-      return total === 45 && u.strength === 5 && (u.temp || 0) === 40;
+      return total === 45 && unit.strength === 5 && (unit.temp || 0) === 40;
     })());
     check('Every trophy is big AND still does something', (function () {
       return C.BOSS_CARDS.every(function (key) {
@@ -1678,12 +1678,12 @@ export function createSelfTest(ctx) {
       if (keys.length !== RUN.ACT_KEYS.length) return false;
       var seen = {};
       return keys.every(function (key) {
-        var t = RUN.ACT_OMENS[key];
-        if (!t || t.length < 40) return false;
-        if (seen[t]) return false;                 // each act says something different
-        seen[t] = 1;
+        var omenText = RUN.ACT_OMENS[key];
+        if (!omenText || omenText.length < 40) return false;
+        if (seen[omenText]) return false;                 // each act says something different
+        seen[omenText] = 1;
         // no numbers and no naming of the mechanism
-        return !/\\d/.test(t) && !/requir|unlock|need \\d|colour lab/i.test(t);
+        return !/\\d/.test(omenText) && !/requir|unlock|need \\d|colour lab/i.test(omenText);
       });
     })());
     check('An omen is written the moment the road opens, and kept', (function () {
@@ -1813,9 +1813,9 @@ export function createSelfTest(ctx) {
       var NAMES = { red: 'red', green: 'green', blue: 'blue',
                     yellow: 'red', cyan: 'green', magenta: 'red' };
       return RUN.ACT_KEYS.every(function (key) {
-        var t = RUN.ACT_OMENS[key].toLowerCase();
-        if (key === 'black') return /mixture|made colour/.test(t);
-        return t.indexOf(NAMES[key]) !== -1;
+        var omenText = RUN.ACT_OMENS[key].toLowerCase();
+        if (key === 'black') return /mixture|made colour/.test(omenText);
+        return omenText.indexOf(NAMES[key]) !== -1;
       });
     })());
 
