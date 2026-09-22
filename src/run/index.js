@@ -927,15 +927,15 @@ var ELITE_ROW = 8;
    (`.col`), which is what actually decides where a line lands on screen —
    a row's array index is not that, once earlier columns have dropped out of
    a narrower row. */
-function edgesAtTransition(rows, d) {
-  var out = [];
-  rows[d].forEach(function (n) {
-    (n.next || []).forEach(function (j) {
-      var to = rows[d + 1][j];
-      if (to) out.push({ a: n.col, b: to.col });
+function edgesAtTransition(rows, rowIndex) {
+  var edges = [];
+  rows[rowIndex].forEach(function (node) {
+    (node.next || []).forEach(function (nextIndex) {
+      var toNode = rows[rowIndex + 1][nextIndex];
+      if (toNode) edges.push({ colA: node.col, colB: toNode.col });
     });
   });
-  return out;
+  return edges;
 }
 function pickNonCrossing(fromCol, candidates, existing, rnd) {
   /* Ranked by how many crossings each candidate actually introduces, not a
@@ -950,17 +950,17 @@ function pickNonCrossing(fromCol, candidates, existing, rnd) {
      and leaving it with none at all is a dead end, a strictly worse bug
      than a crossing line. Same ranking, two different tolerances for it. */
   var scored = candidates.map(function (toCol) {
-    var hits = existing.filter(function (e) {
-      return (fromCol < e.a && toCol > e.b) || (fromCol > e.a && toCol < e.b);
+    var hits = existing.filter(function (edge) {
+      return (fromCol < edge.colA && toCol > edge.colB) || (fromCol > edge.colA && toCol < edge.colB);
     }).length;
     return { toCol: toCol, hits: hits };
   });
-  var best = Math.min.apply(null, scored.map(function (s) { return s.hits; }));
-  var pool = scored.filter(function (s) { return s.hits === best; }).map(function (s) { return s.toCol; });
+  var best = Math.min.apply(null, scored.map(function (candidate) { return candidate.hits; }));
+  var pool = scored.filter(function (candidate) { return candidate.hits === best; }).map(function (candidate) { return candidate.toCol; });
   return { toCol: pool[Math.floor(rnd() * pool.length)], hits: best };
 }
 function ensureEliteIsSkippable(rows, act, rnd) {
-  var row = rows[ELITE_ROW], prev = rows[ELITE_ROW - 1];
+  var eliteRow = rows[ELITE_ROW], prevRow = rows[ELITE_ROW - 1];
 
   /* A choice needs two columns to choose between. With exactly one, whatever
      the random roll gave it is unavoidable no matter what runs here, so the
@@ -972,34 +972,34 @@ function ensureEliteIsSkippable(rows, act, rnd) {
      was always going to be a toll, same as it would have been before any of
      this ran, and that is a pre-existing property of a narrow map, not
      something this function owes a fix for. */
-  if (!row || !prev || row.length < 2 || !prev.length) return;
+  if (!eliteRow || !prevRow || eliteRow.length < 2 || !prevRow.length) return;
 
   var eliteCols = [], battleCols = [], lockedCols = [];
-  row.forEach(function (n, i) {
-    if (n.dangerous) lockedCols.push(i);
-    (n.type === 'elite' ? eliteCols : battleCols).push(i);
+  eliteRow.forEach(function (node, index) {
+    if (node.dangerous) lockedCols.push(index);
+    (node.type === 'elite' ? eliteCols : battleCols).push(index);
   });
 
   // the elite vanished by chance — give the road one back
   if (!eliteCols.length) {
-    var toElite = Math.floor(rnd() * row.length);
-    row[toElite].type = 'elite';
-    row[toElite].enemy = eliteFor(act, rnd);
+    var toElite = Math.floor(rnd() * eliteRow.length);
+    eliteRow[toElite].type = 'elite';
+    eliteRow[toElite].enemy = eliteFor(act, rnd);
     eliteCols.push(toElite);
-    var idx = battleCols.indexOf(toElite);
-    if (idx !== -1) battleCols.splice(idx, 1);
+    var battleIdx = battleCols.indexOf(toElite);
+    if (battleIdx !== -1) battleCols.splice(battleIdx, 1);
   }
   // no alternative rolled at all — the same fix, in the other direction,
   // but the gate (if this row holds one) is never a candidate to convert
   if (!battleCols.length) {
-    var toBattle = row.findIndex(function (n, i) {
-      return eliteCols.indexOf(i) !== -1 && lockedCols.indexOf(i) === -1;
+    var toBattle = eliteRow.findIndex(function (node, index) {
+      return eliteCols.indexOf(index) !== -1 && lockedCols.indexOf(index) === -1;
     });
     // every elite column here is the volatile gate itself — vanishingly rare,
     // and there is nothing left to safely flip without breaking that gate
     if (toBattle !== -1) {
-      row[toBattle].type = 'battle';
-      row[toBattle].enemy = act.normals[Math.floor(rnd() * act.normals.length)];
+      eliteRow[toBattle].type = 'battle';
+      eliteRow[toBattle].enemy = act.normals[Math.floor(rnd() * act.normals.length)];
       battleCols.push(toBattle);
       eliteCols.splice(eliteCols.indexOf(toBattle), 1);
     }
@@ -1014,19 +1014,19 @@ function ensureEliteIsSkippable(rows, act, rnd) {
      knows about the first rather than only ever checking against the map's
      original edges. */
   var committed = edgesAtTransition(rows, ELITE_ROW - 1);
-  prev.forEach(function (p) {
-    var reachesBattle = p.next.some(function (j) { return battleCols.indexOf(j) !== -1; });
+  prevRow.forEach(function (parent) {
+    var reachesBattle = parent.next.some(function (nextIndex) { return battleCols.indexOf(nextIndex) !== -1; });
     if (reachesBattle) return;
-    var battleTargetCols = battleCols.map(function (j) { return row[j].col; });
-    var pick2 = pickNonCrossing(p.col, battleTargetCols, committed, rnd);
+    var battleTargetCols = battleCols.map(function (nextIndex) { return eliteRow[nextIndex].col; });
+    var skipPick = pickNonCrossing(parent.col, battleTargetCols, committed, rnd);
     /* No crossing-free route exists for this one entry — usually because a
        single battle column is the only target on offer at all. A visible
        crossing on the map is worse than this specific approach not carrying
        the skip option; every other entry still gets it. */
-    if (pick2.hits > 0) return;
-    var chosenIdx = battleCols[battleTargetCols.indexOf(pick2.toCol)];
-    p.next.push(chosenIdx);
-    committed.push({ a: p.col, b: pick2.toCol });
+    if (skipPick.hits > 0) return;
+    var chosenIdx = battleCols[battleTargetCols.indexOf(skipPick.toCol)];
+    parent.next.push(chosenIdx);
+    committed.push({ colA: parent.col, colB: skipPick.toCol });
   });
 }
 
@@ -1046,30 +1046,30 @@ function carveVolatileBranch(rows, act) {
      a Lab into the gate elite, and a branch at 5 would swallow it on the exit.
      Both were happening before this list was narrowed. */
   var CANDIDATES = [4, 9, 10, 3];
-  var D = -1, i2;
-  for (i2 = 0; i2 < CANDIDATES.length; i2++) {
-    var d2 = CANDIDATES[i2];
-    if (rows[d2] && rows[d2].length >= 2) { D = d2; break; }
+  var branchDepth = -1, candidateIndex;
+  for (candidateIndex = 0; candidateIndex < CANDIDATES.length; candidateIndex++) {
+    var wideDepth = CANDIDATES[candidateIndex];
+    if (rows[wideDepth] && rows[wideDepth].length >= 2) { branchDepth = wideDepth; break; }
   }
-  if (D === -1) {
-    for (i2 = 0; i2 < CANDIDATES.length; i2++) {
-      var d3 = CANDIDATES[i2];
-      if (rows[d3] && rows[d3].length >= 1) { D = d3; break; }
+  if (branchDepth === -1) {
+    for (candidateIndex = 0; candidateIndex < CANDIDATES.length; candidateIndex++) {
+      var anyDepth = CANDIDATES[candidateIndex];
+      if (rows[anyDepth] && rows[anyDepth].length >= 1) { branchDepth = anyDepth; break; }
     }
   }
-  if (D === -1 || !rows[D - 1]) return;
+  if (branchDepth === -1 || !rows[branchDepth - 1]) return;
 
   // prefer an edge column so the branch reads as a detour
-  var candidates = rows[D].map(function (n, i) { return { n: n, i: i }; })
-    .sort(function (a, b) { return Math.abs(b.n.col - 1) - Math.abs(a.n.col - 1); });
+  var candidates = rows[branchDepth].map(function (node, index) { return { node: node, index: index }; })
+    .sort(function (candidateA, candidateB) { return Math.abs(candidateB.node.col - 1) - Math.abs(candidateA.node.col - 1); });
   var pick = candidates[0];
-  var vol = pick.n;
-  vol.type = 'volatile'; vol.enemy = null; vol.hidden = false;
+  var volatileNode = pick.node;
+  volatileNode.type = 'volatile'; volatileNode.enemy = null; volatileNode.hidden = false;
 
   // one gate leads in, and it leads nowhere else
   var gates = [];
-  rows[D - 1].forEach(function (p, pi) {
-    if (p.next.indexOf(pick.i) !== -1) gates.push({ p: p, pi: pi });
+  rows[branchDepth - 1].forEach(function (parent, parentIndex) {
+    if (parent.next.indexOf(pick.index) !== -1) gates.push({ parent: parent, parentIndex: parentIndex });
   });
   if (!gates.length) return;
   var gate = gates[Math.floor(rnd() * gates.length)];
@@ -1086,46 +1086,46 @@ function carveVolatileBranch(rows, act) {
      A column only keeps its forced membership here if truly nothing else in
      row D-1 already reaches it. */
   var reachableWithoutGate = {};
-  rows[D - 1].forEach(function (p) {
-    if (p === gate.p) return;
-    (p.next || []).forEach(function (k) { reachableWithoutGate[k] = true; });
+  rows[branchDepth - 1].forEach(function (parent) {
+    if (parent === gate.parent) return;
+    (parent.next || []).forEach(function (nextIndex) { reachableWithoutGate[nextIndex] = true; });
   });
-  var mustKeep = (gate.p.next || []).filter(function (k) {
-    return k !== pick.i && !reachableWithoutGate[k];
+  var mustKeep = (gate.parent.next || []).filter(function (nextIndex) {
+    return nextIndex !== pick.index && !reachableWithoutGate[nextIndex];
   });
 
-  gates.forEach(function (g2) {
-    if (g2 === gate) return;
-    g2.p.next = g2.p.next.filter(function (j) { return j !== pick.i; });
-    if (!g2.p.next.length) {
+  gates.forEach(function (otherGate) {
+    if (otherGate === gate) return;
+    otherGate.parent.next = otherGate.parent.next.filter(function (nextIndex) { return nextIndex !== pick.index; });
+    if (!otherGate.parent.next.length) {
       /* Re-pointing it back at the lab would quietly open a second way in.
          Send it to any other node in that row instead — but "any" used to
          mean "the first one found scanning from column 0", regardless of
          whether the resulting line cut through a neighbour's. Route it the
          same crossing-aware way the elite-skip patch does. */
       var otherCols = [];
-      for (var k = 0; k < rows[D].length; k++) if (k !== pick.i) otherCols.push(rows[D][k].col);
+      for (var colIndex = 0; colIndex < rows[branchDepth].length; colIndex++) if (colIndex !== pick.index) otherCols.push(rows[branchDepth][colIndex].col);
       if (otherCols.length) {
-        var committedHere = edgesAtTransition(rows, D - 1);
+        var committedHere = edgesAtTransition(rows, branchDepth - 1);
         /* Always takes the ranked choice, imperfect or not: this node just
            had its only edge stripped, and leaving it with none at all is a
            dead end, a strictly worse bug than a crossing line. */
-        g2.p.next.push(rows[D].findIndex(function (n) {
-          return n.col === pickNonCrossing(g2.p.col, otherCols, committedHere, rnd).toCol;
+        otherGate.parent.next.push(rows[branchDepth].findIndex(function (node) {
+          return node.col === pickNonCrossing(otherGate.parent.col, otherCols, committedHere, rnd).toCol;
         }));
       }
-      if (!g2.p.next.length) g2.p.next.push(pick.i);      // row has nothing else
+      if (!otherGate.parent.next.length) otherGate.parent.next.push(pick.index);      // row has nothing else
     }
   });
-  gate.p.next = mustKeep.concat([pick.i]);
-  gate.p.type = 'elite';
-  gate.p.enemy = eliteFor(act, rnd);
-  gate.p.hidden = true;
-  gate.p.dangerous = true;
+  gate.parent.next = mustKeep.concat([pick.index]);
+  gate.parent.type = 'elite';
+  gate.parent.enemy = eliteFor(act, rnd);
+  gate.parent.hidden = true;
+  gate.parent.dangerous = true;
 
   // the road out is obscured too, and may hold another elite
-  vol.next.forEach(function (j) {
-    var after = rows[D + 1] && rows[D + 1][j];
+  volatileNode.next.forEach(function (nextIndex) {
+    var after = rows[branchDepth + 1] && rows[branchDepth + 1][nextIndex];
     if (!after || after.type === 'boss') return;
     /* The guaranteed Lab is off limits on the way out as well as on the way
        in. When the branch sits at row 5 its exit lands straight on row 6, and
@@ -1139,9 +1139,9 @@ function carveVolatileBranch(rows, act) {
       after.enemy = eliteFor(act, rnd);
     }
     // keep the safe road clean: strip this successor from non-volatile parents
-    rows[D].forEach(function (other, oi) {
-      if (oi === pick.i) return;
-      if (other.next.length > 1) other.next = other.next.filter(function (k) { return k !== j; });
+    rows[branchDepth].forEach(function (other, otherIndex) {
+      if (otherIndex === pick.index) return;
+      if (other.next.length > 1) other.next = other.next.filter(function (existingNext) { return existingNext !== nextIndex; });
     });
   });
 }
