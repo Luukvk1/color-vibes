@@ -2232,13 +2232,13 @@ function rowLabel(row) { return C.ROW_INFO[row].label; }
 /* Step 2 points at the interface itself, so it mirrors the real hand and
    buttons rather than the board. */
 function tutorialControls() {
-  function card(id, n) {
-    var d = CARDS[id], ci = C.colorInfo(d.color);
-    return '<div class="tut-card" style="--card:' + ci.hex + ';--card-ink:' + ci.ink + '">' +
-      (n ? '<span class="tut-pin">' + n + '</span>' : '') +
-      '<span class="card-top">' + (d.type === 'unit' ? d.strength : d.type === 'hazard' ? 'HAZ' : 'SPL') + '</span>' +
-      '<span class="card-name">' + d.name + '</span>' +
-      '<span class="card-text">' + d.text + '</span></div>';
+  function card(id, pinNumber) {
+    var cardDef = CARDS[id], colorDef = C.colorInfo(cardDef.color);
+    return '<div class="tut-card" style="--card:' + colorDef.hex + ';--card-ink:' + colorDef.ink + '">' +
+      (pinNumber ? '<span class="tut-pin">' + pinNumber + '</span>' : '') +
+      '<span class="card-top">' + (cardDef.type === 'unit' ? cardDef.strength : cardDef.type === 'hazard' ? 'HAZ' : 'SPL') + '</span>' +
+      '<span class="card-name">' + cardDef.name + '</span>' +
+      '<span class="card-text">' + cardDef.text + '</span></div>';
   }
   return '<div class="tut-ui">' +
     '<span class="lbl">Your hand</span>' +
@@ -2262,7 +2262,7 @@ function tutorialRewind() {
 }
 
 function tutorialLegend(items) {
-  return '<ol class="tut-legend">' + items.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ol>';
+  return '<ol class="tut-legend">' + items.map(function (item) { return '<li>' + item + '</li>'; }).join('') + '</ol>';
 }
 
 
@@ -2279,18 +2279,18 @@ var TUTORIAL_STEPS = [
    Drawn on the player's own half with the lane headers above, so the arrows
    read as "this is where that unit's strength actually went". */
 function lanesLesson(ctx, row) {
-  var board = ctx.board, ev = ctx.ev, tile = ctx.tile;
+  var board = ctx.board, evaluation = ctx.ev, tile = ctx.tile;
   if (!tile || tile.row !== row) return null;
   var key = 'bottom-' + row + '-' + tile.index;
-  if (!ev.shares[key]) return null;
+  if (!evaluation.shares[key]) return null;
   var lanes = C.lanesOf(row, tile.index);
-  var color = ev.get('bottom', row, tile.index).color || 'red';
-  var flows = lanes.map(function (L, n) {
-    return { from: { side: 'bottom', row: row, index: tile.index }, lane: L,
-             amount: ev.shares[key][L], color: color, nudge: (n - (lanes.length - 1) / 2) * 44 };
+  var color = evaluation.get('bottom', row, tile.index).color || 'red';
+  var flows = lanes.map(function (laneIndex, position) {
+    return { from: { side: 'bottom', row: row, index: tile.index }, lane: laneIndex,
+             amount: evaluation.shares[key][laneIndex], color: color, nudge: (position - (lanes.length - 1) / 2) * 44 };
   });
-  var shares = lanes.map(function (L) { return ev.shares[key][L]; });
-  var name = unitName(board, ev, 'bottom', row, tile.index);
+  var shares = lanes.map(function (laneIndex) { return evaluation.shares[key][laneIndex]; });
+  var name = unitName(board, evaluation, 'bottom', row, tile.index);
   var titles = { row1: 'Row 1 commits everything to one lane',
                  row2: 'Row 2 spreads across two lanes',
                  row3: 'Row 3 reaches three lanes at once' };
@@ -2304,12 +2304,12 @@ function lanesLesson(ctx, row) {
   return [{ title: titles[row],
     art: function () {
       return tutorialBoard({ half: 'bottom', lanes: true,
-        units: liveUnits(board, ev).filter(function (u) { return u.side === 'bottom'; }),
+        units: liveUnits(board, evaluation).filter(function (unit) { return unit.side === 'bottom'; }),
         flows: flows,
         marks: [{ n: 1, at: { side: 'bottom', row: row, index: tile.index } }] });
     },
     legend: ['Your <b>' + name + '</b> on ' + rowLabel(row) + ' feeds lane' +
-               (lanes.length > 1 ? 's ' : ' ') + lanes.map(function (L) { return L + 1; }).join(', ') + '.',
+               (lanes.length > 1 ? 's ' : ' ') + lanes.map(function (laneIndex) { return laneIndex + 1; }).join(', ') + '.',
              middle,
              closing[row]] }];
 }
