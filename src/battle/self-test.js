@@ -1483,9 +1483,9 @@ export function createSelfTest(ctx) {
       }
       // and once Black is genuinely held, the Star becomes reachable
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.act = 'black'; r2.deck = RUN.startingDeck();
-      for (var j = 0; j < C.requirementFor('black'); j++) r2.deck.push({ id: 'black_voidling', up: false });
+      run = RUN.getRun();
+      run.act = 'black'; run.deck = RUN.startingDeck();
+      for (var j = 0; j < C.requirementFor('black'); j++) run.deck.push({ id: 'black_voidling', up: false });
       RUN.rollReward({ type: 'boss', depth: 12 });
       var earned = RUN.getRun().reward.cards.some(function (c) { return c.id === 'black_devouring_star'; });
       RUN.setRun(saved);
@@ -1915,9 +1915,9 @@ export function createSelfTest(ctx) {
       RUN.goEndless();
       var open = RUN.getRun().actOffer;
       RUN.beginAct(open[0]);
-      var r2 = RUN.getRun();
-      r2.map = RUN.buildMap(open[0], false);
-      r2.depth = r2.map.length - 1;
+      run = RUN.getRun();
+      run.map = RUN.buildMap(open[0], false);
+      run.depth = run.map.length - 1;
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = after.screen !== 'victory' && (after.screen === 'act' || after.screen === 'map');
@@ -2926,7 +2926,7 @@ export function createSelfTest(ctx) {
     check('Volatile fusion never hollows the deck out', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
+      var run = RUN.getRun();
       for (var i = 0; i < 60; i++) RUN.applyVolatile('fuse');
       var units = RUN.deckUnits().length;
       RUN.setRun(saved);
@@ -2935,15 +2935,15 @@ export function createSelfTest(ctx) {
     check('Curses spread out before repeating', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      RUN.rollLab(); r2.lab.kind = 'volatile';
+      var run = RUN.getRun();
+      RUN.rollLab(); run.lab.kind = 'volatile';
       var kinds = {};
       for (var i = 0; i < 4; i++) {
         var held = {};
-        r2.deck.forEach(function (c) { if (CARDS[c.id].curse) held[c.id] = true; });
+        run.deck.forEach(function (c) { if (CARDS[c.id].curse) held[c.id] = true; });
         var fresh = C.CURSE_KEYS.filter(function (key) { return !held[key]; });
         if (!fresh.length) break;
-        r2.deck.push({ id: fresh[0], up: false });
+        run.deck.push({ id: fresh[0], up: false });
         kinds[fresh[0]] = 1;
       }
       RUN.setRun(saved);
@@ -2952,10 +2952,10 @@ export function createSelfTest(ctx) {
     check('A one-shot choice cannot be taken twice', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.lives = 2;
-      r2.pendingNode = { type: 'event', depth: 3, next: [0] };
-      r2.event = RUN.EVENTS.filter(function (e) { return e.title === 'A Spilled Palette'; })[0];
+      var run = RUN.getRun();
+      run.lives = 2;
+      run.pendingNode = { type: 'event', depth: 3, next: [0] };
+      run.event = RUN.EVENTS.filter(function (e) { return e.title === 'A Spilled Palette'; })[0];
       RUN.show('event');
       var btn = document.querySelector('#eventBody .lab-opt');
       btn.click(); btn.click();                      // impatient double tap
@@ -2973,8 +2973,8 @@ export function createSelfTest(ctx) {
          opens this overlay with the complete text instead. */
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var state = RUN.getState();
       var fused = C.fuseCards({ id: 'blue_current', up: false }, { id: 'black_reclaimer', up: false });
@@ -3002,8 +3002,8 @@ export function createSelfTest(ctx) {
          opened nothing. */
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var state = RUN.getState();
       state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
@@ -3019,8 +3019,8 @@ export function createSelfTest(ctx) {
     check('The card detail overlay closes via its button, the backdrop, and nothing else opens it emptied out', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var state = RUN.getState();
       state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
@@ -3052,8 +3052,8 @@ export function createSelfTest(ctx) {
          string literals, here in a CSS one instead. */
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var state = RUN.getState();
       state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
@@ -3126,9 +3126,9 @@ export function createSelfTest(ctx) {
       var allPlayer = true;
       for (var i = 0; i < 25; i++) {
         RUN.setRun(RUN.newRun());
-        var r2 = RUN.getRun();
-        r2.pendingNode = { type: 'battle', enemy: 'brawler', depth: 0, next: [] };
-        if (RUN.newBattle(r2.pendingNode).turn !== 'bottom') allPlayer = false;
+        var run = RUN.getRun();
+        run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 0, next: [] };
+        if (RUN.newBattle(run.pendingNode).turn !== 'bottom') allPlayer = false;
       }
       RUN.setRun(saved);
       return allPlayer;
@@ -3136,10 +3136,10 @@ export function createSelfTest(ctx) {
     check('Later battles still flip a coin for the opener', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun(), seen = {};
-      r2.battlesFought = 5;
-      r2.pendingNode = { type: 'battle', enemy: 'brawler', depth: 4, next: [] };
-      for (var i = 0; i < 200; i++) seen[RUN.newBattle(r2.pendingNode).turn] = 1;
+      var run = RUN.getRun(), seen = {};
+      run.battlesFought = 5;
+      run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 4, next: [] };
+      for (var i = 0; i < 200; i++) seen[RUN.newBattle(run.pendingNode).turn] = 1;
       RUN.setRun(saved);
       return seen.bottom && seen.top;
     })());
@@ -3261,16 +3261,16 @@ export function createSelfTest(ctx) {
     check('The instability meter overflows and carries the remainder', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
+      var run = RUN.getRun();
       RUN.addInstability(RUN.REWIND.THRESHOLD + 30, PLAYER, C.emptyBoard());
-      var okOne = r2.fissures.length === 1 && Math.abs(r2.instability - 30) < 1e-9;
+      var okOne = run.fissures.length === 1 && Math.abs(run.instability - 30) < 1e-9;
       RUN.setRun(saved);
       return okOne;
     })());
     check('Rewind chunk size grows with lifetime use and never resets', (function () {
-      var r2 = { rewindsUsed: 0 }, a = RUN.rewindChunk(r2, 1);
-      r2.rewindsUsed = 9;
-      var b = RUN.rewindChunk(r2, 1);
+      var run = { rewindsUsed: 0 }, a = RUN.rewindChunk(run, 1);
+      run.rewindsUsed = 9;
+      var b = RUN.rewindChunk(run, 1);
       // by the tenth use one chunk alone must clear the threshold
       return a === RUN.REWIND.BASE_CHUNK && b > RUN.REWIND.THRESHOLD;
     })());
@@ -3292,29 +3292,29 @@ export function createSelfTest(ctx) {
     check('A saturated board deepens instead of looping or going quiet', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
+      var run = RUN.getRun();
       for (var i = 0; i < 60; i++) RUN.addInstability(RUN.REWIND.THRESHOLD * 2, PLAYER, C.emptyBoard());
-      var noRoom = C.severableLinks(PLAYER, r2.fissures).length === 0 &&
-                   C.bridgeableLinks(PLAYER, r2.fissures).length === 0;
-      var allMaxed = r2.fissures.every(function (fissure) { return C.fissurePower(fissure) === C.FISSURE_MAX_POWER; });
-      var noTileStranded = true, topo = C.boardTopo(r2.fissures);
+      var noRoom = C.severableLinks(PLAYER, run.fissures).length === 0 &&
+                   C.bridgeableLinks(PLAYER, run.fissures).length === 0;
+      var allMaxed = run.fissures.every(function (fissure) { return C.fissurePower(fissure) === C.FISSURE_MAX_POWER; });
+      var noTileStranded = true, topo = C.boardTopo(run.fissures);
       C.ROWS.forEach(function (row) {
         for (var i = 0; i < C.ROW_INFO[row].count; i++)
           if (!C.lanesOfFor(PLAYER, row, i, topo).length) noTileStranded = false;
       });
       RUN.setRun(saved);
-      return noRoom && allMaxed && noTileStranded && r2.fissures.length > 5;
+      return noRoom && allMaxed && noTileStranded && run.fissures.length > 5;
     })());
     check('One Rewind damages the board at most once', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
+      var run = RUN.getRun();
       // a chunk worth twenty thresholds must still cost exactly one scar
-      var before = r2.fissures.length;
+      var before = run.fissures.length;
       var ev = RUN.addInstability(RUN.REWIND.THRESHOLD * 20, PLAYER, C.emptyBoard());
-      var one = ev.length === 1 && r2.fissures.length === before + 1;
+      var one = ev.length === 1 && run.fissures.length === before + 1;
       // and it must not bank an overflow that fires again for free
-      var carried = r2.instability < RUN.REWIND.THRESHOLD;
+      var carried = run.instability < RUN.REWIND.THRESHOLD;
       var ev2 = RUN.addInstability(0, PLAYER, C.emptyBoard());
       RUN.setRun(saved);
       return one && carried && ev2.length === 0;
@@ -3413,9 +3413,9 @@ export function createSelfTest(ctx) {
     check('Rewind is offered only after the player has moved, once per round', (function () {
       var savedRun = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
-      var st = RUN.newBattle(r2.pendingNode);
+      var run = RUN.getRun();
+      run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
+      var st = RUN.newBattle(run.pendingNode);
       RUN.setState(st);
       st.turn = PLAYER;
       var noneYet = !canRewind();                       // nothing to take back
@@ -3429,9 +3429,9 @@ export function createSelfTest(ctx) {
     check('Rewind restores the board, hands and turn exactly', (function () {
       var savedRun = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r2 = RUN.getRun();
-      r2.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
-      var st = RUN.newBattle(r2.pendingNode);
+      var run = RUN.getRun();
+      run.pendingNode = { type: 'battle', enemy: 'brawler', depth: 1, next: [0] };
+      var st = RUN.newBattle(run.pendingNode);
       RUN.setState(st);
       st.turn = PLAYER;
       var snap = snapshotForRewind(st);
