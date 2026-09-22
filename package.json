@@ -1,0 +1,17 @@
+{
+  "name": "color-vibes",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Colour Vibes — The Long Road, a roguelite deckbuilder about mixing colours.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "serve": "npm run build && npx serve build"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

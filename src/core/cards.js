@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* Every card in the game.
    A card is data plus optional hooks (passive, aura, onPlay, …) that the evaluation
    pipeline and the battle loop call at the right moment. */

@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* Enemy and boss definitions, including the signature rule each act boss plays by. */
 
 import { CARDS } from './cards.js';

@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The board's geometry.
    Eighteen triangular tiles: which touch, which lanes they belong to, and the SVG
    coordinates each is drawn at. Pure maths — no game state. */

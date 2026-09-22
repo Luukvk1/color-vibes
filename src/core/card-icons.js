@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The glyph vocabulary cards are read by.
    Deliberately tiny so it can be learned once and read at a glance; the full prose
    still lives in the card detail overlay. */

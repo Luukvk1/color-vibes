@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The run layer: everything between battles.
    Acts and the map that threads them, rewards, shops, the colour labs, the
    codex and the save file. Owns the run's mutable state and is the only place

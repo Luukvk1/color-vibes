@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The battle layer: the table itself.
    Draws the board and the hand, turns taps into moves, runs the opponent AI
    and resolves rounds. Reads the rules from core/ and the run's state from

@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* Run-long modifiers. Each is a small rule the rest of the engine asks about by
    key, rather than a special case spread through the code. */
 

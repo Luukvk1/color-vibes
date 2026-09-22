@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The rules engine's public surface.
    Assembles the sections above into one object and publishes it. Still attached
    to `window` because the run and battle layers, the self-tests and the browser

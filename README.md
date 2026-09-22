@@ -28,6 +28,18 @@ Live Server extension all work the same way.
 `.nojekyll` is in the root on purpose: without it, Pages runs the repo through
 Jekyll, which silently drops any path beginning with an underscore.
 
+## Building for production
+
+```bash
+npm install
+npm run build
+```
+
+This bundles and minifies `src/` with [esbuild](https://esbuild.github.io/)
+into `build/` (gitignored — nothing under it is committed). Pushing to `main`
+runs the same build in CI and deploys `build/` to GitHub Pages automatically;
+see `.github/workflows/deploy.yml`. Node version is pinned in `.nvmrc`.
+
 ## Layout
 
 ```
@@ -50,9 +62,7 @@ src/
   battle/
     index.js          the table: rendering, input, opponent AI, turn flow
     self-test.js      304 checks over the rules and the layout
-build/
-  split.py                 regenerates this tree from the single-file build
-  color-vibes-act1.html    that single-file build
+build.js            the esbuild bundler script (see "Building for production")
 ```
 
 The three directories under `src/` are a strict dependency chain: `core` knows
@@ -66,24 +76,6 @@ read 388 times — and an ES module cannot reassign an imported binding, so
 splitting them means routing those references through a state holder. That is a
 real refactor with real regression risk, and it is not the same change as
 "make it shareable". Navigate them by their section banners.
-
-## The single file
-
-`build/color-vibes-act1.html` is the whole game in one file, and it is currently
-the source of truth. This tree is generated from it:
-
-```bash
-cd build && python3 split.py color-vibes-act1.html ../
-```
-
-The splitter is a transformation, not a fork: it finds the three modules by
-their own structure, computes each core file's imports from the dependency
-graph rather than a hand-written list, lifts the art out of the CSS into real
-files, and moves the self-test suite into a file of its own. Nothing is
-hand-edited on the way out, so the two forms cannot drift.
-
-**This arrangement is transitional.** Two copies of the same program in one
-repository is not a state to stay in — see the note at the bottom.
 
 ## Tests
 
@@ -120,11 +112,3 @@ mean anything.
 - **No service worker.** Deliberate for now: a stale cache is the worst thing
   that can happen to a link you are asking people to try.
 - **Saves are per-browser.** Clearing site data ends a run.
-
-## Decision still open
-
-The single file and this tree are the same program twice. The single file is
-better for one person iterating quickly; the tree is better for everything else
-— reviewing a change, replacing one painting, letting anyone else contribute.
-Keeping both only makes sense while the split is being proved out. Once it is,
-one of them should go, and this tree is the one worth keeping.

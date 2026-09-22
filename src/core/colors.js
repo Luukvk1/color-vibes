@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* Colour identity and the mixing wheel.
    Which colours exist, what beats what, and the subtractive rules that decide what
    two colours make when mixed. */

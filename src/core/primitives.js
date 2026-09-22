@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* Small operations every other file needs: reading a unit off the board,
    walking a side, placement legality, and building a card instance. */
 

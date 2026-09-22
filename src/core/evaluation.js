@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The scoring pipeline.
    Takes a board and returns what every unit and lane is actually worth, with auras,
    hazards, fissures, wards and the current boss rule applied in a fixed order. The

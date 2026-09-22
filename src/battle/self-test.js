@@ -1,6 +1,3 @@
-/* Colour Vibes — generated from the single-file build by build/split.py.
-   Edit color-vibes-act1.html, then re-run the script. */
-
 /* The self-test suite: 305 checks covering the rules, board evaluation, the
    colour gate, saves, map generation, AI behaviour and layout invariants. Run
    it from the in-game menu, or from a console with:
