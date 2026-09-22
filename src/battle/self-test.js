@@ -3167,28 +3167,28 @@ export function createSelfTest(ctx) {
     check('Sever cuts one seam, on one side only', (function () {
       // the seam between Row 2 #1 and Row 1 #2
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var sv = C.boardTopo(fissures);
-      return C.lanesOfFor('bottom', 'row2', 1, sv).join() === '1' &&
-             C.lanesOfFor('top', 'row2', 1, sv).join() === '1,2' &&
-             C.lanesOfFor('bottom', 'row2', 0, sv).join() === '0,1' &&
-             C.adjacentTilesFor('bottom', 'row2', 1, sv).length ===
+      var topology = C.boardTopo(fissures);
+      return C.lanesOfFor('bottom', 'row2', 1, topology).join() === '1' &&
+             C.lanesOfFor('top', 'row2', 1, topology).join() === '1,2' &&
+             C.lanesOfFor('bottom', 'row2', 0, topology).join() === '0,1' &&
+             C.adjacentTilesFor('bottom', 'row2', 1, topology).length ===
                C.adjacentTiles('row2', 1).length - 1 &&
-             C.adjacentTilesFor('top', 'row2', 1, sv).length === C.adjacentTiles('row2', 1).length;
+             C.adjacentTilesFor('top', 'row2', 1, topology).length === C.adjacentTiles('row2', 1).length;
     })());
     check('A crack blocks adjacency in both directions', (function () {
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var sv = C.boardTopo(fissures);
-      var up = C.adjacentTilesFor('bottom', 'row1', 2, sv)
+      var topology = C.boardTopo(fissures);
+      var up = C.adjacentTilesFor('bottom', 'row1', 2, topology)
         .some(function (t) { return t.row === 'row2' && t.index === 1; });
-      var down = C.adjacentTilesFor('bottom', 'row2', 1, sv)
+      var down = C.adjacentTilesFor('bottom', 'row2', 1, topology)
         .some(function (t) { return t.row === 'row1' && t.index === 2; });
       return !up && !down;
     })());
     check('A Row 3 tile keeps the lanes its intact neighbour still offers', (function () {
       // cut row3#0 from row2#0: it should keep only what row2#1 reaches
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row2', index: 0 } }];
-      var sv = C.boardTopo(fissures);
-      return C.lanesOfFor('bottom', 'row3', 0, sv).join() === '1,2' &&
+      var topology = C.boardTopo(fissures);
+      return C.lanesOfFor('bottom', 'row3', 0, topology).join() === '1,2' &&
              C.lanesOfFor('bottom', 'row3', 0, null).join() === '0,1,2';
     })());
     check('A severed link never strands a tile', (function () {
@@ -3369,10 +3369,10 @@ export function createSelfTest(ctx) {
     })());
     check('A bridge carries adjacency both ways', (function () {
       var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
-      var tp = C.boardTopo(fissures);
-      var fwd = C.adjacentTilesFor('bottom', 'row2', 0, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
-      var back = C.adjacentTilesFor('bottom', 'row2', 1, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 0 }); });
-      var enemyUntouched = !C.adjacentTilesFor('top', 'row2', 0, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
+      var topology = C.boardTopo(fissures);
+      var fwd = C.adjacentTilesFor('bottom', 'row2', 0, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
+      var back = C.adjacentTilesFor('bottom', 'row2', 1, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 0 }); });
+      var enemyUntouched = !C.adjacentTilesFor('top', 'row2', 0, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
       return fwd && back && enemyUntouched;
     })());
     check('A forward bridge grants a lane, paid for by thinner shares', (function () {
@@ -3456,9 +3456,9 @@ export function createSelfTest(ctx) {
     })());
 
     check('Every map node lists at least one onward path', (function () {
-      var m = RUN.buildMap();
-      for (var d = 0; d < m.length - 1; d++) {
-        for (var i = 0; i < m[d].length; i++) if (!m[d][i].next.length) return false;
+      var map = RUN.buildMap();
+      for (var depth = 0; depth < map.length - 1; depth++) {
+        for (var i = 0; i < map[depth].length; i++) if (!map[depth][i].next.length) return false;
       }
       return true;
     })());
