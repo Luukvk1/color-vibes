@@ -1749,32 +1749,32 @@ function maybeOpponentMove() {
    ROUND / BATTLE RESOLUTION
    =================================================================== */
 function resolveRound() {
-  var s = getBattleState();
-  var ev = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
-  var result = decideRound(ev, s.roundStarter);
-  s.wins[result.winner]++;
-  s.lastRoundWinner = result.winner;
-  s.resolving = true; s.opponentThinking = false;
+  var state = getBattleState();
+  var ev = evaluateBoard(state.board, state.hazards, RUN.evalCtx(state));
+  var result = decideRound(ev, state.roundStarter);
+  state.wins[result.winner]++;
+  state.lastRoundWinner = result.winner;
+  state.resolving = true; state.opponentThinking = false;
   /* Once a round is scored it is out of reach for good. */
-  s.rewindSnap = null;
-  s.mode = 'place'; s.mixBase = null; s.selectedCard = null; s.pending = null;
-  if (s.wins[result.winner] >= 2) s.battleOver = true;
-  addLog('Round ' + s.round + ' — You ' + result.bottom + ' : ' + result.top + '. ' + sideName(result.winner) + ' won it.');
+  state.rewindSnap = null;
+  state.mode = 'place'; state.mixBase = null; state.selectedCard = null; state.pending = null;
+  if (state.wins[result.winner] >= 2) state.battleOver = true;
+  addLog('Round ' + state.round + ' — You ' + result.bottom + ' : ' + result.top + '. ' + sideName(result.winner) + ' won it.');
   render();
   // let the final animation land before the modal covers the board
-  setTimeout(function () { if (getBattleState() === s) showResults(ev, result); }, 520);
+  setTimeout(function () { if (getBattleState() === state) showResults(ev, result); }, 520);
 }
 
 function laneTable(ev) {
   var rows = ev.lanes.map(function (lane) {
-    function cell(sd) {
-      var d = lane[sd];
-      if (!d) return '<td class="muted">—</td><td class="muted">—</td>';
-      var c = colorInfo(d.color), cd = CARDS[d.champion.unit.cardId];
-      return '<td><span class="chip mini" style="background:' + c.hex + ';color:' + c.ink + '">' + c.name + '</span>' +
-        '<em class="detail">' + (cd ? cd.name : 'Mixed') + ' · ' + ROW_INFO[d.champion.row].label.replace('Row ', 'R') + '</em></td>' +
-        '<td class="num">' + d.frontStrength + (d.support ? '+' + d.support : '') +
-        (d.multiplier > 1 ? ' <b class="fx">\u00d7' + d.multiplier + '</b>' : '') + '<b class="tot">' + d.final + '</b></td>';
+    function cell(side) {
+      var laneSide = lane[side];
+      if (!laneSide) return '<td class="muted">—</td><td class="muted">—</td>';
+      var colorData = colorInfo(laneSide.color), championDef = CARDS[laneSide.champion.unit.cardId];
+      return '<td><span class="chip mini" style="background:' + colorData.hex + ';color:' + colorData.ink + '">' + colorData.name + '</span>' +
+        '<em class="detail">' + (championDef ? championDef.name : 'Mixed') + ' · ' + ROW_INFO[laneSide.champion.row].label.replace('Row ', 'R') + '</em></td>' +
+        '<td class="num">' + laneSide.frontStrength + (laneSide.support ? '+' + laneSide.support : '') +
+        (laneSide.multiplier > 1 ? ' <b class="fx">\u00d7' + laneSide.multiplier + '</b>' : '') + '<b class="tot">' + laneSide.final + '</b></td>';
     }
     return '<tr><td class="lane-no">' + (lane.index + 1) + '</td>' + cell('bottom') + cell('top') + '</tr>';
   }).join('');
@@ -1782,24 +1782,24 @@ function laneTable(ev) {
 }
 
 function showResults(ev, result) {
-  var s = getBattleState(), r = getActiveRun();
-  var playerWon = s.wins.bottom >= 2;
-  els.resultsTitle.textContent = s.battleOver
+  var state = getBattleState(), run = getActiveRun();
+  var playerWon = state.wins.bottom >= 2;
+  els.resultsTitle.textContent = state.battleOver
     ? (playerWon ? 'Battle won' : 'Battle lost')
-    : 'Round ' + s.round + ' — ' + (result.winner === PLAYER ? 'you win' : 'enemy wins');
+    : 'Round ' + state.round + ' — ' + (result.winner === PLAYER ? 'you win' : 'enemy wins');
   els.resultsBody.innerHTML =
-    '<p class="result-score"><span class="you">You ' + result.bottom + '</span><span class="vs">:</span><span class="opp">' + result.top + ' ' + s.enemy.name + '</span></p>' +
+    '<p class="result-score"><span class="you">You ' + result.bottom + '</span><span class="vs">:</span><span class="opp">' + result.top + ' ' + state.enemy.name + '</span></p>' +
     (result.note ? '<p class="tiebreak">' + result.note + '</p>' : '') + laneTable(ev) +
-    '<p class="match-line">Rounds — You ' + s.wins.bottom + ' : ' + s.wins.top + ' · raw ' + ev.raw.bottom + ' : ' + ev.raw.top +
-    ' · longest chain ' + s.bestChain + '</p>';
+    '<p class="match-line">Rounds — You ' + state.wins.bottom + ' : ' + state.wins.top + ' · raw ' + ev.raw.bottom + ' : ' + ev.raw.top +
+    ' · longest chain ' + state.bestChain + '</p>';
 
-  if (s.battleOver) {
+  if (state.battleOver) {
     els.continueBtn.textContent = playerWon ? 'Claim reward' : 'Continue';
     els.continueBtn.onclick = function () { els.overlay.hidden = true; endBattle(playerWon); };
   } else {
     els.resultsBody.innerHTML += '<p class="rule-note">Frontline units in <b>contested</b> lanes fall before round ' +
-      (s.round + 1) + ' — whatever sits behind them steps up. A lane the enemy never contested keeps its unit.</p>';
-    els.continueBtn.textContent = 'Start round ' + (s.round + 1);
+      (state.round + 1) + ' — whatever sits behind them steps up. A lane the enemy never contested keeps its unit.</p>';
+    els.continueBtn.textContent = 'Start round ' + (state.round + 1);
     els.continueBtn.onclick = function () { els.overlay.hidden = true; nextRound(result.winner); };
   }
   els.overlay.hidden = false;
@@ -1808,51 +1808,51 @@ function showResults(ev, result) {
 
 function nextRound(winner) {
   showPassPuck(false);
-  var s = getBattleState();
+  var state = getBattleState();
   // The line breaks: frontline units in contested lanes are spent. Snapshot the
   // board first so the tutorial can show the player exactly what fell and why.
-  var ctxNow = RUN.evalCtx(s);
-  var preBoard = C.cloneBoard(s.board), preHaz = C.cloneHazards(s.hazards);
+  var ctxNow = RUN.evalCtx(state);
+  var preBoard = C.cloneBoard(state.board), preHaz = C.cloneHazards(state.hazards);
   var preEv = evaluateBoard(preBoard, preHaz, ctxNow);
-  var fallen = RUN.clearFrontlines(s.board, s.hazards, ctxNow);
-  s.round++; s.roundStarter = winner; s.turn = winner;
-  s.finalTurn = false; s.resolving = false;
+  var fallen = RUN.clearFrontlines(state.board, state.hazards, ctxNow);
+  state.round++; state.roundStarter = winner; state.turn = winner;
+  state.finalTurn = false; state.resolving = false;
   // one Rewind per round, and it can never reach across the boundary
-  s.rewindSnap = null; s.rewindUsedThisRound = false;
-  s.inspected = null; s.lastPlaced = null;
-  s.mixTokens = { bottom: 1, top: (s.enemyMod && s.enemyMod.mixTokens) || 1 };
-  s.mixChain = 0; s.chains = { bottom: 0, top: 0 };
-  s.mixesThisRound = 0; s.freeMixesThisRound = 0; s.echoUsedThisRound = false; s.cascadeDepth = 0;
-  s.quickStudyUsed = false;
-  s.quieted = null;                              // Cyan's reprieve lasts one round
-  ['bottom', 'top'].forEach(function (sd) { eachUnit(s.board, sd, function (u) { u.temp = 0; }); });
+  state.rewindSnap = null; state.rewindUsedThisRound = false;
+  state.inspected = null; state.lastPlaced = null;
+  state.mixTokens = { bottom: 1, top: (state.enemyMod && state.enemyMod.mixTokens) || 1 };
+  state.mixChain = 0; state.chains = { bottom: 0, top: 0 };
+  state.mixesThisRound = 0; state.freeMixesThisRound = 0; state.echoUsedThisRound = false; state.cascadeDepth = 0;
+  state.quickStudyUsed = false;
+  state.quieted = null;                              // Cyan's reprieve lasts one round
+  ['bottom', 'top'].forEach(function (side) { eachUnit(state.board, side, function (unit) { unit.temp = 0; }); });
   /* BOSS RULE — growth (The Verdant Crown). Everything of its that survived
      the break comes back bigger, permanently. A long battle is a losing
      battle: the answer is to take rounds one and two quickly rather than
      grinding, which inverts the usual advice about playing for the long game. */
-  if (s.enemyMod && s.enemyMod.growth) {
+  if (state.enemyMod && state.enemyMod.growth) {
     var grown = 0;
-    eachUnit(s.board, ENEMY, function (u) { u.strength += s.enemyMod.growth; grown++; });
-    if (grown) addLog(s.enemy.name + ' puts out new growth — ' + grown +
-      ' surviving unit' + (grown === 1 ? '' : 's') + ' gain ' + s.enemyMod.growth + '.');
+    eachUnit(state.board, ENEMY, function (unit) { unit.strength += state.enemyMod.growth; grown++; });
+    if (grown) addLog(state.enemy.name + ' puts out new growth — ' + grown +
+      ' surviving unit' + (grown === 1 ? '' : 's') + ' gain ' + state.enemyMod.growth + '.');
   }
-  if (s.enemyMod && s.enemyMod.rotatingColor) {
-    s.spectrumColor = COLOR_KEYS[Math.floor(RUN.getRnd()() * COLOR_KEYS.length)];
-    addLog(s.enemy.name + ' turns ' + COLORS[s.spectrumColor].name + ' this round.');
+  if (state.enemyMod && state.enemyMod.rotatingColor) {
+    state.spectrumColor = COLOR_KEYS[Math.floor(RUN.getRnd()() * COLOR_KEYS.length)];
+    addLog(state.enemy.name + ' turns ' + COLORS[state.spectrumColor].name + ' this round.');
   }
   /* BOSS RULE — devourWeakest (The Spectrum). It eats your weakest surviving
      unit at the start of every round. Chaff you were holding for board
      presence becomes a liability, and the usual habit of padding the back
      rows with cheap bodies actively feeds it. */
-  if (s.enemyMod && s.enemyMod.devourWeakest) {
+  if (state.enemyMod && state.enemyMod.devourWeakest) {
     var weakest = null;
-    eachUnit(s.board, PLAYER, function (u, row, index) {
-      if (!weakest || u.strength < weakest.u.strength) weakest = { u: u, row: row, index: index };
+    eachUnit(state.board, PLAYER, function (unit, row, index) {
+      if (!weakest || unit.strength < weakest.unit.strength) weakest = { unit: unit, row: row, index: index };
     });
     if (weakest) {
-      s.board[PLAYER][weakest.row][weakest.index] = null;
-      addLog(s.enemy.name + ' devours your weakest unit — ' +
-        colorInfo(weakest.u.color).name + ' ' + weakest.u.strength + ' is gone.');
+      state.board[PLAYER][weakest.row][weakest.index] = null;
+      addLog(state.enemy.name + ' devours your weakest unit — ' +
+        colorInfo(weakest.unit.color).name + ' ' + weakest.unit.strength + ' is gone.');
     }
   }
   /* BOSS RULE — plantsCurse (The Chorus Eternal). It puts a curse on the
@@ -1860,20 +1860,20 @@ function nextRound(winner) {
      growing during the fight. Board-only: it does not add to the run deck,
      because the boss should not permanently worsen a run you might still
      lose and retry. */
-  if (s.enemyMod && s.enemyMod.plantsCurse) {
+  if (state.enemyMod && state.enemyMod.plantsCurse) {
     var curseId = C.CURSE_KEYS[Math.floor(RUN.getRnd()() * C.CURSE_KEYS.length)];
-    var note = C.plantCurse(s, PLAYER, RUN.buildApi(s, PLAYER, []), curseId);
-    addLog(s.enemy.name + ' adds its voice \u2014 ' + CARDS[curseId].name + ': ' + note + '.');
+    var note = C.plantCurse(state, PLAYER, RUN.buildApi(state, PLAYER, []), curseId);
+    addLog(state.enemy.name + ' adds its voice \u2014 ' + CARDS[curseId].name + ': ' + note + '.');
   }
 
   /* BOSS RULE — sunderEachRound (The Long Crack). The ground keeps breaking,
      on BOTH halves. Splitting it evenly is what makes this a shared handicap
      rather than a one-sided punishment \u2014 the fight is about who plays broken
      ground better. */
-  if (s.enemyMod && s.enemyMod.sunderEachRound) {
-    for (var sc = 0; sc < s.enemyMod.sunderEachRound; sc++) {
-      var side1 = RUN.spawnFissure(PLAYER, s.board);
-      var side2 = RUN.spawnFissure(ENEMY, s.board);
+  if (state.enemyMod && state.enemyMod.sunderEachRound) {
+    for (var i = 0; i < state.enemyMod.sunderEachRound; i++) {
+      var side1 = RUN.spawnFissure(PLAYER, state.board);
+      var side2 = RUN.spawnFissure(ENEMY, state.board);
       if (side1 || side2) addLog('The ground gives way further on both halves.');
     }
   }
@@ -1882,29 +1882,29 @@ function nextRound(winner) {
      Wellspring alive is the cost of the engine \u2014 it is a frontline body like
      any other and the line still breaks around it. */
   var engineDraw = 0;
-  eachUnit(s.board, PLAYER, function (u) {
-    var d = CARDS[u.cardId];
-    if (d && d.drawsEachRound) engineDraw += d.drawsEachRound;
+  eachUnit(state.board, PLAYER, function (unit) {
+    var cardDef = CARDS[unit.cardId];
+    if (cardDef && cardDef.drawsEachRound) engineDraw += cardDef.drawsEachRound;
   });
   if (engineDraw) addLog('Your wellsprings draw ' + engineDraw + ' extra.');
   /* Deep Pockets pays a lean deck directly: every five cards under 25 is
      another card each round. At 15 cards that is two extra draws a round, so
      the endgame target size is something the relic actively argues for. */
   var lean = 0;
-  if (hasRelic(s.relics, 'deep_pockets')) {
+  if (hasRelic(state.relics, 'deep_pockets')) {
     lean = Math.max(0, Math.floor((25 - getActiveRun().deck.length) / 5));
     if (lean) addLog('Deep Pockets draws ' + lean + ' extra \u2014 your deck is lean.');
   }
-  RUN.drawInto(s, PLAYER, C.ROUND_DRAW + engineDraw + lean + (hasRelic(s.relics, 'recycling_bin') ? 1 : 0));
-  RUN.drawInto(s, ENEMY, C.ROUND_DRAW);
+  RUN.drawInto(state, PLAYER, C.ROUND_DRAW + engineDraw + lean + (hasRelic(state.relics, 'recycling_bin') ? 1 : 0));
+  RUN.drawInto(state, ENEMY, C.ROUND_DRAW);
   if (fallen.bottom.length || fallen.top.length) {
     addLog('The contested lines break — ' + fallen.bottom.length + ' of yours and ' +
       fallen.top.length + ' enemy frontline unit' + (fallen.top.length === 1 ? '' : 's') + ' fall.');
   } else addLog('No lane was contested, so every unit holds its ground.');
-  addLog('Round ' + s.round + ' begins. ' + sideName(winner) + ' starts.');
+  addLog('Round ' + state.round + ' begins. ' + sideName(winner) + ' starts.');
   render();
   if (!RUN.teach('roundbreak', { board: preBoard, hazards: preHaz, ev: preEv,
-      after: s.board, fallen: fallen, evalCtx: ctxNow })) maybeOpponentMove();
+      after: state.board, fallen: fallen, evalCtx: ctxNow })) maybeOpponentMove();
 }
 
 function endBattle(won) {
