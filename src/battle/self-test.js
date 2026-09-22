@@ -79,14 +79,14 @@ export function createSelfTest(ctx) {
          that produces the number actually printed on the tile. Tile positions
          here are the ones actually adjacent on this board's topology, found by
          checking real adjacency rather than assumed from row numbers. */
-      var g2 = fresh();
-      g2.board[PLAYER].row2[1] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0 };
-      g2.board[PLAYER].row1[1] = { cardId: 'red_brute', color: 'red', strength: 5, temp: 0 };
-      g2.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0 };
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[1] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0 };
+      battleState2.board[PLAYER].row1[1] = { cardId: 'red_brute', color: 'red', strength: 5, temp: 0 };
+      battleState2.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0 };
       var at = { row: 'row2', index: 1 };
-      var t = RUN.legalTargets(g2, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      C.CARDS.black_devourer.onPlay(g2, PLAYER, at, t, RUN.buildApi(g2, PLAYER, []));
-      var got = g2.board[PLAYER].row2[1].strength + (g2.board[PLAYER].row2[1].temp || 0);
+      var t = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      C.CARDS.black_devourer.onPlay(battleState2, PLAYER, at, t, RUN.buildApi(battleState2, PLAYER, []));
+      var got = battleState2.board[PLAYER].row2[1].strength + (battleState2.board[PLAYER].row2[1].temp || 0);
       // devourer's own 3 + red_brute's raw 5 would be 8; the aura must push it past that
       return got > 8;
     })());
@@ -233,14 +233,14 @@ export function createSelfTest(ctx) {
          JS coerces through the function's own source-code string rather than
          throwing — turning the mix result into a string that looked fine until
          the next subtraction (any hazard, any damage) turned it into NaN. */
-      var g2 = fresh();
+      var battleState2 = fresh();
       var f = C.fuseCards({ id: 'black_voidling', up: false }, { id: 'red_scout', up: false });
-      g2.board[PLAYER].row1[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
-      put(g2, 'bottom', 'row2', 0, 'red_brute', 2);
-      var out = RUN.applyMix(g2, PLAYER, { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-      var afterDamage = Math.max(1, g2.board[PLAYER].row1[0].strength - 2);
+      battleState2.board[PLAYER].row1[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
+      put(battleState2, 'bottom', 'row2', 0, 'red_brute', 2);
+      var out = RUN.applyMix(battleState2, PLAYER, { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+      var afterDamage = Math.max(1, battleState2.board[PLAYER].row1[0].strength - 2);
       return typeof out.strength === 'number' && !isNaN(out.strength) &&
-             typeof g2.board[PLAYER].row1[0].strength === 'number' &&
+             typeof battleState2.board[PLAYER].row1[0].strength === 'number' &&
              !isNaN(afterDamage);
     })());
     check('Every inherited hook is consistently one type across every card that carries it', (function () {
@@ -344,28 +344,28 @@ export function createSelfTest(ctx) {
     check('Chromatic Knight punishes your effective lanes', ev.lanes[0].top.frontStrength === 4,
       'enemy front ' + ev.lanes[0].top.frontStrength);
     check('The Knight bonus does not compound across lanes', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // effective in lane 2
-      put(g2, 'bottom', 'row1', 2, 'cyan_cleanser', 4);   // effective in lane 3
-      put(g2, 'top', 'row2', 1, 'red_brute', 6);          // one unit fronting both lanes
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { punishEffective: 2 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // effective in lane 2
+      put(battleState2, 'bottom', 'row1', 2, 'cyan_cleanser', 4);   // effective in lane 3
+      put(battleState2, 'top', 'row2', 1, 'red_brute', 6);          // one unit fronting both lanes
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       // each lane gets +2 once, and the unit itself is untouched
       return e2.lanes[1].top.frontStrength === 5 && e2.lanes[2].top.frontStrength === 5 && e2.raw.top === 6;
     })());
     check('The Knight bonus does not leak into non-effective lanes', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // Cyan beats Red — effective
-      put(g2, 'bottom', 'row1', 2, 'green_gardener', 4);  // Green does not
-      put(g2, 'top', 'row2', 1, 'red_brute', 6);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { punishEffective: 2 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // Cyan beats Red — effective
+      put(battleState2, 'bottom', 'row1', 2, 'green_gardener', 4);  // Green does not
+      put(battleState2, 'top', 'row2', 1, 'red_brute', 6);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       return e2.lanes[1].bottom.effective === true && e2.lanes[2].bottom.effective === false &&
              e2.lanes[1].top.frontStrength === 5 && e2.lanes[2].top.frontStrength === 3;
     })());
     check('The Knight gains nothing while you are not effective', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'green_gardener', 4);
-      put(g2, 'top', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { punishEffective: 2 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'green_gardener', 4);
+      put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       return e2.lanes[1].top.frontStrength === 3;
     })());
     battleState = fresh();
@@ -538,39 +538,39 @@ export function createSelfTest(ctx) {
     check('Rewards and shops only offer colours the deck already holds', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();                          // red / blue / green + one hazard
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();                          // red / blue / green + one hazard
       var pool = RUN.offerableCards();
-      var leaks = pool.filter(function (k) {
-        var col = CARDS[k].color;
+      var leaks = pool.filter(function (cardId) {
+        var col = CARDS[cardId].color;
         return col && ['red', 'blue', 'green'].indexOf(col) === -1;
       });
-      var hasColourless = pool.some(function (k) { return !CARDS[k].color; });
-      var hasHeld = pool.some(function (k) { return CARDS[k].color === 'red'; });
+      var hasColourless = pool.some(function (cardId) { return !CARDS[cardId].color; });
+      var hasHeld = pool.some(function (cardId) { return CARDS[cardId].color === 'red'; });
       RUN.setRun(saved);
       return leaks.length === 0 && hasColourless && hasHeld;
     })());
     check('Every node in every generated map is reachable from the start', (function () {
-      for (var t = 0; t < 60; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], t % 2 === 0);
-        var reach = m.map(function (row) { return row.map(function () { return false; }); });
+      for (var attempt = 0; attempt < 60; attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
+        var reach = map.map(function (row) { return row.map(function () { return false; }); });
         reach[0][0] = true;
-        for (var d = 0; d < m.length - 1; d++) {
-          m[d].forEach(function (node, i) {
-            if (!reach[d][i]) return;
-            (node.next || []).forEach(function (j) {
-              if (m[d + 1] && m[d + 1][j]) reach[d + 1][j] = true;
+        for (var depth = 0; depth < map.length - 1; depth++) {
+          map[depth].forEach(function (node, i) {
+            if (!reach[depth][i]) return;
+            (node.next || []).forEach(function (nextIndex) {
+              if (map[depth + 1] && map[depth + 1][nextIndex]) reach[depth + 1][nextIndex] = true;
             });
           });
         }
-        for (var d2 = 0; d2 < m.length; d2++) {
-          for (var i2 = 0; i2 < m[d2].length; i2++) {
+        for (var depth2 = 0; depth2 < map.length; depth2++) {
+          for (var i2 = 0; i2 < map[depth2].length; i2++) {
             /* A forced single-column row is the sole possible parent for every
                column below it. The volatile gate used to overwrite that node's
                .next down to a single entry unconditionally, which was fine
                when its siblings had another parent and silently orphaned them
                when it was their only one. */
-            if (!reach[d2][i2]) return false;
+            if (!reach[depth2][i2]) return false;
           }
         }
       }
@@ -581,14 +581,14 @@ export function createSelfTest(ctx) {
       // the fix only has to add edges back where dropping them would orphan a
       // sibling, not abandon the single-entrance feel everywhere
       var sawSingle = false, sawKept = false;
-      for (var t = 0; t < 200 && !(sawSingle && sawKept); t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], t % 2 === 0);
-        m.forEach(function (row, d) {
-          row.forEach(function (n) {
-            if (n.type !== 'elite' || !m[d + 1]) return;
-            var leadsToVolatile = n.next.some(function (j) { return m[d + 1][j] && m[d + 1][j].type === 'volatile'; });
+      for (var attempt = 0; attempt < 200 && !(sawSingle && sawKept); attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
+        map.forEach(function (row, depth) {
+          row.forEach(function (node) {
+            if (node.type !== 'elite' || !map[depth + 1]) return;
+            var leadsToVolatile = node.next.some(function (nextIndex) { return map[depth + 1][nextIndex] && map[depth + 1][nextIndex].type === 'volatile'; });
             if (!leadsToVolatile) return;
-            if (n.next.length === 1) sawSingle = true; else sawKept = true;
+            if (node.next.length === 1) sawSingle = true; else sawKept = true;
           });
         });
       }
@@ -608,15 +608,15 @@ export function createSelfTest(ctx) {
              typeof cardDef.onPlay === 'function';
     })());
     check('Both halves of a fused onPlay actually execute', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'red_brute', 9);
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 9);
       var f = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
-      g2.decks = { bottom: [C.makeCard('red_brute')], top: [] };
-      var deckBefore = g2.decks.bottom.length;
-      var api = RUN.buildApi(g2, PLAYER, []);
-      CARDS[f.id].onPlay(g2, PLAYER, { row: 'row2', index: 0 }, [], api);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
-      return g2.decks.bottom.length < deckBefore &&                          // the draw ran
+      battleState2.decks = { bottom: [C.makeCard('red_brute')], top: [] };
+      var deckBefore = battleState2.decks.bottom.length;
+      var api = RUN.buildApi(battleState2, PLAYER, []);
+      CARDS[f.id].onPlay(battleState2, PLAYER, { row: 'row2', index: 0 }, [], api);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
+      return battleState2.decks.bottom.length < deckBefore &&                          // the draw ran
              ev.strengthOf(ev.view['top-row1-0']) < 9;                       // the damage ran
     })());
     check('A fusion of two targeted effects prompts for, and uses, both targets', (function () {
@@ -635,22 +635,22 @@ export function createSelfTest(ctx) {
       return specs[0].ref === undefined && specs[1].ref === undefined && specs[2].ref === 1;
     })());
     check('A three-way merged pick resolves both effects on the right targets', (function () {
-      var g2 = fresh();
+      var battleState2 = fresh();
       var f = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
-      g2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
-      put(g2, 'bottom', 'row1', 0, 'curse_husk', 1); g2.board[PLAYER].row1[0].color = null;
-      put(g2, 'bottom', 'row1', 2, 'red_scout', 3);
+      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
+      put(battleState2, 'bottom', 'row1', 0, 'curse_husk', 1); battleState2.board[PLAYER].row1[0].color = null;
+      put(battleState2, 'bottom', 'row1', 2, 'red_scout', 3);
       var at = { row: 'row2', index: 0 };
       var specs = CARDS[f.id].targets;
-      var p0 = RUN.legalTargets(g2, PLAYER, specs[0], [], at)[0];
-      var p1 = RUN.legalTargets(g2, PLAYER, specs[1], [p0], at).filter(function (o) {
+      var p0 = RUN.legalTargets(battleState2, PLAYER, specs[0], [], at)[0];
+      var p1 = RUN.legalTargets(battleState2, PLAYER, specs[1], [p0], at).filter(function (o) {
         return o.row === 'row1' && o.index === 2;
       })[0];
-      var p2 = RUN.legalTargets(g2, PLAYER, specs[2], [p0, p1], at)[0];
+      var p2 = RUN.legalTargets(battleState2, PLAYER, specs[2], [p0, p1], at)[0];
       if (!p0 || !p1 || !p2) return false;
-      CARDS[f.id].onPlay(g2, PLAYER, at, [p0, p1, p2], RUN.buildApi(g2, PLAYER, []));
-      var curseGone = !g2.board[PLAYER].row1[0];
-      var unitMoved = !g2.board[PLAYER].row1[2] && !!g2.board[PLAYER][p2.row][p2.index];
+      CARDS[f.id].onPlay(battleState2, PLAYER, at, [p0, p1, p2], RUN.buildApi(battleState2, PLAYER, []));
+      var curseGone = !battleState2.board[PLAYER].row1[0];
+      var unitMoved = !battleState2.board[PLAYER].row1[2] && !!battleState2.board[PLAYER][p2.row][p2.index];
       return curseGone && unitMoved;
     })());
 
@@ -805,12 +805,12 @@ export function createSelfTest(ctx) {
 
     // --- boss rules (each act boss must play differently, not just harder) ---
     check('Exposure taxes the colour you leaned on, and spares an even board', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 4);
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 4);
-      put(g2, 'bottom', 'row2', 0, 'red_brute', 4);      // three Red, clearly dominant
-      var taxed = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { taxDominantColor: 2 } });
-      var plain = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: {} });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 4);
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
+      put(battleState2, 'bottom', 'row2', 0, 'red_brute', 4);      // three Red, clearly dominant
+      var taxed = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { taxDominantColor: 2 } });
+      var plain = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
       if (plain.raw.bottom - taxed.raw.bottom !== 6) return false;   // 2 per Red unit
 
       var even = fresh();
@@ -821,11 +821,11 @@ export function createSelfTest(ctx) {
       return e1.raw.bottom === e0.raw.bottom;
     })());
     check('The Scorched Line halves support but leaves the frontline whole', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 6);      // frontline
-      put(g2, 'bottom', 'row3', 0, 'red_brute', 8);      // support behind it
-      var pen = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { supportPenalty: 0.5 } });
-      var full = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: {} });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 6);      // frontline
+      put(battleState2, 'bottom', 'row3', 0, 'red_brute', 8);      // support behind it
+      var pen = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { supportPenalty: 0.5 } });
+      var full = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
       var lp = pen.lanes.filter(function (l) { return l.bottom; })[0];
       var lf = full.lanes.filter(function (l) { return l.bottom; })[0];
       return lp.bottom.frontStrength === lf.bottom.frontStrength &&
@@ -833,27 +833,27 @@ export function createSelfTest(ctx) {
              pen.totals.bottom < full.totals.bottom;
     })());
     check('The Undertow answers only the lane you invested in most', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 10);     // the monster lane
-      put(g2, 'bottom', 'row1', 2, 'red_brute', 2);
-      put(g2, 'top', 'row1', 0, 'blue_scout', 1);
-      put(g2, 'top', 'row1', 2, 'blue_scout', 1);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { echoBestLane: 0.5 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 10);     // the monster lane
+      put(battleState2, 'bottom', 'row1', 2, 'red_brute', 2);
+      put(battleState2, 'top', 'row1', 0, 'blue_scout', 1);
+      put(battleState2, 'top', 'row1', 2, 'blue_scout', 1);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { echoBestLane: 0.5 } });
       var echoed = ev.lanes.filter(function (l) { return l.top && l.top.echoed; });
       if (echoed.length !== 1) return false;
-      var base = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: {} });
+      var base = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
       return ev.totals.top > base.totals.top;
     })());
     check('Still Water cancels the matchup bonus in its weakest lanes only', (function () {
-      var g2 = fresh();
+      var battleState2 = fresh();
       // player is effective in every lane; enemy is weak in two of them
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 5);
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 5);
-      put(g2, 'bottom', 'row1', 2, 'red_brute', 5);
-      put(g2, 'top', 'row1', 0, 'green_seed', 1);
-      put(g2, 'top', 'row1', 1, 'green_seed', 1);
-      put(g2, 'top', 'row1', 2, 'green_seed', 9);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { wardWeakLanes: 2 } });
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 5);
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 5);
+      put(battleState2, 'bottom', 'row1', 2, 'red_brute', 5);
+      put(battleState2, 'top', 'row1', 0, 'green_seed', 1);
+      put(battleState2, 'top', 'row1', 1, 'green_seed', 1);
+      put(battleState2, 'top', 'row1', 2, 'green_seed', 9);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { wardWeakLanes: 2 } });
       var warded = ev.lanes.filter(function (l) { return l.bottom && l.bottom.warded; });
       var free = ev.lanes.filter(function (l) { return l.bottom && !l.bottom.warded && l.bottom.effective; });
       if (warded.length !== 2) return false;
@@ -993,11 +993,11 @@ export function createSelfTest(ctx) {
       return drawCards.length >= 5 && drawRelics.length >= 4;
     })());
     check('Blue Tideline grows with everything drawn this battle', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'blue_tideline', 1);
-      var cold = C.evaluateBoard(g2.board, g2.hazards, { drawn: { extra: 0 } });
-      var dug  = C.evaluateBoard(g2.board, g2.hazards, { drawn: { extra: 5 } });
-      var capped = C.evaluateBoard(g2.board, g2.hazards, { drawn: { extra: 99 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'blue_tideline', 1);
+      var cold = C.evaluateBoard(battleState2.board, battleState2.hazards, { drawn: { extra: 0 } });
+      var dug  = C.evaluateBoard(battleState2.board, battleState2.hazards, { drawn: { extra: 5 } });
+      var capped = C.evaluateBoard(battleState2.board, battleState2.hazards, { drawn: { extra: 99 } });
       return dug.raw.bottom === cold.raw.bottom + 5 &&
              capped.raw.bottom === cold.raw.bottom + 8;   // the cap holds
     })());
@@ -1026,14 +1026,14 @@ export function createSelfTest(ctx) {
          Both halves matter here: it must still be enormous on the board (the
          hardest card in the game to earn should feel like it), and it must
          leave the printed card alone so nothing carries forward. */
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: 'black_devouring_star', color: 'black',
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: 'black_devouring_star', color: 'black',
                                    strength: 5, temp: 0, deckIndex: 0 };
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 20);
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 20);
       var at = { row: 'row2', index: 0 };
-      var t = RUN.legalTargets(g2, PLAYER, CARDS.black_devouring_star.targets[0], [], at);
-      CARDS.black_devouring_star.onPlay(g2, PLAYER, at, t, RUN.buildApi(g2, PLAYER, []));
-      var u = g2.board[PLAYER].row2[0];
+      var t = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devouring_star.targets[0], [], at);
+      CARDS.black_devouring_star.onPlay(battleState2, PLAYER, at, t, RUN.buildApi(battleState2, PLAYER, []));
+      var u = battleState2.board[PLAYER].row2[0];
       var total = u.strength + (u.temp || 0);
       // twice a 20 is still a 45-strength unit for the fight
       return total === 45 && u.strength === 5 && (u.temp || 0) === 40;
@@ -1167,42 +1167,42 @@ export function createSelfTest(ctx) {
 
     // --- fixes that came out of playtesting ---
     check('The opening hand does not count as cards dug for', (function () {
-      var g2 = fresh();
-      g2.drawn = { extra: 0 };
-      g2.decks = { bottom: [], top: [] };
-      for (var i = 0; i < 12; i++) g2.decks[PLAYER].push({ id: 'red_brute', up: false });
-      g2.hands = { bottom: [], top: [] };
-      RUN.drawInto(g2, PLAYER, 6, true);          // the opening deal
-      if (g2.drawn.extra !== 0) return false;     // Tideline must start at zero
-      RUN.drawInto(g2, PLAYER, 2);                // a normal round draw
-      return g2.drawn.extra === 2;
+      var battleState2 = fresh();
+      battleState2.drawn = { extra: 0 };
+      battleState2.decks = { bottom: [], top: [] };
+      for (var i = 0; i < 12; i++) battleState2.decks[PLAYER].push({ id: 'red_brute', up: false });
+      battleState2.hands = { bottom: [], top: [] };
+      RUN.drawInto(battleState2, PLAYER, 6, true);          // the opening deal
+      if (battleState2.drawn.extra !== 0) return false;     // Tideline must start at zero
+      RUN.drawInto(battleState2, PLAYER, 2);                // a normal round draw
+      return battleState2.drawn.extra === 2;
     })());
     check('Draws off an empty deck are not counted', (function () {
-      var g2 = fresh();
-      g2.drawn = { extra: 0 };
-      g2.decks = { bottom: [{ id: 'red_brute', up: false }], top: [] };
-      g2.hands = { bottom: [], top: [] };
-      var got = RUN.drawInto(g2, PLAYER, 5);      // asked for five, only one there
-      return got === 1 && g2.drawn.extra === 1;
+      var battleState2 = fresh();
+      battleState2.drawn = { extra: 0 };
+      battleState2.decks = { bottom: [{ id: 'red_brute', up: false }], top: [] };
+      battleState2.hands = { bottom: [], top: [] };
+      var got = RUN.drawInto(battleState2, PLAYER, 5);      // asked for five, only one there
+      return got === 1 && battleState2.drawn.extra === 1;
     })());
     check('Damage lands in full on what the player can see', (function () {
-      var g2 = fresh();
+      var battleState2 = fresh();
       // printed 2, but carrying 6 of evaluation bonus: shows as 8
-      put(g2, 'top', 'row1', 0, 'red_brute', 2);
-      g2.enemyMod = { depthBonus: 3, colorBonus: { red: 3 } };
-      var ev0 = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
+      battleState2.enemyMod = { depthBonus: 3, colorBonus: { red: 3 } };
+      var ev0 = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       var before = ev0.strengthOf(ev0.view['top-row1-0']);
       if (before !== 8) return false;
-      RUN.buildApi(g2, PLAYER, []).damage(ENEMY, 'row1', 0, 3);
-      var ev1 = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      RUN.buildApi(battleState2, PLAYER, []).damage(ENEMY, 'row1', 0, 3);
+      var ev1 = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       // used to drop by 1, because 3 came off the printed 2 and clamped
       return before - ev1.strengthOf(ev1.view['top-row1-0']) === 3;
     })());
     check('Damage never pushes a unit below 1', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'red_brute', 2);
-      RUN.buildApi(g2, PLAYER, []).damage(ENEMY, 'row1', 0, 9);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
+      RUN.buildApi(battleState2, PLAYER, []).damage(ENEMY, 'row1', 0, 9);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return ev.strengthOf(ev.view['top-row1-0']) === 1;
     })());
     check('Every curse is worth the same on the board', (function () {
@@ -1210,11 +1210,11 @@ export function createSelfTest(ctx) {
       return vals.every(function (v) { return v === vals[0]; }) && vals[0] >= 1;
     })());
     check('A curse never grows with the enemy', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'curse_husk', C.CARDS.curse_husk.strength);
-      g2.board[ENEMY].row1[0].color = null;
-      var plain = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: {} });
-      var deep = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { depthBonus: 5 } });
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'curse_husk', C.CARDS.curse_husk.strength);
+      battleState2.board[ENEMY].row1[0].color = null;
+      var plain = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
+      var deep = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 5 } });
       return plain.strengthOf(plain.view['top-row1-0']) === deep.strengthOf(deep.view['top-row1-0']);
     })());
     check('Fissure cards stay out of the pool until a fissure exists', (function () {
@@ -1336,9 +1336,9 @@ export function createSelfTest(ctx) {
       /* row1-0 and row1-1 are NOT adjacent: on this board tiles touch across
          rows, never along one. A same-row pair looks adjacent on screen and is
          not, which is worth stating in the test that nearly got it wrong. */
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'black_gravebloom', 2);
-      var alone = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'black_gravebloom', 2);
+      var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var a = alone.strengthOf(alone.view['bottom-row2-0']);
 
       var far = fresh();
@@ -1415,10 +1415,10 @@ export function createSelfTest(ctx) {
       return dear > cheap && cheap >= 0;
     })());
     check('Waste is counted lane by lane, not just on the total', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_scout', 1);
-      put(g2, 'top', 'row1', 0, 'red_titan', 30);      // wins one lane enormously
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_scout', 1);
+      put(battleState2, 'top', 'row1', 0, 'red_titan', 30);      // wins one lane enormously
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var plain = ev.totals[ENEMY] - ev.totals[PLAYER];
       var shaped = laneShapedDelta(ev, ENEMY, PLAYER);
       /* Overkill inside a single lane has to be discounted even when the board
@@ -1734,22 +1734,22 @@ export function createSelfTest(ctx) {
              C.mixResultColor('red', 'red') === 'red';
     })());
     check('Mixing is never refused for what it would produce', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'yellow_spark', 3);
-      put(g2, 'bottom', 'row1', 0, 'blue_scout', 2);   // touching, and Black by raw bits
-      var opts = RUN.mixOptions(g2.board, PLAYER, []);
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'yellow_spark', 3);
+      put(battleState2, 'bottom', 'row1', 0, 'blue_scout', 2);   // touching, and Black by raw bits
+      var opts = RUN.mixOptions(battleState2.board, PLAYER, []);
       var offered = opts.some(function (o) {
         return o.base.row === 'row2' && o.base.index === 0 &&
                o.other.row === 'row1' && o.other.index === 0;
       });
-      var res = RUN.canMix(g2.board, PLAYER, { row: 'row2', index: 0 }, { row: 'row1', index: 0 }, []);
+      var res = RUN.canMix(battleState2.board, PLAYER, { row: 'row2', index: 0 }, { row: 'row1', index: 0 }, []);
       return offered && res.ok;
     })());
     check('That mix lands as the secondary, added together and stronger', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'yellow_spark', 3);
-      put(g2, 'bottom', 'row1', 0, 'blue_scout', 2);
-      var s2 = { board: g2.board, hazards: g2.hazards, relics: [], chains: { bottom: 0, top: 0 },
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'yellow_spark', 3);
+      put(battleState2, 'bottom', 'row1', 0, 'blue_scout', 2);
+      var s2 = { board: battleState2.board, hazards: battleState2.hazards, relics: [], chains: { bottom: 0, top: 0 },
                  mixesThisRound: 0, freeMixesThisRound: 0 };
       var out = RUN.applyMix(s2, PLAYER, { row: 'row2', index: 0 }, { row: 'row1', index: 0 }, 0, false);
       return out.color === 'yellow' && out.strength === 3 + 2 + 1;   // sum plus the ordinary +1
@@ -1997,11 +1997,11 @@ export function createSelfTest(ctx) {
     })());
     check('An inherited aura actually fires on the board', (function () {
       var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color,
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color,
         strength: CARDS[f.id].strength, temp: 0 };
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       // the Gardener's +1 to touching units came along with the fusion
       return ev.strengthOf(ev.view['bottom-row1-0']) === 3;
     })());
@@ -2054,24 +2054,24 @@ export function createSelfTest(ctx) {
 
     // --- the back rows are no longer safe ---
     check('Backline cards reach past the frontline, not through it', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'red_brute', 9);      // the line
-      put(g2, 'top', 'row3', 0, 'red_brute', 6);      // what it is protecting
-      var before = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 9);      // the line
+      put(battleState2, 'top', 'row3', 0, 'red_brute', 6);      // what it is protecting
+      var before = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       var frontBefore = before.strengthOf(before.view['top-row1-0']);
-      CARDS.magenta_lancer.onPlay(g2, PLAYER, { row: 'row1', index: 0 }, [],
-        RUN.buildApi(g2, PLAYER, []));
-      var after = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      CARDS.magenta_lancer.onPlay(battleState2, PLAYER, { row: 'row1', index: 0 }, [],
+        RUN.buildApi(battleState2, PLAYER, []));
+      var after = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return after.strengthOf(after.view['top-row1-0']) === frontBefore &&
              after.strengthOf(after.view['top-row3-0']) < 6;
     })());
     check('An enemy row aura lands on the far side only', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'red_brute', 9);
-      put(g2, 'top', 'row3', 0, 'red_brute', 6);
-      put(g2, 'bottom', 'row3', 0, 'red_brute', 6);   // our own back row must be untouched
-      g2.board[PLAYER].row2[0] = { cardId: 'yellow_arclight', color: 'yellow', strength: 3, temp: 0 };
-      var ev = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 9);
+      put(battleState2, 'top', 'row3', 0, 'red_brute', 6);
+      put(battleState2, 'bottom', 'row3', 0, 'red_brute', 6);   // our own back row must be untouched
+      battleState2.board[PLAYER].row2[0] = { cardId: 'yellow_arclight', color: 'yellow', strength: 3, temp: 0 };
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return ev.strengthOf(ev.view['top-row3-0']) === 4 &&
              ev.strengthOf(ev.view['top-row1-0']) === 9 &&
              ev.strengthOf(ev.view['bottom-row3-0']) === 6;
@@ -2140,17 +2140,17 @@ export function createSelfTest(ctx) {
     check('The Unbroken Light punishes Black and pays for breadth', (function () {
       var mod = ENEMIES.unbroken_light.mod;
       function board(colors) {
-        var g2 = fresh();
+        var battleState2 = fresh();
         var slots = [['row1', 0], ['row1', 1], ['row1', 2], ['row2', 0], ['row2', 1], ['row3', 0]];
         colors.forEach(function (col, i) {
-          put(g2, 'bottom', slots[i][0], slots[i][1], 'red_brute', 6);
-          g2.board[PLAYER][slots[i][0]][slots[i][1]].color = col;
+          put(battleState2, 'bottom', slots[i][0], slots[i][1], 'red_brute', 6);
+          battleState2.board[PLAYER][slots[i][0]][slots[i][1]].color = col;
         });
-        return g2;
+        return battleState2;
       }
       function score(colors, on) {
-        var g2 = board(colors);
-        return C.evaluateBoard(g2.board, g2.hazards, { enemyMod: on ? mod : {} }).totals.bottom;
+        var battleState2 = board(colors);
+        return C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: on ? mod : {} }).totals.bottom;
       }
       var allBlack = ['black', 'black', 'black', 'black', 'black', 'black'];
       var broad = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta'];
@@ -2165,11 +2165,11 @@ export function createSelfTest(ctx) {
     // --- warding: one flag, honoured by every source of harm ---
     check('A ward refuses a hazard', (function () {
       function underScorch(cardId) {
-        var g2 = fresh();
-        g2.board[PLAYER].row1[0] = { cardId: cardId, color: CARDS[cardId].color,
+        var battleState2 = fresh();
+        battleState2.board[PLAYER].row1[0] = { cardId: cardId, color: CARDS[cardId].color,
           strength: CARDS[cardId].strength, temp: 0 };
-        g2.hazards[PLAYER].row1 = 'scorch';
-        var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+        battleState2.hazards[PLAYER].row1 = 'scorch';
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
         return ev.strengthOf(ev.view['bottom-row1-0']) - CARDS[cardId].strength;
       }
       // the plain card loses a point to the burn; the warded one does not
@@ -2178,7 +2178,7 @@ export function createSelfTest(ctx) {
     check('A ward refuses fissure drain', (function () {
       var link = C.severableLinks(PLAYER, [])[0];
       if (!link) return true;
-      var g2 = fresh();
+      var battleState2 = fresh();
       var at = link.a;
       function drainOn(cardId) {
         var g3 = fresh();
@@ -2191,40 +2191,40 @@ export function createSelfTest(ctx) {
     })());
     check('A ward refuses a boss punishment', (function () {
       function vsWhite(cardId) {
-        var g2 = fresh();
-        g2.board[PLAYER].row1[0] = { cardId: cardId, color: 'black', strength: 6, temp: 0 };
-        var ev = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { punishColor: { black: 5 } } });
+        var battleState2 = fresh();
+        battleState2.board[PLAYER].row1[0] = { cardId: cardId, color: 'black', strength: 6, temp: 0 };
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishColor: { black: 5 } } });
         return ev.strengthOf(ev.view['bottom-row1-0']);
       }
       return vsWhite('red_brute') === 1 && vsWhite('green_thicket') === 6;
     })());
     check('A ward never blocks something good', (function () {
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: 'green_thicket', color: 'green',
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: 'green_thicket', color: 'green',
         strength: CARDS.green_thicket.strength, temp: 0 };
-      var alone = C.evaluateBoard(g2.board, g2.hazards, {});
+      var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var base = alone.strengthOf(alone.view['bottom-row2-0']);
       /* The Thicket is silenced as its cost, so its own number should not move.
          The gate must be one-directional: it filters negatives, never positives. */
       return base === CARDS.green_thicket.strength;
     })());
     check('The Bulwark protects what it touches, not itself', (function () {
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: 'cyan_bulwark', color: 'cyan', strength: 3, temp: 0 };
-      g2.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 6, temp: 0 };
-      g2.hazards[PLAYER].row1 = 'scorch';
-      g2.hazards[PLAYER].row2 = 'scorch';
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: 'cyan_bulwark', color: 'cyan', strength: 3, temp: 0 };
+      battleState2.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 6, temp: 0 };
+      battleState2.hazards[PLAYER].row1 = 'scorch';
+      battleState2.hazards[PLAYER].row2 = 'scorch';
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev.strengthOf(ev.view['bottom-row1-0']) === 6 &&
              ev.strengthOf(ev.view['bottom-row2-0']) === 2;   // it burns
     })());
     check('The Recluse holds its ward only while it stands alone', (function () {
       function reclusive(withNeighbour) {
-        var g2 = fresh();
-        g2.board[PLAYER].row2[0] = { cardId: 'magenta_recluse', color: 'magenta', strength: 5, temp: 0 };
-        if (withNeighbour) put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-        g2.hazards[PLAYER].row2 = 'scorch';
-        var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+        var battleState2 = fresh();
+        battleState2.board[PLAYER].row2[0] = { cardId: 'magenta_recluse', color: 'magenta', strength: 5, temp: 0 };
+        if (withNeighbour) put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+        battleState2.hazards[PLAYER].row2 = 'scorch';
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
         return ev.strengthOf(ev.view['bottom-row2-0']);
       }
       return reclusive(false) === 5 && reclusive(true) < 5;
@@ -2303,49 +2303,49 @@ export function createSelfTest(ctx) {
 
     // --- six things a deck can be built around ---
     check('Swarm pays for bodies', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'green_swarmling', 1);
-      var alone = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'green_swarmling', 1);
+      var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var a = alone.strengthOf(alone.view['bottom-row2-0']);
-      for (var i = 0; i < 3; i++) put(g2, 'bottom', 'row1', i, 'red_brute', 2);
-      var crowd = C.evaluateBoard(g2.board, g2.hazards, {});
+      for (var i = 0; i < 3; i++) put(battleState2, 'bottom', 'row1', i, 'red_brute', 2);
+      var crowd = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return crowd.strengthOf(crowd.view['bottom-row2-0']) > a;
     })());
     check('Spectrum pays for colours, and only for distinct ones', (function () {
       function withColours(list) {
-        var g2 = fresh();
-        put(g2, 'bottom', 'row2', 0, 'yellow_prismatic', 1);
+        var battleState2 = fresh();
+        put(battleState2, 'bottom', 'row2', 0, 'yellow_prismatic', 1);
         list.forEach(function (c, i) {
-          put(g2, 'bottom', 'row1', i, 'red_brute', 2);
-          g2.board[PLAYER].row1[i].color = c;
+          put(battleState2, 'bottom', 'row1', i, 'red_brute', 2);
+          battleState2.board[PLAYER].row1[i].color = c;
         });
-        var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
         return ev.strengthOf(ev.view['bottom-row2-0']);
       }
       // four of one colour must be worth less than four different ones
       return withColours(['red', 'green', 'blue', 'cyan']) > withColours(['red', 'red', 'red', 'red']);
     })());
     check('Chain pays for mix length', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'magenta_cascade', 1);
-      var c0 = C.evaluateBoard(g2.board, g2.hazards, { chains: { bottom: 0, top: 0 } });
-      var c3 = C.evaluateBoard(g2.board, g2.hazards, { chains: { bottom: 3, top: 0 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'magenta_cascade', 1);
+      var c0 = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 0, top: 0 } });
+      var c3 = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 3, top: 0 } });
       return c3.strengthOf(c3.view['bottom-row2-0']) ===
              c0.strengthOf(c0.view['bottom-row2-0']) + 9;
     })());
     check('Control pays for shrinking a crowded enemy', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'black_famine', 3);
-      for (var i = 0; i < 3; i++) put(g2, 'top', 'row1', i, 'red_brute', 6);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'black_famine', 3);
+      for (var i = 0; i < 3; i++) put(battleState2, 'top', 'row1', i, 'red_brute', 6);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       // the swarm answer: three enemy bodies is one point off each of them
       return ev.strengthOf(ev.view['top-row1-0']) < 6;
     })());
     check('The Broodmother lifts the whole board, not just neighbours', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 0, 'green_broodmother', 2);
-      put(g2, 'bottom', 'row3', 0, 'red_brute', 2);     // deliberately not touching
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 0, 'green_broodmother', 2);
+      put(battleState2, 'bottom', 'row3', 0, 'red_brute', 2);     // deliberately not touching
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev.strengthOf(ev.view['bottom-row3-0']) === 3;
     })());
     check('Every archetype has enough cards to actually build around', (function () {
@@ -2368,10 +2368,10 @@ export function createSelfTest(ctx) {
       var f = C.fuseCards({ id: 'green_broodmother', up: false }, { id: 'green_thicket', up: false });
       var cardDef = CARDS[f.id];
       if (typeof cardDef.swarmAura !== 'number' || cardDef.warded !== true) return false;
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: f.id, color: cardDef.color, strength: cardDef.strength, temp: 0 };
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-      var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: cardDef.color, strength: cardDef.strength, temp: 0 };
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var lifted = ev.strengthOf(ev.view['bottom-row1-0']);
       return lifted === 3 && !isNaN(ev.totals.bottom);
     })());
@@ -2399,12 +2399,12 @@ export function createSelfTest(ctx) {
     })());
     check('The new ward shapes each protect something different', (function () {
       function scorched(cardId, row, extra) {
-        var g2 = fresh();
-        g2.board[PLAYER][row][0] = { cardId: cardId, color: CARDS[cardId].color,
+        var battleState2 = fresh();
+        battleState2.board[PLAYER][row][0] = { cardId: cardId, color: CARDS[cardId].color,
           strength: CARDS[cardId].strength, temp: 0 };
-        if (extra) put(g2, 'bottom', row, 1, 'red_brute', 4);
-        g2.hazards[PLAYER][row] = 'scorch';
-        var ev = C.evaluateBoard(g2.board, g2.hazards, {});
+        if (extra) put(battleState2, 'bottom', row, 1, 'red_brute', 4);
+        battleState2.hazards[PLAYER][row] = 'scorch';
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
         return {
           self: ev.strengthOf(ev.view['bottom-' + row + '-0']) - CARDS[cardId].strength,
           mate: extra ? ev.strengthOf(ev.view['bottom-' + row + '-1']) - 4 : null
@@ -2423,16 +2423,16 @@ export function createSelfTest(ctx) {
       var SLOTS = [['row1', 0], ['row1', 1], ['row1', 2], ['row1', 3],
                    ['row2', 0], ['row2', 1], ['row2', 2], ['row3', 0], ['row3', 1]];
       function score(shape, payoff, handSize) {
-        var g2 = fresh();
-        g2.hands = { bottom: new Array(handSize || 0), top: [] };
+        var battleState2 = fresh();
+        battleState2.hands = { bottom: new Array(handSize || 0), top: [] };
         shape.forEach(function (spec, i) {
-          g2.board[PLAYER][SLOTS[i][0]][SLOTS[i][1]] =
+          battleState2.board[PLAYER][SLOTS[i][0]][SLOTS[i][1]] =
             { cardId: spec[0], color: spec[1], strength: 2, temp: 0 };
         });
         var at = SLOTS[shape.length];
-        g2.board[PLAYER][at[0]][at[1]] = { cardId: payoff, color: CARDS[payoff].color,
+        battleState2.board[PLAYER][at[0]][at[1]] = { cardId: payoff, color: CARDS[payoff].color,
           strength: CARDS[payoff].strength, temp: 0 };
-        var ev = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+        var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
         return ev.strengthOf(ev.view['bottom-' + at[0] + '-' + at[1]]);
       }
       var WIDE = [['green_seed', 'green'], ['green_seed', 'green'], ['green_ensign', 'green'],
@@ -2458,13 +2458,13 @@ export function createSelfTest(ctx) {
       return score(TALL, 'blue_undertow', 7) > score(TALL, 'blue_undertow', 0) + 4;
     })());
     check('A build-around is genuinely dead in the wrong deck', (function () {
-      var g2 = fresh();
+      var battleState2 = fresh();
       // Colossus on a crowded board: nine strength eaten by its own company
       [['row1', 0], ['row1', 1], ['row1', 2], ['row2', 0], ['row2', 1]].forEach(function (t) {
-        put(g2, 'bottom', t[0], t[1], 'green_seed', 2);
+        put(battleState2, 'bottom', t[0], t[1], 'green_seed', 2);
       });
-      g2.board[PLAYER].row3[0] = { cardId: 'red_colossus', color: 'red', strength: 9, temp: 0 };
-      var ev = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      battleState2.board[PLAYER].row3[0] = { cardId: 'red_colossus', color: 'red', strength: 9, temp: 0 };
+      var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return ev.strengthOf(ev.view['bottom-row3-0']) === 0;
     })());
     check('Every archetype has an enabler and a payoff to reach for', (function () {
@@ -2498,32 +2498,32 @@ export function createSelfTest(ctx) {
 
     // --- row minimums were the thing holding cheap-unit archetypes down ---
     check('A strength-1 unit normally cannot leave Row 1', (function () {
-      var g2 = fresh();
-      var tiles = C.legalTiles(g2.board, PLAYER, 1);
+      var battleState2 = fresh();
+      var tiles = C.legalTiles(battleState2.board, PLAYER, 1);
       return tiles.length === ROW_INFO.row1.count &&
              tiles.every(function (t) { return t.row === 'row1'; });
     })());
     check('anyRow lets a small unit stand anywhere', (function () {
-      var g2 = fresh();
-      var opts = C.placeOpts('green_burrower', [], g2.board, PLAYER);
-      var tiles = C.legalTiles(g2.board, PLAYER, 1, opts);
+      var battleState2 = fresh();
+      var opts = C.placeOpts('green_burrower', [], battleState2.board, PLAYER);
+      var tiles = C.legalTiles(battleState2.board, PLAYER, 1, opts);
       /* Measured: a swarm board could fill 7 of 9 tiles and a one-of-each-colour
          board only 4, while a Titan board filled all nine. The archetypes were
          not weak on rates, they were playing a smaller board. */
       return opts.anyRow === true && tiles.length === 9;
     })());
     check('Field Commission frees every unit, not just the ones that say so', (function () {
-      var g2 = fresh();
-      var plain = C.placeOpts('green_swarmling', [], g2.board, PLAYER);
-      var withRelic = C.placeOpts('green_swarmling', ['field_commission'], g2.board, PLAYER);
+      var battleState2 = fresh();
+      var plain = C.placeOpts('green_swarmling', [], battleState2.board, PLAYER);
+      var withRelic = C.placeOpts('green_swarmling', ['field_commission'], battleState2.board, PLAYER);
       return !plain.anyRow && withRelic.anyRow &&
-             C.legalTiles(g2.board, PLAYER, 1, withRelic).length === 9;
+             C.legalTiles(battleState2.board, PLAYER, 1, withRelic).length === 9;
     })());
     check('A Footing opens its own row and no other', (function () {
-      var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: 'cyan_footing', color: 'cyan', strength: 2, temp: 0 };
-      var opts = C.placeOpts('green_swarmling', [], g2.board, PLAYER);
-      var tiles = C.legalTiles(g2.board, PLAYER, 1, opts);
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row2[0] = { cardId: 'cyan_footing', color: 'cyan', strength: 2, temp: 0 };
+      var opts = C.placeOpts('green_swarmling', [], battleState2.board, PLAYER);
+      var tiles = C.legalTiles(battleState2.board, PLAYER, 1, opts);
       var rows = {};
       tiles.forEach(function (t) { rows[t.row] = 1; });
       // row1 was always legal; row2 is opened by the Footing; row3 stays shut
@@ -2546,58 +2546,58 @@ export function createSelfTest(ctx) {
              have(/draw/i, 5);                                                               // draw
     })());
     check('The solitude payoffs actually pay', (function () {
-      var g2 = fresh();
-      g2.board[PLAYER].row3[0] = { cardId: 'cyan_monolith', color: 'cyan', strength: 3, temp: 0 };
-      var alone = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      battleState2.board[PLAYER].row3[0] = { cardId: 'cyan_monolith', color: 'cyan', strength: 3, temp: 0 };
+      var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var big = alone.strengthOf(alone.view['bottom-row3-0']);
       // fill the board and the Monolith should collapse
       ['row1', 'row2'].forEach(function (row) {
-        for (var i = 0; i < ROW_INFO[row].count; i++) put(g2, 'bottom', row, i, 'red_brute', 2);
+        for (var i = 0; i < ROW_INFO[row].count; i++) put(battleState2, 'bottom', row, i, 'red_brute', 2);
       });
-      var crowded = C.evaluateBoard(g2.board, g2.hazards, {});
+      var crowded = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return big > 15 && crowded.strengthOf(crowded.view['bottom-row3-0']) < big;
     })());
 
     // --- frontlines fall between rounds, but only where the lane was contested ---
     check('A contested lane culls both frontlines, support survives', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 3);
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 3);
-      put(g2, 'bottom', 'row2', 0, 'green_gardener', 3);   // support in lanes 1 and 2
-      put(g2, 'top', 'row1', 0, 'blue_scout', 2);
-      put(g2, 'top', 'row1', 1, 'blue_scout', 2);
-      RUN.clearFrontlines(g2.board, g2.hazards, {});
-      return g2.board.bottom.row1[0] === null && g2.board.bottom.row1[1] === null &&
-             g2.board.bottom.row2[0] !== null &&
-             g2.board.top.row1[0] === null && g2.board.top.row1[1] === null;
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row2', 0, 'green_gardener', 3);   // support in lanes 1 and 2
+      put(battleState2, 'top', 'row1', 0, 'blue_scout', 2);
+      put(battleState2, 'top', 'row1', 1, 'blue_scout', 2);
+      RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return battleState2.board.bottom.row1[0] === null && battleState2.board.bottom.row1[1] === null &&
+             battleState2.board.bottom.row2[0] !== null &&
+             battleState2.board.top.row1[0] === null && battleState2.board.top.row1[1] === null;
     })());
     check('An uncontested lane spares its frontline', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 3, 'red_brute', 3);        // nothing opposite it
-      var f = RUN.clearFrontlines(g2.board, g2.hazards, {});
-      return g2.board.bottom.row1[3] !== null && f.bottom.length === 0;
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 3, 'red_brute', 3);        // nothing opposite it
+      var f = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return battleState2.board.bottom.row1[3] !== null && f.bottom.length === 0;
     })());
     check('A unit fronting several lanes falls once if any was contested', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row3', 0, 'green_titan', 6);      // fronts lanes 1-3 alone
-      put(g2, 'top', 'row1', 0, 'blue_scout', 2);          // contests lane 1 only
-      var f = RUN.clearFrontlines(g2.board, g2.hazards, {});
-      return f.bottom.length === 1 && g2.board.bottom.row3[0] === null;
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row3', 0, 'green_titan', 6);      // fronts lanes 1-3 alone
+      put(battleState2, 'top', 'row1', 0, 'blue_scout', 2);          // contests lane 1 only
+      var f = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return f.bottom.length === 1 && battleState2.board.bottom.row3[0] === null;
     })());
     check('Support steps up to the line next round', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 3);
-      put(g2, 'bottom', 'row1', 2, 'red_brute', 3);
-      put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-      put(g2, 'top', 'row1', 1, 'blue_scout', 2);
-      put(g2, 'top', 'row1', 2, 'blue_scout', 2);
-      RUN.clearFrontlines(g2.board, g2.hazards, {});
-      var ev2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row1', 2, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+      put(battleState2, 'top', 'row1', 1, 'blue_scout', 2);
+      put(battleState2, 'top', 'row1', 2, 'blue_scout', 2);
+      RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      var ev2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev2.lanes[1].bottom && ev2.lanes[1].bottom.champion.row === 'row2';
     })());
     check('An empty board survives the cull', (function () {
-      var g2 = fresh();
-      RUN.clearFrontlines(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       return true;
     })());
 
@@ -2611,12 +2611,12 @@ export function createSelfTest(ctx) {
       RUN.TUTORIAL_STEPS.every(function (st) { return st.title && (st.body || st.art || st.artHtml); }));
     check('Lessons build from a live board and describe its own units', (function () {
       try {
-        var g2 = fresh();
-        put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
-        put(g2, 'bottom', 'row2', 1, 'black_voidling', 4);
-        put(g2, 'top', 'row1', 1, 'red_brute', 3);
-        var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-        var cards = RUN.TUTORIAL_LESSONS.frontline({ board: g2.board, hazards: g2.hazards, ev: e2 });
+        var battleState2 = fresh();
+        put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
+        put(battleState2, 'bottom', 'row2', 1, 'black_voidling', 4);
+        put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+        var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+        var cards = RUN.TUTORIAL_LESSONS.frontline({ board: battleState2.board, hazards: battleState2.hazards, ev: e2 });
         if (!cards || !cards.length) return false;
         var text = cards[0].legend.join(' ');
         cards[0].art();
@@ -2625,23 +2625,23 @@ export function createSelfTest(ctx) {
       } catch (e) { return false; }
     })());
     check('The frontline lesson holds off until a lane is contested', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // nothing opposing
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      return RUN.TUTORIAL_LESSONS.frontline({ board: g2.board, hazards: g2.hazards, ev: e2 }) === null;
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // nothing opposing
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      return RUN.TUTORIAL_LESSONS.frontline({ board: battleState2.board, hazards: battleState2.hazards, ev: e2 }) === null;
     })());
     check('The round-break lesson reports what actually fell', (function () {
       try {
-        var g2 = fresh();
-        put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
-        put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-        put(g2, 'top', 'row1', 1, 'red_brute', 3);
-        put(g2, 'bottom', 'row1', 3, 'magenta_chain', 5);   // uncontested survivor
-        var pre = C.cloneBoard(g2.board), preHaz = C.cloneHazards(g2.hazards);
+        var battleState2 = fresh();
+        put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
+        put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+        put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+        put(battleState2, 'bottom', 'row1', 3, 'magenta_chain', 5);   // uncontested survivor
+        var pre = C.cloneBoard(battleState2.board), preHaz = C.cloneHazards(battleState2.hazards);
         var e2 = C.evaluateBoard(pre, preHaz, {});
-        var fallen = RUN.clearFrontlines(g2.board, g2.hazards, {});
+        var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
         var cards = RUN.TUTORIAL_LESSONS.roundbreak({ board: pre, hazards: preHaz, ev: e2,
-          after: g2.board, fallen: fallen, evalCtx: {} });
+          after: battleState2.board, fallen: fallen, evalCtx: {} });
         if (!cards) return false;
         var text = cards[0].legend.join(' ');
         cards[0].art();
@@ -2651,22 +2651,22 @@ export function createSelfTest(ctx) {
       } catch (e) { return false; }
     })());
     check('The round-break lesson waits for a round where something fell', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
-      var pre = C.cloneBoard(g2.board);
-      var e2 = C.evaluateBoard(pre, g2.hazards, {});
-      var fallen = RUN.clearFrontlines(g2.board, g2.hazards, {});
-      return RUN.TUTORIAL_LESSONS.roundbreak({ board: pre, hazards: g2.hazards, ev: e2,
-        after: g2.board, fallen: fallen, evalCtx: {} }) === null;
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
+      var pre = C.cloneBoard(battleState2.board);
+      var e2 = C.evaluateBoard(pre, battleState2.hazards, {});
+      var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return RUN.TUTORIAL_LESSONS.roundbreak({ board: pre, hazards: battleState2.hazards, ev: e2,
+        after: battleState2.board, fallen: fallen, evalCtx: {} }) === null;
     })());
     check('Live pointers keep clear of units and of each other', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
-      put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-      put(g2, 'top', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      var cards = RUN.TUTORIAL_LESSONS.frontline({ board: g2.board, hazards: g2.hazards, ev: e2 });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
+      put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+      put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      var cards = RUN.TUTORIAL_LESSONS.frontline({ board: battleState2.board, hazards: battleState2.hazards, ev: e2 });
       var svg = cards[0].art();
       var badges = svg.match(/class="tut-badge" cx="(-?[\d.]+)" cy="(-?[\d.]+)"/g) || [];
       var pts = badges.map(function (m2) {
@@ -2690,28 +2690,28 @@ export function createSelfTest(ctx) {
       } catch (e) { return false; }
     })());
     check('A Row 1 lesson never claims the strength was divided', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 4);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      var cards = RUN.TUTORIAL_LESSONS.lanes_row1({ board: g2.board, hazards: g2.hazards, ev: e2,
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      var cards = RUN.TUTORIAL_LESSONS.lanes_row1({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row1', index: 1 } });
       var txt = cards[0].legend.join(' ');
       return txt.indexOf('feeds lane 2.') !== -1 && txt.indexOf('Nothing is split off') !== -1 &&
              txt.indexOf('splits into') === -1;
     })());
     check('Flow arrows draw over the units, not under them', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row3', 0, 'green_titan', 7);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      var svg = RUN.TUTORIAL_LESSONS.lanes_row3({ board: g2.board, hazards: g2.hazards, ev: e2,
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row3', 0, 'green_titan', 7);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      var svg = RUN.TUTORIAL_LESSONS.lanes_row3({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row3', index: 0 } })[0].art();
       return svg.indexOf('tut-token') < svg.indexOf('tut-flow');
     })());
     check('One share chip per lane, sitting above Row 1', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row3', 0, 'green_titan', 7);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      var svg = RUN.TUTORIAL_LESSONS.lanes_row3({ board: g2.board, hazards: g2.hazards, ev: e2,
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row3', 0, 'green_titan', 7);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      var svg = RUN.TUTORIAL_LESSONS.lanes_row3({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row3', index: 0 } })[0].art();
       var chips = svg.match(/class="tut-amtbox"/g) || [];
       var ys = (svg.match(/class="tut-amtbox" x="[-\d.]+" y="([-\d.]+)"/) || [])[1];
@@ -2723,10 +2723,10 @@ export function createSelfTest(ctx) {
     })());
     check('Lane lessons draw the row the player actually used', (function () {
       try {
-        var g2 = fresh();
-        put(g2, 'bottom', 'row2', 1, 'green_gardener', 4);
-        var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-        var ctx = { board: g2.board, hazards: g2.hazards, ev: e2, tile: { row: 'row2', index: 1 } };
+        var battleState2 = fresh();
+        put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 4);
+        var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+        var ctx = { board: battleState2.board, hazards: battleState2.hazards, ev: e2, tile: { row: 'row2', index: 1 } };
         var cards = RUN.TUTORIAL_LESSONS.lanes_row2(ctx);
         if (!cards) return false;
         cards[0].art();
@@ -2736,10 +2736,10 @@ export function createSelfTest(ctx) {
       } catch (e) { return false; }
     })());
     check('A lane lesson ignores a placement in another row', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
-      return RUN.TUTORIAL_LESSONS.lanes_row3({ board: g2.board, hazards: g2.hazards, ev: e2,
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
+      return RUN.TUTORIAL_LESSONS.lanes_row3({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row1', index: 0 } }) === null;
     })());
     check('Turning the tutorial off silences every lesson', (function () {
@@ -2778,42 +2778,42 @@ export function createSelfTest(ctx) {
     check('Curses stay out of rewards and shops',
       C.DRAWABLE.every(function (k) { return !CARDS[k].curse; }) && C.CURSE_KEYS.length >= 4);
     check('A drawn curse plants itself and never enters the hand', (function () {
-      var g2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
+      var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [C.makeCard('curse_husk'), C.makeCard('red_brute')], top: [] },
         mixTokens: { bottom: 1, top: 1 }, relics: [] };
-      var got = RUN.drawInto(g2, 'bottom', 1);
-      var planted = g2.board.bottom.row1[0];
-      return got === 1 && g2.hands.bottom.length === 1 &&
-             CARDS[g2.hands.bottom[0].id].curse !== true &&
+      var got = RUN.drawInto(battleState2, 'bottom', 1);
+      var planted = battleState2.board.bottom.row1[0];
+      return got === 1 && battleState2.hands.bottom.length === 1 &&
+             CARDS[battleState2.hands.bottom[0].id].curse !== true &&
              planted && planted.cardId === 'curse_husk' && planted.color === null &&
-             g2.curseFired && g2.curseFired.length === 1;
+             battleState2.curseFired && battleState2.curseFired.length === 1;
     })());
     check('Curses take the front row first, blocking a lane', (function () {
-      var g2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
+      var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [C.makeCard('curse_idol')], top: [] },
         mixTokens: { bottom: 1, top: 1 }, relics: [] };
-      RUN.drawInto(g2, 'bottom', 1);
-      return !!g2.board.bottom.row1[0];
+      RUN.drawInto(battleState2, 'bottom', 1);
+      return !!battleState2.board.bottom.row1[0];
     })());
     check('Leaden Idol drags its neighbours down', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 4);
-      put(g2, 'bottom', 'row2', 1, 'curse_idol', 1);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
+      put(battleState2, 'bottom', 'row2', 1, 'curse_idol', 1);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.strengthOf(e2.get('bottom', 'row1', 1)) === 3;
     })());
     check('Beacon of Rot feeds the enemy frontline', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row2', 1, 'curse_beacon', 1);
-      put(g2, 'top', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row2', 1, 'curse_beacon', 1);
+      put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.lanes[1].top.frontStrength === 5;
     })());
     check('A curse unit is colourless, so no colour can answer it', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'curse_husk', 1);
-      put(g2, 'top', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'curse_husk', 1);
+      put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.lanes[1].bottom.effective === false && e2.lanes[1].top.effective === false;
     })());
     check('A fusion of two blank cards is still silenced', (function () {
@@ -2823,11 +2823,11 @@ export function createSelfTest(ctx) {
          inherit something is a real card and is deliberately no longer
          silenced, which is the whole point of the change. */
       var fused = C.fuseCards({ id: 'red_brute', up: false }, { id: 'red_brute', up: false });
-      var g2 = fresh();
-      g2.board.bottom.row1[1] = { cardId: fused.id, color: CARDS[fused.id].color,
+      var battleState2 = fresh();
+      battleState2.board.bottom.row1[1] = { cardId: fused.id, color: CARDS[fused.id].color,
         strength: CARDS[fused.id].strength, temp: 0 };
-      put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return CARDS[fused.id].silenced === true &&
              (CARDS[fused.id].effectSources || []).length === 0 &&
              e2.strengthOf(e2.get('bottom', 'row1', 1)) === CARDS[fused.id].strength;
@@ -2905,10 +2905,10 @@ export function createSelfTest(ctx) {
       return true;
     })());
     check('Fusion follows the board mixing maths', (function () {
-      var f = C.fusePreview({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
-      var g2 = C.fusePreview({ id: 'black_voidling', up: false }, { id: 'red_brute', up: false });
+      var preview1 = C.fusePreview({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
+      var preview2 = C.fusePreview({ id: 'black_voidling', up: false }, { id: 'red_brute', up: false });
       // Red 2 + Blue 1 + 1 = Magenta 4 ; Black 1 + Red 2 + 2 = Black 5
-      return f.color === 'magenta' && f.strength === 4 && g2.color === 'black' && g2.strength === 5;
+      return preview1.color === 'magenta' && preview1.strength === 4 && preview2.color === 'black' && preview2.strength === 5;
     })());
     check('A fused card is real, playable and out of the shop pool', (function () {
       var e = C.fuseCards({ id: 'red_brute', up: false }, { id: 'green_seed', up: false });
@@ -3073,32 +3073,32 @@ export function createSelfTest(ctx) {
       return v === 0;
     })());
     check('A chain belongs to the side that built it', (function () {
-      var g2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
+      var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         relics: [], chains: { bottom: 0, top: 0 } };
       function put2(side, row, index, id, strength) { var cardDef = CARDS[id];
-        g2.board[side][row][index] = { cardId: id, color: cardDef.color, strength: strength, temp: 0 }; }
+        battleState2.board[side][row][index] = { cardId: id, color: cardDef.color, strength: strength, temp: 0 }; }
       put2('bottom', 'row1', 0, 'red_brute', 3); put2('bottom', 'row2', 0, 'blue_scout', 3);
       put2('top', 'row1', 2, 'red_brute', 3); put2('top', 'row2', 2, 'blue_scout', 3);
-      RUN.applyMix(g2, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-      var mine = g2.chains.bottom;
-      RUN.applyMix(g2, 'top', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
+      RUN.applyMix(battleState2, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
+      var mine = battleState2.chains.bottom;
+      RUN.applyMix(battleState2, 'top', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
       // the enemy mixing must not wipe the player's chain
-      return mine === 1 && g2.chains.bottom === 1 && g2.chains.top === 1;
+      return mine === 1 && battleState2.chains.bottom === 1 && battleState2.chains.top === 1;
     })());
     check('Magenta Echo reads its own side\u2019s chain', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'magenta_echo', 3);
-      var quiet = C.evaluateBoard(g2.board, g2.hazards, { chains: { bottom: 0, top: 3 } });
-      var loud = C.evaluateBoard(g2.board, g2.hazards, { chains: { bottom: 2, top: 0 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'magenta_echo', 3);
+      var quiet = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 0, top: 3 } });
+      var loud = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 2, top: 0 } });
       // +2 per link on its own side, and nothing from the enemy's
       return quiet.strengthOf(quiet.get('bottom', 'row1', 1)) === 3 &&
              loud.strengthOf(loud.get('bottom', 'row1', 1)) === 7;
     })());
     check('A curse unit reports as colourless', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'curse_husk', 1);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'curse_husk', 1);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var v = e2.get('bottom', 'row1', 1);
       return v.color === null && v.colorless === true;
     })());
@@ -3108,16 +3108,16 @@ export function createSelfTest(ctx) {
              C.isEffective('red', null) === false;
     })());
     check('A hazard-stripped unit is colourless too', (function () {
-      var g2 = fresh();
-      g2.hazards.bottom.row1 = 'colorless';
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      battleState2.hazards.bottom.row1 = 'colorless';
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.get('bottom', 'row1', 1).colorless === true;
     })());
     check('A normal unit is not flagged colourless', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'red_brute', 3);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, {});
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var v = e2.get('bottom', 'row1', 1);
       return v.colorless === false && v.color === 'red';
     })());
@@ -3148,16 +3148,16 @@ export function createSelfTest(ctx) {
       return txt.indexOf('minimum strength') === -1 && txt.indexOf('Row 2 needs') === -1;
     })());
     check('The line-breaks lesson is two points and names the whole cull', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
-      put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-      put(g2, 'top', 'row1', 1, 'red_brute', 3);
-      put(g2, 'bottom', 'row1', 3, 'magenta_chain', 5);
-      var pre = C.cloneBoard(g2.board), preHaz = C.cloneHazards(g2.hazards);
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
+      put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+      put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row1', 3, 'magenta_chain', 5);
+      var pre = C.cloneBoard(battleState2.board), preHaz = C.cloneHazards(battleState2.hazards);
       var e2 = C.evaluateBoard(pre, preHaz, {});
-      var fallen = RUN.clearFrontlines(g2.board, g2.hazards, {});
+      var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       var cards = RUN.TUTORIAL_LESSONS.roundbreak({ board: pre, hazards: preHaz, ev: e2,
-        after: g2.board, fallen: fallen, evalCtx: {} });
+        after: battleState2.board, fallen: fallen, evalCtx: {} });
       var txt = cards[0].legend.join(' ');
       return cards[0].legend.length === 2 &&
              txt.indexOf('both sides, all of them') !== -1 &&
@@ -3237,13 +3237,13 @@ export function createSelfTest(ctx) {
       return Math.max(0, v.base + v.bonus) === 0 && e.totals.bottom >= 0;
     })());
     check('Mixing cannot reach across a fissure', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 2, 'red_brute', 3);
-      put(g2, 'bottom', 'row2', 1, 'green_gardener', 3);
-      var whole = RUN.canMix(g2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, []);
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 2, 'red_brute', 3);
+      put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
+      var whole = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, []);
       var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var cracked = RUN.canMix(g2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, f);
-      var opts = RUN.mixOptions(g2.board, 'bottom', f);
+      var cracked = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, f);
+      var opts = RUN.mixOptions(battleState2.board, 'bottom', f);
       return whole.ok && !cracked.ok && cracked.reason.indexOf('fissure') !== -1 && opts.length === 0;
     })());
     check('An aura does not cross a fissure', (function () {
@@ -3341,14 +3341,14 @@ export function createSelfTest(ctx) {
       return at(0) === 2 && at(3) > at(0) && at(7) <= at(5);
     })());
     check('Cyan quiets damage for the round without healing it', (function () {
-      var g2 = fresh();
+      var battleState2 = fresh();
       var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: 2 }];
-      g2.fissures = f;
-      put(g2, 'bottom', 'row2', 1, 'red_brute', 8);
-      var loud = C.evaluateBoard(g2.board, g2.hazards, RUN.evalCtx(g2));
+      battleState2.fissures = f;
+      put(battleState2, 'bottom', 'row2', 1, 'red_brute', 8);
+      var loud = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       var api = RUN.buildApi ? null : null;
       // play the Mender onto the damaged tile through the real resolver
-      var g3 = RUN.simGame(g2);
+      var g3 = RUN.simGame(battleState2);
       g3.fissures = f;
       RUN.resolveCard(g3, 'bottom', { id: 'cyan_mender' }, { row: 'row1', index: 2 }, []);
       var quiet = C.evaluateBoard(g3.board, g3.hazards, RUN.evalCtx(g3));
@@ -3480,16 +3480,16 @@ export function createSelfTest(ctx) {
       RUN.depthBonusFor(7) === 1 && RUN.depthBonusFor(10) === 1 && RUN.depthBonusFor(12) === 2,
       [7, 10, 12].map(RUN.depthBonusFor).join('/'));
     check('Enemies scale with act depth', (function () {
-      var g2 = fresh();
-      put(g2, 'top', 'row1', 0, 'red_brute', 2);
-      var early = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { depthBonus: 0 } });
-      var late = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { depthBonus: 3 } });
+      var battleState2 = fresh();
+      put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
+      var early = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 0 } });
+      var late = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 3 } });
       return early.strengthOf(early.get('top', 'row1', 0)) === 2 && late.strengthOf(late.get('top', 'row1', 0)) === 5;
     })());
     check('The depth bonus never touches your units', (function () {
-      var g2 = fresh();
-      put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
-      var e2 = C.evaluateBoard(g2.board, g2.hazards, { enemyMod: { depthBonus: 3 } });
+      var battleState2 = fresh();
+      put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
+      var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 3 } });
       return e2.strengthOf(e2.get('bottom', 'row1', 0)) === 2;
     })());
     check('Every relic has text and a price', Object.keys(RELICS).every(function (k) { return RELICS[k].text && RELICS[k].cost > 0; }));
