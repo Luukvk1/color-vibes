@@ -8,15 +8,18 @@ export var SVG_NS = 'http://www.w3.org/2000/svg';
 /* ===================================================================
    1. COLOURS
    =================================================================== */
-export var R = 4, G = 2, B = 1;
+/* The three primaries as bit flags, so a secondary is just its two
+   primaries OR'd together (e.g. yellow = RED_BIT | GREEN_BIT) and mixing
+   two colours together is a single bitwise OR — see mixColor below. */
+export var RED_BIT = 4, GREEN_BIT = 2, BLUE_BIT = 1;
 export var COLORS = {
-  red:     { key: 'red',     name: 'Red',     bits: R,         hex: '#e04a3c', ink: '#ffffff' },
-  green:   { key: 'green',   name: 'Green',   bits: G,         hex: '#43a94c', ink: '#ffffff' },
-  blue:    { key: 'blue',    name: 'Blue',    bits: B,         hex: '#3d76d4', ink: '#ffffff' },
-  yellow:  { key: 'yellow',  name: 'Yellow',  bits: R | G,     hex: '#e8c334', ink: '#241d05' },
-  cyan:    { key: 'cyan',    name: 'Cyan',    bits: G | B,     hex: '#3ec6cf', ink: '#052220' },
-  magenta: { key: 'magenta', name: 'Magenta', bits: R | B,     hex: '#c451b5', ink: '#ffffff' },
-  black:   { key: 'black',   name: 'Black',   bits: R | G | B, hex: '#25252b', ink: '#f2ece0' },
+  red:     { key: 'red',     name: 'Red',     bits: RED_BIT,                       hex: '#e04a3c', ink: '#ffffff' },
+  green:   { key: 'green',   name: 'Green',   bits: GREEN_BIT,                     hex: '#43a94c', ink: '#ffffff' },
+  blue:    { key: 'blue',    name: 'Blue',    bits: BLUE_BIT,                      hex: '#3d76d4', ink: '#ffffff' },
+  yellow:  { key: 'yellow',  name: 'Yellow',  bits: RED_BIT | GREEN_BIT,           hex: '#e8c334', ink: '#241d05' },
+  cyan:    { key: 'cyan',    name: 'Cyan',    bits: GREEN_BIT | BLUE_BIT,          hex: '#3ec6cf', ink: '#052220' },
+  magenta: { key: 'magenta', name: 'Magenta', bits: RED_BIT | BLUE_BIT,            hex: '#c451b5', ink: '#ffffff' },
+  black:   { key: 'black',   name: 'Black',   bits: RED_BIT | GREEN_BIT | BLUE_BIT, hex: '#25252b', ink: '#f2ece0' },
   /* White has no bits and is deliberately absent from COLOR_KEYS: it is not a
      mixable colour, it is what the wheel looks like from outside. Present
      only so the secret act has a palette to draw chips and art from. */
@@ -25,7 +28,7 @@ export var COLORS = {
 export var COLOR_KEYS = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'black'];
 export var COLORLESS = { key: null, name: 'Colourless', hex: '#6f6a60', ink: '#12100d' };
 export var BITS_TO_COLOR = {};
-COLOR_KEYS.forEach(function (k) { BITS_TO_COLOR[COLORS[k].bits] = k; });
+COLOR_KEYS.forEach(function (colorKey) { BITS_TO_COLOR[COLORS[colorKey].bits] = colorKey; });
 
 export var EFFECTIVE = {
   red:     ['magenta', 'yellow', 'green'],
@@ -36,17 +39,22 @@ export var EFFECTIVE = {
   magenta: ['black', 'cyan', 'green'],
   black:   ['red', 'yellow', 'cyan']
 };
-export function isEffective(a, d) { return !!a && !!d && EFFECTIVE[a].indexOf(d) !== -1; }
-export function colorInfo(k) { return k ? COLORS[k] : COLORLESS; }
-export function mixColor(a, b) {
-  if (!a && !b) return null;
-  if (!a) return b;
-  if (!b) return a;
-  return BITS_TO_COLOR[COLORS[a].bits | COLORS[b].bits];
+export function isEffective(attackerColor, defenderColor) {
+  return !!attackerColor && !!defenderColor && EFFECTIVE[attackerColor].indexOf(defenderColor) !== -1;
+}
+export function colorInfo(colorKey) { return colorKey ? COLORS[colorKey] : COLORLESS; }
+/* The pure bits union of two colours — what mixing them adds up to, with no
+   regard for the mixAllowed exception below. Anything that just wants to
+   classify a pair (not produce a real mix event) should call this. */
+export function mixColor(colorA, colorB) {
+  if (!colorA && !colorB) return null;
+  if (!colorA) return colorB;
+  if (!colorB) return colorA;
+  return BITS_TO_COLOR[COLORS[colorA].bits | COLORS[colorB].bits];
 }
 
 export var SECONDARY_COLORS = ['yellow', 'cyan', 'magenta'];
-export function isSecondary(c) { return SECONDARY_COLORS.indexOf(c) !== -1; }
+export function isSecondary(colorKey) { return SECONDARY_COLORS.indexOf(colorKey) !== -1; }
 
 /* Black is made from two secondaries, and only from two secondaries — but a
    mix is never refused for it. By raw bits Black is simply R|G|B, so Yellow
@@ -62,20 +70,20 @@ export function isSecondary(c) { return SECONDARY_COLORS.indexOf(c) !== -1; }
    would have hit Black by raw bits (a secondary and the one primary it does
    not already contain) resolves to the secondary itself instead, added
    together and stronger. Nothing is lost by attempting it. */
-export function mixAllowed(a, b) {
-  var res = mixColor(a, b);
-  if (res !== 'black') return true;
-  if (a === 'black' || b === 'black') return true;
-  return isSecondary(a) && isSecondary(b);
+export function mixAllowed(colorA, colorB) {
+  var mixedColor = mixColor(colorA, colorB);
+  if (mixedColor !== 'black') return true;
+  if (colorA === 'black' || colorB === 'black') return true;
+  return isSecondary(colorA) && isSecondary(colorB);
 }
 /* The colour a real mix event actually produces. mixColor is the pure bits
    union and stays that way for anything that just wants to classify a pair;
    this is the one call-site every mix, fusion and preview should use to
    decide what lands on the board. */
-export function mixResultColor(a, b) {
-  var raw = mixColor(a, b);
-  if (raw !== 'black') return raw;
-  if (mixAllowed(a, b)) return raw;
+export function mixResultColor(colorA, colorB) {
+  var rawColor = mixColor(colorA, colorB);
+  if (rawColor !== 'black') return rawColor;
+  if (mixAllowed(colorA, colorB)) return rawColor;
   // exactly one side is a secondary in every blocked case — that one wins
-  return isSecondary(a) ? a : b;
+  return isSecondary(colorA) ? colorA : colorB;
 }

@@ -2,7 +2,7 @@
    Eighteen triangular tiles: which touch, which lanes they belong to, and the SVG
    coordinates each is drawn at. Pure maths — no game state. */
 
-import { B, COLOR_KEYS } from './colors.js';
+import { COLOR_KEYS } from './colors.js';
 import { CARDS } from './cards.js';
 
 /* ===================================================================
@@ -32,7 +32,7 @@ export var RELIC_LIMIT = Infinity;
    system — it *is* the colour system: Yellow is Red + Green, so "you may
    enter the Radiant Grove once you hold Yellow" and "Yellow is Red mixed with
    Green" are the same sentence. */
-export var ACT_REQUIREMENT = 2;                       // x — cards of a colour needed to open its act
+export var ACT_REQUIREMENT = 2;                       // cards of a colour needed to open its act
 /* Black is the three-colour mix, so a single Black card already costs two
    fusions: a secondary first, then that secondary against the missing
    primary. Four Black is therefore roughly eight bench operations, and the
@@ -49,50 +49,73 @@ export function requirementFor(colorKey) {
 /* How many cards of each colour a deck is holding. Colourless cards count for
    nothing here: they open no doors. */
 export function colourCounts(deck) {
-  var out = {};
-  COLOR_KEYS.forEach(function (k) { out[k] = 0; });
+  var counts = {};
+  COLOR_KEYS.forEach(function (colorKey) { counts[colorKey] = 0; });
   (deck || []).forEach(function (entry) {
-    var d = CARDS[entry.id];
-    if (!d || d.curse) return;                  // a curse is not a colour you earned
-    if (d.color && out[d.color] !== undefined) out[d.color]++;
+    var cardDef = CARDS[entry.id];
+    if (!cardDef || cardDef.curse) return;             // a curse is not a colour you earned
+    if (cardDef.color && counts[cardDef.color] !== undefined) counts[cardDef.color]++;
   });
-  return out;
+  return counts;
 }
 export function actUnlocked(colorKey, deck) {
   if (PRIMARY_COLORS.indexOf(colorKey) !== -1) return true;
   return colourCounts(deck)[colorKey] >= requirementFor(colorKey);
 }
 
+/* Every tile's direct neighbours, keyed by "row-index". Built once: for each
+   Row 2 tile, connect it to the two Row 1 tiles it sits above; for each
+   Row 3 tile, the two Row 2 tiles above that. Every connection is recorded
+   on both ends. */
 export var ADJACENT = (function () {
-  var a = {}, j, k;
-  function put(r1, i1, r2, i2) {
-    if (i1 < 0 || i1 >= ROW_INFO[r1].count || i2 < 0 || i2 >= ROW_INFO[r2].count) return;
-    a[r1 + '-' + i1].push({ row: r2, index: i2 });
-    a[r2 + '-' + i2].push({ row: r1, index: i1 });
+  var adjacencyMap = {};
+  function connect(rowA, indexA, rowB, indexB) {
+    if (indexA < 0 || indexA >= ROW_INFO[rowA].count || indexB < 0 || indexB >= ROW_INFO[rowB].count) return;
+    adjacencyMap[rowA + '-' + indexA].push({ row: rowB, index: indexB });
+    adjacencyMap[rowB + '-' + indexB].push({ row: rowA, index: indexA });
   }
-  ROWS.forEach(function (r) { for (var n = 0; n < ROW_INFO[r].count; n++) a[r + '-' + n] = []; });
-  for (j = 0; j < 3; j++) { put('row2', j, 'row1', j); put('row2', j, 'row1', j + 1); }
-  for (k = 0; k < 2; k++) { put('row3', k, 'row2', k); put('row3', k, 'row2', k + 1); }
-  return a;
+  ROWS.forEach(function (row) {
+    for (var index = 0; index < ROW_INFO[row].count; index++) adjacencyMap[row + '-' + index] = [];
+  });
+  for (var row2Index = 0; row2Index < 3; row2Index++) {
+    connect('row2', row2Index, 'row1', row2Index);
+    connect('row2', row2Index, 'row1', row2Index + 1);
+  }
+  for (var row3Index = 0; row3Index < 2; row3Index++) {
+    connect('row3', row3Index, 'row2', row3Index);
+    connect('row3', row3Index, 'row2', row3Index + 1);
+  }
+  return adjacencyMap;
 })();
 export function adjacentTiles(row, index) { return ADJACENT[row + '-' + index] || []; }
 
+/* Every Row 1 tile is the head of its own lane; each lane's candidate
+   members are that Row 1 tile plus the Row 2 and Row 3 tiles that stand
+   behind it. Used as the default membership before any fissure narrows or
+   widens it (see lanesOfFor). */
 export var LANE_CANDIDATES = (function () {
-  var out = [], i;
-  for (i = 0; i < LANE_COUNT; i++) {
-    var c = [{ row: 'row1', index: i }];
-    [i - 1, i].forEach(function (j) { if (j >= 0 && j < 3) c.push({ row: 'row2', index: j }); });
-    [i - 2, i - 1, i].forEach(function (k) { if (k >= 0 && k < 2) c.push({ row: 'row3', index: k }); });
-    out.push(c);
+  var lanes = [];
+  for (var laneIndex = 0; laneIndex < LANE_COUNT; laneIndex++) {
+    var members = [{ row: 'row1', index: laneIndex }];
+    [laneIndex - 1, laneIndex].forEach(function (row2Index) {
+      if (row2Index >= 0 && row2Index < 3) members.push({ row: 'row2', index: row2Index });
+    });
+    [laneIndex - 2, laneIndex - 1, laneIndex].forEach(function (row3Index) {
+      if (row3Index >= 0 && row3Index < 2) members.push({ row: 'row3', index: row3Index });
+    });
+    lanes.push(members);
   }
-  return out;
+  return lanes;
 })();
 export var LANES_OF = (function () {
-  var m = {};
-  LANE_CANDIDATES.forEach(function (list, L) {
-    list.forEach(function (t) { (m[t.row + '-' + t.index] = m[t.row + '-' + t.index] || []).push(L); });
+  var tileToLanes = {};
+  LANE_CANDIDATES.forEach(function (members, laneIndex) {
+    members.forEach(function (tile) {
+      var key = tile.row + '-' + tile.index;
+      (tileToLanes[key] = tileToLanes[key] || []).push(laneIndex);
+    });
   });
-  return m;
+  return tileToLanes;
 })();
 export function lanesOf(row, index) { return LANES_OF[row + '-' + index]; }
 
@@ -108,78 +131,78 @@ export function lanesOf(row, index) { return LANES_OF[row + '-' + index]; }
    a reachability walk rather than needing its own bookkeeping, and a
    Row 3 tile cut from one neighbour keeps precisely the lanes its other
    neighbour still offers. */
-export function edgeKey(side, a, b) {
-  var x = a.row + '-' + a.index, y = b.row + '-' + b.index;
-  return side + '|' + (x < y ? x + '|' + y : y + '|' + x);
+export function edgeKey(side, tileA, tileB) {
+  var keyA = tileA.row + '-' + tileA.index, keyB = tileB.row + '-' + tileB.index;
+  return side + '|' + (keyA < keyB ? keyA + '|' + keyB : keyB + '|' + keyA);
 }
-export function sameTile(a, b) { return a.row === b.row && a.index === b.index; }
+export function sameTile(tileA, tileB) { return tileA.row === tileB.row && tileA.index === tileB.index; }
 
 /* One reading of the board's damage: which joins are cut, which unnatural
    joins have been forced open, and how hard each one pulls. Everything that
    asks about adjacency or lanes goes through this. */
 export function boardTopo(fissures) {
   if (!fissures || !fissures.length) return null;
-  var cut = {}, extra = {}, any = false;
+  var cutEdges = {}, bridgedNeighbors = {}, hasAny = false;
   function link(side, from, to) {
-    var k = side + '|' + from.row + '-' + from.index;
-    (extra[k] = extra[k] || []).push({ row: to.row, index: to.index });
+    var key = side + '|' + from.row + '-' + from.index;
+    (bridgedNeighbors[key] = bridgedNeighbors[key] || []).push({ row: to.row, index: to.index });
   }
-  fissures.forEach(function (f) {
-    if (!f.side) return;
-    any = true;
-    if (f.kind === 'sever') cut[edgeKey(f.side, f.a, f.b)] = 1;
-    else if (f.kind === 'bridge') { link(f.side, f.a, f.b); link(f.side, f.b, f.a); }
+  fissures.forEach(function (fissure) {
+    if (!fissure.side) return;
+    hasAny = true;
+    if (fissure.kind === 'sever') cutEdges[edgeKey(fissure.side, fissure.a, fissure.b)] = 1;
+    else if (fissure.kind === 'bridge') { link(fissure.side, fissure.a, fissure.b); link(fissure.side, fissure.b, fissure.a); }
   });
-  return any ? { cut: cut, extra: extra } : null;
+  return hasAny ? { cut: cutEdges, extra: bridgedNeighbors } : null;
 }
 /* Adjacency as the board actually is now: severed joins removed, bridged
    joins added. Every adjacency-flavoured rule in the game reads through
    this, so nothing reaches across a fissure and everything reaches across
    a bridge. */
-export function adjacentTilesFor(side, row, index, topo) {
-  var list = ADJACENT[row + '-' + index] || [];
-  if (!topo) return list;
-  var self = { row: row, index: index };
-  var out = list.filter(function (t) { return !topo.cut[edgeKey(side, self, t)]; });
-  var add = topo.extra[side + '|' + row + '-' + index];
-  if (add) add.forEach(function (t) {
-    if (topo.cut[edgeKey(side, self, t)]) return;
-    if (out.some(function (o) { return sameTile(o, t); })) return;
-    out.push({ row: t.row, index: t.index });
+export function adjacentTilesFor(side, row, index, topology) {
+  var neighbors = ADJACENT[row + '-' + index] || [];
+  if (!topology) return neighbors;
+  var selfTile = { row: row, index: index };
+  var live = neighbors.filter(function (tile) { return !topology.cut[edgeKey(side, selfTile, tile)]; });
+  var bridged = topology.extra[side + '|' + row + '-' + index];
+  if (bridged) bridged.forEach(function (tile) {
+    if (topology.cut[edgeKey(side, selfTile, tile)]) return;
+    if (live.some(function (existing) { return sameTile(existing, tile); })) return;
+    live.push({ row: tile.row, index: tile.index });
   });
-  return out;
+  return live;
 }
 /* Which lanes a tile still feeds: walk forward through live joins until we
    reach Row 1 tiles, each of which is the head of its own lane. A bridge
    that points forward therefore grants a lane for free; one that runs along
    a row grants adjacency only. */
-export function lanesOfFor(side, row, index, topo) {
-  if (!topo) return LANES_OF[row + '-' + index] || [];
-  var seen = {}, lanes = {}, stack = [{ row: row, index: index }];
+export function lanesOfFor(side, row, index, topology) {
+  if (!topology) return LANES_OF[row + '-' + index] || [];
+  var visited = {}, reachedLanes = {}, stack = [{ row: row, index: index }];
   while (stack.length) {
-    var t = stack.pop(), k = t.row + '-' + t.index;
-    if (seen[k]) continue;
-    seen[k] = 1;
-    if (t.row === 'row1') { lanes[t.index] = 1; continue; }
-    adjacentTilesFor(side, t.row, t.index, topo).forEach(function (n) {
+    var tile = stack.pop(), tileKey = tile.row + '-' + tile.index;
+    if (visited[tileKey]) continue;
+    visited[tileKey] = 1;
+    if (tile.row === 'row1') { reachedLanes[tile.index] = 1; continue; }
+    adjacentTilesFor(side, tile.row, tile.index, topology).forEach(function (neighbor) {
       // only ever walk toward the front, never back down the board
-      if (ROW_INFO[n.row].depth < ROW_INFO[t.row].depth) stack.push(n);
+      if (ROW_INFO[neighbor.row].depth < ROW_INFO[tile.row].depth) stack.push(neighbor);
     });
   }
-  return Object.keys(lanes).map(Number).sort(function (a, b) { return a - b; });
+  return Object.keys(reachedLanes).map(Number).sort(function (laneA, laneB) { return laneA - laneB; });
 }
-export function laneMembersFor(L, side, topo) {
-  var list = LANE_CANDIDATES[L];
-  if (!topo) return list;
+export function laneMembersFor(laneIndex, side, topology) {
+  var candidates = LANE_CANDIDATES[laneIndex];
+  if (!topology) return candidates;
   // a bridge can put a tile in a lane its row never belonged to
-  var out = list.filter(function (t) { return lanesOfFor(side, t.row, t.index, topo).indexOf(L) !== -1; });
+  var members = candidates.filter(function (tile) { return lanesOfFor(side, tile.row, tile.index, topology).indexOf(laneIndex) !== -1; });
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      if (out.some(function (o) { return o.row === row && o.index === i; })) continue;
-      if (lanesOfFor(side, row, i, topo).indexOf(L) !== -1) out.push({ row: row, index: i });
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      if (members.some(function (existing) { return existing.row === row && existing.index === index; })) continue;
+      if (lanesOfFor(side, row, index, topology).indexOf(laneIndex) !== -1) members.push({ row: row, index: index });
     }
   });
-  return out;
+  return members;
 }
 
 /* Set true to make a severed unit pour its whole strength into the lanes it
@@ -192,46 +215,47 @@ export var FISSURE_CONCENTRATES = false;
    forced together. Power is how hard: a fresh scar pulls once, and a board
    with nowhere left to break deepens the scars it already has. */
 export var FISSURE_DRAIN = 1, FISSURE_MAX_POWER = 4;
-export function fissurePower(f) { return Math.max(1, f.power || 1); }
+export function fissurePower(fissure) { return Math.max(1, fissure.power || 1); }
 export function fissuresTouching(side, row, index, fissures) {
   if (!fissures || !fissures.length) return 0;
-  var self = { row: row, index: index }, n = 0;
-  fissures.forEach(function (f) {
-    if (f.side !== side) return;
-    if (sameTile(f.a, self) || sameTile(f.b, self)) n += fissurePower(f);
+  var selfTile = { row: row, index: index }, totalPower = 0;
+  fissures.forEach(function (fissure) {
+    if (fissure.side !== side) return;
+    if (sameTile(fissure.a, selfTile) || sameTile(fissure.b, selfTile)) totalPower += fissurePower(fissure);
   });
-  return n;
+  return totalPower;
 }
 
 /* Every edge whose loss still leaves each tile a route to the front. A tile
    that can reach no Row 1 tile is stranded: it would sit on the board
    contributing to nothing, which reads as a bug rather than a scar. */
 export function severableLinks(side, fissures) {
-  var topo = boardTopo(fissures), out = [];
-  var cut = (topo && topo.cut) || {}, extra = (topo && topo.extra) || {};
+  var topology = boardTopo(fissures), severable = [];
+  var cutEdges = (topology && topology.cut) || {}, bridgedNeighbors = (topology && topology.extra) || {};
   var edges = [];
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      (ADJACENT[row + '-' + i] || []).forEach(function (t) {
-        if (ROW_INFO[t.row].depth >= ROW_INFO[row].depth) return;   // list each edge once
-        edges.push({ a: { row: row, index: i }, b: { row: t.row, index: t.index } });
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      (ADJACENT[row + '-' + index] || []).forEach(function (neighbor) {
+        if (ROW_INFO[neighbor.row].depth >= ROW_INFO[row].depth) return;   // list each edge once
+        edges.push({ a: { row: row, index: index }, b: { row: neighbor.row, index: neighbor.index } });
       });
     }
   });
-  edges.forEach(function (e) {
-    var k = edgeKey(side, e.a, e.b);
-    if (cut[k]) return;
-    var trial = { cut: {}, extra: extra };
-    Object.keys(cut).forEach(function (kk) { trial.cut[kk] = 1; });
-    trial.cut[k] = 1;
-    var stranded = false;
+  edges.forEach(function (edge) {
+    var key = edgeKey(side, edge.a, edge.b);
+    if (cutEdges[key]) return;
+    // trial-cut this one edge on top of what's already cut, and see if anything gets stranded
+    var trialTopology = { cut: {}, extra: bridgedNeighbors };
+    Object.keys(cutEdges).forEach(function (existingKey) { trialTopology.cut[existingKey] = 1; });
+    trialTopology.cut[key] = 1;
+    var strandsATile = false;
     ROWS.forEach(function (row) {
-      for (var i = 0; i < ROW_INFO[row].count; i++)
-        if (!lanesOfFor(side, row, i, trial).length) stranded = true;
+      for (var index = 0; index < ROW_INFO[row].count; index++)
+        if (!lanesOfFor(side, row, index, trialTopology).length) strandsATile = true;
     });
-    if (!stranded) out.push({ kind: 'sever', side: side, a: e.a, b: e.b, power: 1 });
+    if (!strandsATile) severable.push({ kind: 'sever', side: side, a: edge.a, b: edge.b, power: 1 });
   });
-  return out;
+  return severable;
 }
 
 /* A bridge joins two tiles that meet at a single corner but were never meant
@@ -241,67 +265,88 @@ export function severableLinks(side, fissures) {
 export var BRIDGE_PAIRS = null;
 export function bridgePairs() {
   if (BRIDGE_PAIRS) return BRIDGE_PAIRS;
-  var poly = {}, keys = [];
-  basePolys().forEach(function (t) {
-    poly[t.row + '-' + t.index] = t.points;
-    keys.push({ row: t.row, index: t.index });
+  var pointsByTile = {}, tileKeys = [];
+  basePolys().forEach(function (tile) {
+    pointsByTile[tile.row + '-' + tile.index] = tile.points;
+    tileKeys.push({ row: tile.row, index: tile.index });
   });
-  function corners(ka, kb) {
-    var A = poly[ka], B = poly[kb], n = 0;
-    A.forEach(function (p) {
-      B.forEach(function (q) {
-        if (Math.abs(p[0] - q[0]) < 0.001 && Math.abs(p[1] - q[1]) < 0.001) n++;
+  function sharedCornerCount(keyA, keyB) {
+    var polygonA = pointsByTile[keyA], polygonB = pointsByTile[keyB], count = 0;
+    polygonA.forEach(function (pointA) {
+      polygonB.forEach(function (pointB) {
+        if (Math.abs(pointA[0] - pointB[0]) < 0.001 && Math.abs(pointA[1] - pointB[1]) < 0.001) count++;
       });
     });
-    return n;
+    return count;
   }
   BRIDGE_PAIRS = [];
-  for (var i = 0; i < keys.length; i++) {
-    for (var j = i + 1; j < keys.length; j++) {
-      var ka = keys[i].row + '-' + keys[i].index, kb = keys[j].row + '-' + keys[j].index;
-      if (corners(ka, kb) === 1) BRIDGE_PAIRS.push({ a: keys[i], b: keys[j] });
+  for (var indexA = 0; indexA < tileKeys.length; indexA++) {
+    for (var indexB = indexA + 1; indexB < tileKeys.length; indexB++) {
+      var keyA = tileKeys[indexA].row + '-' + tileKeys[indexA].index, keyB = tileKeys[indexB].row + '-' + tileKeys[indexB].index;
+      if (sharedCornerCount(keyA, keyB) === 1) BRIDGE_PAIRS.push({ a: tileKeys[indexA], b: tileKeys[indexB] });
     }
   }
   return BRIDGE_PAIRS;
 }
 export function bridgeableLinks(side, fissures) {
-  var topo = boardTopo(fissures), out = [];
-  bridgePairs().forEach(function (pr) {
-    var taken = (fissures || []).some(function (f) {
-      return f.side === side &&
-        ((sameTile(f.a, pr.a) && sameTile(f.b, pr.b)) || (sameTile(f.a, pr.b) && sameTile(f.b, pr.a)));
+  var topology = boardTopo(fissures), bridgeable = [];
+  bridgePairs().forEach(function (pair) {
+    var alreadyPlaced = (fissures || []).some(function (fissure) {
+      return fissure.side === side &&
+        ((sameTile(fissure.a, pair.a) && sameTile(fissure.b, pair.b)) || (sameTile(fissure.a, pair.b) && sameTile(fissure.b, pair.a)));
     });
-    if (taken) return;
-    if (topo && topo.cut[edgeKey(side, pr.a, pr.b)]) return;
-    out.push({ kind: 'bridge', side: side, a: pr.a, b: pr.b, power: 1 });
+    if (alreadyPlaced) return;
+    if (topology && topology.cut[edgeKey(side, pair.a, pair.b)]) return;
+    bridgeable.push({ kind: 'bridge', side: side, a: pair.a, b: pair.b, power: 1 });
   });
-  return out;
+  return bridgeable;
 }
 
-export var T = 200, HT = Math.sqrt(3) / 2 * T, GUTTER = 0.92;
-export function centroidOf(p) {
-  if (p.length === 4) return [(p[0][0] + p[2][0]) / 2, (p[0][1] + p[2][1]) / 2];
-  var sx = 0, sy = 0;
-  p.forEach(function (q) { sx += q[0]; sy += q[1]; });
-  return [sx / p.length, sy / p.length];
+export var TILE_SIZE = 200, TILE_HEIGHT = Math.sqrt(3) / 2 * TILE_SIZE, GUTTER = 0.92;
+export function centroidOf(points) {
+  if (points.length === 4) return [(points[0][0] + points[2][0]) / 2, (points[0][1] + points[2][1]) / 2];
+  var sumX = 0, sumY = 0;
+  points.forEach(function (point) { sumX += point[0]; sumY += point[1]; });
+  return [sumX / points.length, sumY / points.length];
 }
-export function shrink(p, c, f) { return p.map(function (q) { return [c[0] + (q[0] - c[0]) * f, c[1] + (q[1] - c[1]) * f]; }); }
+export function shrink(points, center, factor) {
+  return points.map(function (point) { return [center[0] + (point[0] - center[0]) * factor, center[1] + (point[1] - center[1]) * factor]; });
+}
+/* The eighteen tile polygons, unshrunk and undrawn: one Row 1 triangle per
+   lane head, a Row 2 rhombus behind each pair of Row 1 tiles, and a Row 3
+   triangle behind each pair of Row 2 tiles — the same forward-narrowing
+   shape the adjacency and lane tables describe, laid out in actual
+   coordinates. */
 export function basePolys() {
-  var base = [], i, j, k;
-  for (i = 0; i < 4; i++) base.push({ row: 'row1', index: i, points: [[i * T, 0], [(i + 1) * T, 0], [i * T + T / 2, HT]] });
-  for (j = 0; j < 3; j++) base.push({ row: 'row2', index: j, points: [[(j + 1) * T, 0], [(j + 1) * T + T / 2, HT], [(j + 1) * T, 2 * HT], [j * T + T / 2, HT]] });
-  for (k = 0; k < 2; k++) base.push({ row: 'row3', index: k, points: [[(k + 1) * T + T / 2, HT], [(k + 2) * T, 2 * HT], [(k + 1) * T, 2 * HT]] });
-  return base;
+  var tiles = [];
+  for (var row1Index = 0; row1Index < 4; row1Index++) {
+    tiles.push({ row: 'row1', index: row1Index,
+      points: [[row1Index * TILE_SIZE, 0], [(row1Index + 1) * TILE_SIZE, 0], [row1Index * TILE_SIZE + TILE_SIZE / 2, TILE_HEIGHT]] });
+  }
+  for (var row2Index = 0; row2Index < 3; row2Index++) {
+    tiles.push({ row: 'row2', index: row2Index,
+      points: [[(row2Index + 1) * TILE_SIZE, 0], [(row2Index + 1) * TILE_SIZE + TILE_SIZE / 2, TILE_HEIGHT],
+        [(row2Index + 1) * TILE_SIZE, 2 * TILE_HEIGHT], [row2Index * TILE_SIZE + TILE_SIZE / 2, TILE_HEIGHT]] });
+  }
+  for (var row3Index = 0; row3Index < 2; row3Index++) {
+    tiles.push({ row: 'row3', index: row3Index,
+      points: [[(row3Index + 1) * TILE_SIZE + TILE_SIZE / 2, TILE_HEIGHT], [(row3Index + 2) * TILE_SIZE, 2 * TILE_HEIGHT], [(row3Index + 1) * TILE_SIZE, 2 * TILE_HEIGHT]] });
+  }
+  return tiles;
 }
+/* Every tile, on both sides of the board, shrunk in from its neighbours by
+   GUTTER so the drawn pucks don't touch, with its centroid cached for
+   quick placement of text and effects. The top side is the bottom side's
+   polygons mirrored across the y axis. */
 export var GEO = (function () {
-  var base = basePolys(), g = [];
-  base.forEach(function (t) {
-    var bc = centroidOf(t.points);
-    g.push({ side: 'bottom', row: t.row, index: t.index, points: shrink(t.points, bc, GUTTER), cx: bc[0], cy: bc[1] });
-    var m = t.points.map(function (p) { return [p[0], -p[1]]; }), tc = centroidOf(m);
-    g.push({ side: 'top', row: t.row, index: t.index, points: shrink(m, tc, GUTTER), cx: tc[0], cy: tc[1] });
+  var baseTiles = basePolys(), geoTiles = [];
+  baseTiles.forEach(function (tile) {
+    var bottomCentroid = centroidOf(tile.points);
+    geoTiles.push({ side: 'bottom', row: tile.row, index: tile.index, points: shrink(tile.points, bottomCentroid, GUTTER), cx: bottomCentroid[0], cy: bottomCentroid[1] });
+    var mirroredPoints = tile.points.map(function (point) { return [point[0], -point[1]]; }), topCentroid = centroidOf(mirroredPoints);
+    geoTiles.push({ side: 'top', row: tile.row, index: tile.index, points: shrink(mirroredPoints, topCentroid, GUTTER), cx: topCentroid[0], cy: topCentroid[1] });
   });
-  return g;
+  return geoTiles;
 })();
 
 /* The literal seam two adjacent tiles share, taken from the unshrunk
@@ -309,55 +354,56 @@ export var GEO = (function () {
    between the two centroids. Two triangles or a triangle and a rhombus
    always share exactly two vertices; those are the ends of the seam. */
 export var EDGE_GEO = (function () {
-  var base = basePolys(), poly = {}, out = {};
-  base.forEach(function (t) { poly[t.row + '-' + t.index] = t.points; });
-  function seam(ka, kb) {
-    var A = poly[ka], B = poly[kb], shared = [];
-    A.forEach(function (p) {
-      B.forEach(function (q) {
-        if (Math.abs(p[0] - q[0]) < 0.001 && Math.abs(p[1] - q[1]) < 0.001) shared.push(p);
+  var baseTiles = basePolys(), pointsByTile = {}, seamsByEdge = {};
+  baseTiles.forEach(function (tile) { pointsByTile[tile.row + '-' + tile.index] = tile.points; });
+  function seam(keyA, keyB) {
+    var polygonA = pointsByTile[keyA], polygonB = pointsByTile[keyB], sharedPoints = [];
+    polygonA.forEach(function (pointA) {
+      polygonB.forEach(function (pointB) {
+        if (Math.abs(pointA[0] - pointB[0]) < 0.001 && Math.abs(pointA[1] - pointB[1]) < 0.001) sharedPoints.push(pointA);
       });
     });
-    return shared.length === 2 ? shared : null;
+    return sharedPoints.length === 2 ? sharedPoints : null;
   }
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      var ka = row + '-' + i;
-      (ADJACENT[ka] || []).forEach(function (t) {
-        var kb = t.row + '-' + t.index;
-        var s = seam(ka, kb);
-        if (!s) return;
-        var k = ka < kb ? ka + '|' + kb : kb + '|' + ka;
-        out['bottom|' + k] = [[s[0][0], s[0][1]], [s[1][0], s[1][1]]];
-        out['top|' + k] = [[s[0][0], -s[0][1]], [s[1][0], -s[1][1]]];
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      var keyA = row + '-' + index;
+      (ADJACENT[keyA] || []).forEach(function (neighbor) {
+        var keyB = neighbor.row + '-' + neighbor.index;
+        var sharedPoints = seam(keyA, keyB);
+        if (!sharedPoints) return;
+        var edgeKeyStr = keyA < keyB ? keyA + '|' + keyB : keyB + '|' + keyA;
+        seamsByEdge['bottom|' + edgeKeyStr] = [[sharedPoints[0][0], sharedPoints[0][1]], [sharedPoints[1][0], sharedPoints[1][1]]];
+        seamsByEdge['top|' + edgeKeyStr] = [[sharedPoints[0][0], -sharedPoints[0][1]], [sharedPoints[1][0], -sharedPoints[1][1]]];
       });
     }
   });
-  return out;
+  return seamsByEdge;
 })();
 /* The single corner a bridged pair meets at, in board coordinates. */
-export function sharedCorner(side, a, b) {
-  var poly = {};
-  basePolys().forEach(function (t) { poly[t.row + '-' + t.index] = t.points; });
-  var A = poly[a.row + '-' + a.index], B = poly[b.row + '-' + b.index], hit = null;
-  if (!A || !B) return null;
-  A.forEach(function (p) {
-    B.forEach(function (q) {
-      if (Math.abs(p[0] - q[0]) < 0.001 && Math.abs(p[1] - q[1]) < 0.001) hit = p;
+export function sharedCorner(side, tileA, tileB) {
+  var pointsByTile = {};
+  basePolys().forEach(function (tile) { pointsByTile[tile.row + '-' + tile.index] = tile.points; });
+  var polygonA = pointsByTile[tileA.row + '-' + tileA.index], polygonB = pointsByTile[tileB.row + '-' + tileB.index], corner = null;
+  if (!polygonA || !polygonB) return null;
+  polygonA.forEach(function (pointA) {
+    polygonB.forEach(function (pointB) {
+      if (Math.abs(pointA[0] - pointB[0]) < 0.001 && Math.abs(pointA[1] - pointB[1]) < 0.001) corner = pointA;
     });
   });
-  return hit ? [hit[0], side === 'top' ? -hit[1] : hit[1]] : null;
+  return corner ? [corner[0], side === 'top' ? -corner[1] : corner[1]] : null;
 }
-export function seamOf(side, a, b) {
-  var x = a.row + '-' + a.index, y = b.row + '-' + b.index;
-  return EDGE_GEO[side + '|' + (x < y ? x + '|' + y : y + '|' + x)] || null;
+export function seamOf(side, tileA, tileB) {
+  var keyA = tileA.row + '-' + tileA.index, keyB = tileB.row + '-' + tileB.index;
+  return EDGE_GEO[side + '|' + (keyA < keyB ? keyA + '|' + keyB : keyB + '|' + keyA)] || null;
 }
 export var VIEWBOX = (function () {
-  var pad = 28, a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
-  GEO.forEach(function (t) {
-    t.points.forEach(function (p) {
-      a = Math.min(a, p[0]); c = Math.max(c, p[0]); b = Math.min(b, p[1]); d = Math.max(d, p[1]);
+  var padding = 28, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  GEO.forEach(function (tile) {
+    tile.points.forEach(function (point) {
+      minX = Math.min(minX, point[0]); maxX = Math.max(maxX, point[0]);
+      minY = Math.min(minY, point[1]); maxY = Math.max(maxY, point[1]);
     });
   });
-  return { x: a - pad, y: b - pad, w: (c - a) + pad * 2, h: (d - b) + pad * 2 };
+  return { x: minX - padding, y: minY - padding, w: (maxX - minX) + padding * 2, h: (maxY - minY) + padding * 2 };
 })();
