@@ -3149,33 +3149,33 @@ function volatilePress() {
 
   if (rnd() < curseRisk(lab.presses - 1)) {
     var held = {};
-    run.deck.forEach(function (c) { if (CARDS[c.id].curse) held[c.id] = true; });
-    var fresh = C.CURSE_KEYS.filter(function (k) { return !held[k]; });
+    run.deck.forEach(function (entry) { if (CARDS[entry.id].curse) held[entry.id] = true; });
+    var fresh = C.CURSE_KEYS.filter(function (key) { return !held[key]; });
     var pool = fresh.length ? fresh : C.CURSE_KEYS;
-    var key = pool[Math.floor(rnd() * pool.length)];
-    gainCurse(key);
+    var curseKey = pool[Math.floor(rnd() * pool.length)];
+    gainCurse(curseKey);
     lab.curses++;
-    lab.results.unshift({ tone: 'curse', text: 'The mixture turns on you — <b>' + CARDS[key].name +
-      '</b> is now in your deck. ' + CARDS[key].text });
+    lab.results.unshift({ tone: 'curse', text: 'The mixture turns on you — <b>' + CARDS[curseKey].name +
+      '</b> is now in your deck. ' + CARDS[curseKey].text });
     renderRunBar();
     renderVolatileLab();
     return;
   }
 
-  var r = rnd(), count = 1, tone = 'ok';
-  if (r > 0.988) {                       // the whole bench goes up
+  var effectRoll = rnd(), count = 1, tone = 'ok';
+  if (effectRoll > 0.988) {                       // the whole bench goes up
     cascade(lab);
     renderRunBar();
     renderVolatileLab();
     return;
   }
-  if (r > 0.86) { count = 3; tone = 'big'; }
-  else if (r > 0.62) { count = 2; tone = 'good'; }
+  if (effectRoll > 0.86) { count = 3; tone = 'big'; }
+  else if (effectRoll > 0.62) { count = 2; tone = 'good'; }
 
   var lines = [], tries = 0;
   while (lines.length < count && tries++ < 12) {
-    var out = applyVolatile(VOLATILE_EFFECTS[Math.floor(rnd() * VOLATILE_EFFECTS.length)]);
-    if (out) lines.push(out);
+    var effectResult = applyVolatile(VOLATILE_EFFECTS[Math.floor(rnd() * VOLATILE_EFFECTS.length)]);
+    if (effectResult) lines.push(effectResult);
   }
   if (!lines.length) lines.push('The mixture fizzles. Nothing changes.');
   lab.results.unshift({ tone: tone, text: (count > 1 ? '<b>\u00d7' + lines.length + '</b> ' : '') + lines.join(' \u00b7 ') });
@@ -3186,15 +3186,15 @@ function volatilePress() {
 function cascade(lab) {
   var touched = 0;
   // everything you own, all at once
-  for (var i = 0; i < run.deck.length; i++) {
-    if (CARDS[run.deck[i].id].type !== 'unit') continue;
-    run.deck[i] = liftStrength(run.deck[i], 1);
-    var pal2 = recolourPalette();
-    run.deck[i] = recolourCard(run.deck[i], pal2[Math.floor(rnd() * pal2.length)]);
+  for (var index = 0; index < run.deck.length; index++) {
+    if (CARDS[run.deck[index].id].type !== 'unit') continue;
+    run.deck[index] = liftStrength(run.deck[index], 1);
+    var palette = recolourPalette();
+    run.deck[index] = recolourCard(run.deck[index], palette[Math.floor(rnd() * palette.length)]);
     touched++;
   }
   var fusions = 0;
-  for (var f = 0; f < 2; f++) { if (applyVolatile('fuse')) fusions++; }
+  for (var attempt = 0; attempt < 2; attempt++) { if (applyVolatile('fuse')) fusions++; }
   lab.results.unshift({ tone: 'cascade',
     text: '<b>THE WHOLE BENCH GOES UP.</b> Every one of your ' + touched +
       ' units gains strength and a new colour' + (fusions ? ', and ' + fusions + ' pair' +
@@ -3214,8 +3214,8 @@ function renderVolatileLab() {
     '<span class="lbl">Curses taken</span><b class="' + (lab.curses ? 'hot' : '') + '">' + lab.curses + '</b></div></div>' +
     '<div class="vol-actions"><button class="primary danger" id="labPress">Pull the lever</button>' +
     '<button class="primary" id="labLeave">Leave with what you have</button></div>' +
-    (lab.results.length ? '<ul class="vol-log">' + lab.results.map(function (r) {
-      return '<li class="' + r.tone + '">' + r.text + '</li>';
+    (lab.results.length ? '<ul class="vol-log">' + lab.results.map(function (result) {
+      return '<li class="' + result.tone + '">' + result.text + '</li>';
     }).join('') + '</ul>' : '<p class="muted" style="font-size:12.5px">Nothing pulled yet.</p>');
 
   document.getElementById('labPress').addEventListener('click', volatilePress);
