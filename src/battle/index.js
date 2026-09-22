@@ -39,13 +39,13 @@ var PUCK_H = 13;              // puck thickness, in board units
    the top face's colour in shadow so the whole piece reads as one block of
    stained wood rather than two stacked discs. */
 function shadeHex(hex, amt) {
-  var n = parseInt(hex.slice(1), 16);
-  var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  function mix(c) {
-    var v = amt < 0 ? c * (1 + amt) : c + (255 - c) * amt;
-    return Math.max(0, Math.min(255, Math.round(v)));
+  var packed = parseInt(hex.slice(1), 16);
+  var red = (packed >> 16) & 255, green = (packed >> 8) & 255, blue = packed & 255;
+  function mix(channel) {
+    var shaded = amt < 0 ? channel * (1 + amt) : channel + (255 - channel) * amt;
+    return Math.max(0, Math.min(255, Math.round(shaded)));
   }
-  return '#' + ((1 << 24) + (mix(r) << 16) + (mix(g) << 8) + mix(b)).toString(16).slice(1);
+  return '#' + ((1 << 24) + (mix(red) << 16) + (mix(green) << 8) + mix(blue)).toString(16).slice(1);
 }
 
 function buildBoard() {
@@ -74,25 +74,25 @@ function buildBoard() {
   linesGroup = document.createElementNS(SVG_NS, 'g');
   linesGroup.setAttribute('class', 'conn-layer');
 
-  GEO.forEach(function (t) {
-    var g = document.createElementNS(SVG_NS, 'g');
-    g.setAttribute('class', 'tile ' + t.row + ' side-' + t.side);
-    g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+  GEO.forEach(function (geoEntry) {
+    var tileGroup = document.createElementNS(SVG_NS, 'g');
+    tileGroup.setAttribute('class', 'tile ' + geoEntry.row + ' side-' + geoEntry.side);
+    tileGroup.setAttribute('tabindex', '0'); tileGroup.setAttribute('role', 'button');
     function add(tag, cls, attrs) {
-      var e = document.createElementNS(SVG_NS, tag);
-      e.setAttribute('class', cls);
-      Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-      g.appendChild(e); return e;
+      var el = document.createElementNS(SVG_NS, tag);
+      el.setAttribute('class', cls);
+      Object.keys(attrs).forEach(function (attrKey) { el.setAttribute(attrKey, attrs[attrKey]); });
+      tileGroup.appendChild(el); return el;
     }
-    var shape = add('polygon', 'tile-shape', { points: t.points.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') });
-    var minText = add('text', 'tile-min', { x: t.cx, y: t.cy, 'text-anchor': 'middle', 'dominant-baseline': 'central' });
-    minText.textContent = ROW_INFO[t.row].min;
+    var shape = add('polygon', 'tile-shape', { points: geoEntry.points.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') });
+    var minText = add('text', 'tile-min', { x: geoEntry.cx, y: geoEntry.cy, 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    minText.textContent = ROW_INFO[geoEntry.row].min;
     /* The ownership ring belongs at the puck's base, not at its top face.
        Left at the top-face centre it stuck out 8px above the puck as a thin
        crescent — the piece looked like it had a halo, or a badly aligned
        outline. At the base it reads as the collar the puck is standing on,
        and the top face covers its upper half. */
-    var owner = add('circle', 'tile-owner', { cx: t.cx, cy: t.cy + PUCK_H, r: 50 });
+    var owner = add('circle', 'tile-owner', { cx: geoEntry.cx, cy: geoEntry.cy + PUCK_H, r: 50 });
     /* A unit is a wooden puck standing on the board, not a flat disc drawn on
        it. The whole board is rotateX'd away from the viewer, so "up off the
        surface" reads on screen as *down*: the side wall is the same circle
@@ -100,23 +100,23 @@ function buildBoard() {
        that shows below the face is the puck's thickness. The top face keeps
        the unit's colour, because colour identity is the game \u2014 the wood is a
        grain overlay on top of it, not a replacement for it. */
-    var contact = add('ellipse', 'tile-contact', { cx: t.cx, cy: t.cy + PUCK_H + 4, rx: 45, ry: 45 });
-    var side = add('circle', 'tile-puck-side', { cx: t.cx, cy: t.cy + PUCK_H, r: 44 });
-    var sideGrain = add('circle', 'tile-side-grain', { cx: t.cx, cy: t.cy + PUCK_H, r: 44, fill: 'url(#woodGrain)' });
-    var token = add('circle', 'tile-token', { cx: t.cx, cy: t.cy, r: 44 });
-    var grain = add('circle', 'tile-grain', { cx: t.cx, cy: t.cy, r: 44, fill: 'url(#woodGrain)' });
-    var sheen = add('ellipse', 'tile-sheen', { cx: t.cx, cy: t.cy - 15, rx: 30, ry: 17 });
-    var tokenText = add('text', 'tile-token-text', { x: t.cx, y: t.cy, 'text-anchor': 'middle', 'dominant-baseline': 'central' });
-    var fx = add('text', 'tile-fx', { x: t.cx, y: t.cy + (t.side === 'bottom' ? 70 : -70), 'text-anchor': 'middle', 'dominant-baseline': 'central' });
-    var ring = add('circle', 'tile-ring', { cx: t.cx, cy: t.cy, r: 60 });
-    g.addEventListener('click', function () { onTileActivate(t.side, t.row, t.index); });
-    g.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTileActivate(t.side, t.row, t.index); }
+    var contact = add('ellipse', 'tile-contact', { cx: geoEntry.cx, cy: geoEntry.cy + PUCK_H + 4, rx: 45, ry: 45 });
+    var side = add('circle', 'tile-puck-side', { cx: geoEntry.cx, cy: geoEntry.cy + PUCK_H, r: 44 });
+    var sideGrain = add('circle', 'tile-side-grain', { cx: geoEntry.cx, cy: geoEntry.cy + PUCK_H, r: 44, fill: 'url(#woodGrain)' });
+    var token = add('circle', 'tile-token', { cx: geoEntry.cx, cy: geoEntry.cy, r: 44 });
+    var grain = add('circle', 'tile-grain', { cx: geoEntry.cx, cy: geoEntry.cy, r: 44, fill: 'url(#woodGrain)' });
+    var sheen = add('ellipse', 'tile-sheen', { cx: geoEntry.cx, cy: geoEntry.cy - 15, rx: 30, ry: 17 });
+    var tokenText = add('text', 'tile-token-text', { x: geoEntry.cx, y: geoEntry.cy, 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    var fx = add('text', 'tile-fx', { x: geoEntry.cx, y: geoEntry.cy + (geoEntry.side === 'bottom' ? 70 : -70), 'text-anchor': 'middle', 'dominant-baseline': 'central' });
+    var ring = add('circle', 'tile-ring', { cx: geoEntry.cx, cy: geoEntry.cy, r: 60 });
+    tileGroup.addEventListener('click', function () { onTileActivate(geoEntry.side, geoEntry.row, geoEntry.index); });
+    tileGroup.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onTileActivate(geoEntry.side, geoEntry.row, geoEntry.index); }
     });
-    svg.appendChild(g);
-    tileEls[tileKey(t.side, t.row, t.index)] = { g: g, shape: shape, minText: minText, owner: owner,
+    svg.appendChild(tileGroup);
+    tileEls[tileKey(geoEntry.side, geoEntry.row, geoEntry.index)] = { g: tileGroup, shape: shape, minText: minText, owner: owner,
       token: token, side: side, sideGrain: sideGrain, grain: grain, sheen: sheen, contact: contact,
-      tokenText: tokenText, fx: fx, ring: ring, geo: t };
+      tokenText: tokenText, fx: fx, ring: ring, geo: geoEntry };
   });
   svg.appendChild(linesGroup);
   fissureLayer = document.createElementNS(SVG_NS, 'g');
@@ -579,12 +579,12 @@ function renderHazardMarks() {
     if (!kinds.length) return;
     ['bottom', 'top'].forEach(function (side) {
       var cy = rowCentre(side, row);
-      kinds.forEach(function (kind, k) {
+      kinds.forEach(function (kind, stackIndex) {
         var owner = state.hazards.bottom[row] === kind ? 'bottom' : 'top';
         var group = document.createElementNS(SVG_NS, 'g');
         var sel = state.inspectedHazard && state.inspectedHazard.row === row && state.inspectedHazard.kind === kind;
         group.setAttribute('class', 'haz-mark ' + kind + (sel ? ' selected' : ''));
-        group.setAttribute('transform', 'translate(' + markX + ',' + (cy + k * 62) + ')');
+        group.setAttribute('transform', 'translate(' + markX + ',' + (cy + stackIndex * 62) + ')');
         group.setAttribute('tabindex', '0');
         group.setAttribute('role', 'button');
         group.setAttribute('aria-label', C.HAZARD_TEXT[kind]);
@@ -597,8 +597,8 @@ function renderHazardMarks() {
           openInfo(kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(innerState.inspectedHazard));
         }
         group.addEventListener('click', open);
-        group.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+        group.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
         });
         hazLayer.appendChild(group);
       });
@@ -1908,16 +1908,16 @@ function nextRound(winner) {
 }
 
 function endBattle(won) {
-  var s = getBattleState(), r = getActiveRun();
+  var state = getBattleState(), run = getActiveRun();
   if (won) {
-    r.battlesWon++;
-    RUN.rollReward(s.node);
-    r.gold += r.reward.gold;
+    run.battlesWon++;
+    RUN.rollReward(state.node);
+    run.gold += run.reward.gold;
     RUN.show('reward');
   } else {
-    r.lives = Math.max(0, r.lives - 1);
+    run.lives = Math.max(0, run.lives - 1);
     RUN.renderRunBar();
-    if (r.lives <= 0) { RUN.show('gameover'); return; }
+    if (run.lives <= 0) { RUN.show('gameover'); return; }
     RUN.advance();
   }
 }
@@ -1937,11 +1937,11 @@ async function selfTest() {
 }
 
 async function runSelfTestUI() {
-  var r = await selfTest(), p = r.filter(function (x) { return x.pass; }).length;
-  els.resultsTitle.textContent = 'Self test — ' + p + ' / ' + r.length + ' passed';
-  els.resultsBody.innerHTML = '<ul class="test-list">' + r.map(function (x) {
-    return '<li class="' + (x.pass ? 'ok' : 'bad') + '"><span>' + (x.pass ? 'PASS' : 'FAIL') + '</span><span>' + x.name +
-      (x.detail ? ' <em>(' + x.detail + ')</em>' : '') + '</span></li>';
+  var results = await selfTest(), passed = results.filter(function (test) { return test.pass; }).length;
+  els.resultsTitle.textContent = 'Self test — ' + passed + ' / ' + results.length + ' passed';
+  els.resultsBody.innerHTML = '<ul class="test-list">' + results.map(function (test) {
+    return '<li class="' + (test.pass ? 'ok' : 'bad') + '"><span>' + (test.pass ? 'PASS' : 'FAIL') + '</span><span>' + test.name +
+      (test.detail ? ' <em>(' + test.detail + ')</em>' : '') + '</span></li>';
   }).join('') + '</ul>';
   els.continueBtn.textContent = 'Close';
   els.continueBtn.onclick = function () { els.overlay.hidden = true; };
@@ -1990,18 +1990,18 @@ function resumeSaved() {
    has to be constructed at that moment. Continue only appears when there is
    genuinely something to continue. */
 function showTitle() {
-  var t = document.getElementById('titleScreen');
-  var cont = document.getElementById('titleContinue');
-  if (cont) cont.hidden = !RUN.hasSave();
-  var warn = document.getElementById('titleNewWarn');
-  if (warn) warn.hidden = true;
-  var nb = document.getElementById('titleNew');
-  if (nb) { nb.textContent = 'New run'; nb.dataset.armed = ''; }
-  if (t) t.hidden = false;
+  var titleScreen = document.getElementById('titleScreen');
+  var continueButton = document.getElementById('titleContinue');
+  if (continueButton) continueButton.hidden = !RUN.hasSave();
+  var newRunWarning = document.getElementById('titleNewWarn');
+  if (newRunWarning) newRunWarning.hidden = true;
+  var newRunButton = document.getElementById('titleNew');
+  if (newRunButton) { newRunButton.textContent = 'New run'; newRunButton.dataset.armed = ''; }
+  if (titleScreen) titleScreen.hidden = false;
 }
 function hideTitle() {
-  var t = document.getElementById('titleScreen');
-  if (t) t.hidden = true;
+  var titleScreen = document.getElementById('titleScreen');
+  if (titleScreen) titleScreen.hidden = true;
 }
 
 function bootToTitle() {
@@ -2031,8 +2031,8 @@ function init() {
    'tutorialToggle', 'easeNote', 'menuBtn', 'menuDropdown', 'logBtn',
    'labBody', 'eventBody', 'gameoverBody', 'actBody', 'victoryBody'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
-  ['map', 'act', 'victory', 'loadout', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (s) {
-    els['screen_' + s] = document.getElementById('screen-' + s);
+  ['map', 'act', 'victory', 'loadout', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (screenName) {
+    els['screen_' + screenName] = document.getElementById('screen-' + screenName);
   });
 
   RUN.setRun(RUN.newRun());   // placeholder so early renders have a run to read
@@ -2059,14 +2059,14 @@ function init() {
   els.wildBtn.addEventListener('click', beginWild);
   document.getElementById('leaveShopBtn').addEventListener('click', function () { RUN.advance(); });
   document.getElementById('skipRewardBtn').addEventListener('click', function () {
-    var r = getActiveRun();
-    if (!r.reward || r.reward.cardTaken) return;
-    r.reward.cardTaken = true;
-    r.gold += RUN.skipValue();
+    var run = getActiveRun();
+    if (!run.reward || run.reward.cardTaken) return;
+    run.reward.cardTaken = true;
+    run.gold += RUN.skipValue();
     RUN.renderRunBar();
     // a relic on the same reward is still there to take — only leave once both are resolved
-    if (r.reward.relic && !r.reward.relicTaken) RUN.show('reward');
-    else { r.reward.taken = true; RUN.advance(); }
+    if (run.reward.relic && !run.reward.relicTaken) RUN.show('reward');
+    else { run.reward.taken = true; RUN.advance(); }
   });
   els.deckBtn.addEventListener('click', function () { RUN.renderDeckModal(); });
   /* The menu only holds toggles/one-shot actions, so it stays open on an
@@ -2083,19 +2083,19 @@ function init() {
     els.logOverlay.hidden = false;
     closeMenu();
   });
-  els.menuBtn.addEventListener('click', function (e) {
-    e.stopPropagation();
+  els.menuBtn.addEventListener('click', function (event) {
+    event.stopPropagation();
     var opening = els.menuDropdown.hidden;
     els.menuDropdown.hidden = !opening;
     els.menuBtn.setAttribute('aria-expanded', opening ? 'true' : 'false');
   });
-  document.addEventListener('click', function (e) {
+  document.addEventListener('click', function (event) {
     if (els.menuDropdown.hidden) return;
-    if (els.menuBtn.contains(e.target) || els.menuDropdown.contains(e.target)) return;
+    if (els.menuBtn.contains(event.target) || els.menuDropdown.contains(event.target)) return;
     closeMenu();
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !els.menuDropdown.hidden) closeMenu();
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !els.menuDropdown.hidden) closeMenu();
   });
   Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function (btn) {
     btn.addEventListener('click', function () {
@@ -2106,8 +2106,8 @@ function init() {
   });
   // tapping the backdrop dismisses these light overlays
   ['lanesOverlay', 'logOverlay', 'infoOverlay'].forEach(function (id) {
-    els[id].addEventListener('click', function (e) {
-      if (e.target !== els[id]) return;
+    els[id].addEventListener('click', function (event) {
+      if (event.target !== els[id]) return;
       if (id === 'infoOverlay') closeInfo(); else els[id].hidden = true;
     });
   });
@@ -2143,17 +2143,17 @@ function init() {
         '<div class="cd-icons">' + C.iconRow('__mix__') + '</div>' +
         '<div class="cd-text">Fuse two touching friendly units. Colours combine, strengths add plus one.</div></div>';
     } else {
-      var d = CARDS[cardId];
-      if (!d) return;
-      var c = colorInfo(d.color);
-      var badge = d.type === 'unit' ? (CARDS[cardId] ? cardStrengthDisplay(cardId) : d.strength)
-        : d.type === 'hazard' ? 'HAZ' : 'SPL';
-      html = '<div class="cd-card" style="--card:' + c.hex + ';--card-ink:' + c.ink + '">' +
+      var cardDef = CARDS[cardId];
+      if (!cardDef) return;
+      var colorData = colorInfo(cardDef.color);
+      var badge = cardDef.type === 'unit' ? (CARDS[cardId] ? cardStrengthDisplay(cardId) : cardDef.strength)
+        : cardDef.type === 'hazard' ? 'HAZ' : 'SPL';
+      html = '<div class="cd-card" style="--card:' + colorData.hex + ';--card-ink:' + colorData.ink + '">' +
         '<div class="cd-top"><span class="cd-badge">' + badge + '</span>' +
-        '<div><div class="cd-name">' + d.name + '</div>' +
-        '<div class="cd-meta">' + d.rarity + (d.color ? ' \u00b7 ' + c.name : '') + '</div></div></div>' +
+        '<div><div class="cd-name">' + cardDef.name + '</div>' +
+        '<div class="cd-meta">' + cardDef.rarity + (cardDef.color ? ' \u00b7 ' + colorData.name : '') + '</div></div></div>' +
         '<div class="cd-icons">' + C.iconRow(cardId) + '</div>' +
-        '<div class="cd-text">' + (d.text || 'No effect. Just muscle.') + '</div></div>';
+        '<div class="cd-text">' + (cardDef.text || 'No effect. Just muscle.') + '</div></div>';
     }
     body.innerHTML = html;
     overlay.hidden = false;
@@ -2162,15 +2162,15 @@ function init() {
      bare CARDS[cardId].strength would miss — read it off the hand entry
      when one matches, same as the small card button already does. */
   function cardStrengthDisplay(cardId) {
-    var s = getBattleState();
-    var entry = s && s.hands[PLAYER].filter(function (c) { return c.id === cardId; })[0];
+    var state = getBattleState();
+    var entry = state && state.hands[PLAYER].filter(function (card) { return card.id === cardId; })[0];
     return entry ? cardStrength(entry) : CARDS[cardId].strength;
   }
   els.cardPeek = document.getElementById('cardPeek');
   els.cardPeek.addEventListener('click', function () { openCardDetail(this.dataset.cardId); });
   var cardDetailOverlay = document.getElementById('cardDetailOverlay');
   document.getElementById('cardDetailCloseBtn').addEventListener('click', function () { cardDetailOverlay.hidden = true; });
-  cardDetailOverlay.addEventListener('click', function (e) { if (e.target === cardDetailOverlay) cardDetailOverlay.hidden = true; });
+  cardDetailOverlay.addEventListener('click', function (event) { if (event.target === cardDetailOverlay) cardDetailOverlay.hidden = true; });
   /* Two-step confirm rather than window.confirm(): browsers let people tick
      "prevent this page from creating more dialogs", after which confirm()
      silently returns false and the button looks broken. */
@@ -2197,14 +2197,14 @@ function init() {
     if (resumeSaved()) hideTitle();
   });
   document.getElementById('titleNew').addEventListener('click', function () {
-    var b2 = this, warn = document.getElementById('titleNewWarn');
+    var newRunButton = this, newRunWarning = document.getElementById('titleNewWarn');
     /* Starting over wipes a saved run, so it arms first when one exists.
        Without the confirm a mis-tap on the very first screen destroys a run
        the player never got to see. */
-    if (RUN.hasSave() && b2.dataset.armed !== '1') {
-      b2.dataset.armed = '1';
-      b2.textContent = 'Start over \u2014 tap again';
-      if (warn) warn.hidden = false;
+    if (RUN.hasSave() && newRunButton.dataset.armed !== '1') {
+      newRunButton.dataset.armed = '1';
+      newRunButton.textContent = 'Start over \u2014 tap again';
+      if (newRunWarning) newRunWarning.hidden = false;
       return;
     }
     startFreshRun();
@@ -2224,14 +2224,14 @@ function init() {
   document.getElementById('glossaryClose').addEventListener('click', function () {
     RUN.closeGlossary();
   });
-  document.getElementById('glossary').addEventListener('click', function (e) {
-    if (e.target === this) RUN.closeGlossary();     // tap the backdrop to dismiss
+  document.getElementById('glossary').addEventListener('click', function (event) {
+    if (event.target === this) RUN.closeGlossary();     // tap the backdrop to dismiss
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.gl-tab'), function (b2) {
-    b2.addEventListener('click', function () { RUN.setGlossaryTab(b2.getAttribute('data-tab')); });
+  Array.prototype.forEach.call(document.querySelectorAll('.gl-tab'), function (tabButton) {
+    tabButton.addEventListener('click', function () { RUN.setGlossaryTab(tabButton.getAttribute('data-tab')); });
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && !document.getElementById('glossary').hidden) RUN.closeGlossary();
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && !document.getElementById('glossary').hidden) RUN.closeGlossary();
   });
   document.getElementById('selfTestBtn').addEventListener('click', runSelfTestUI);
   /* Removal used to read r.active, a field that does not exist, so the button
@@ -2239,38 +2239,38 @@ function init() {
      no use at all to someone trying to cut one specific curse out of a deck.
      Now it arms a picker and the player chooses. */
   els.shopRemove.addEventListener('click', function () {
-    var r = getActiveRun();
-    if (r.gold < RUN.removalCost(r.shop) || r.deck.length <= 5) return;
-    if (RUN.removalsLeft(r.shop) <= 0) return;
-    r.shop.removing = !r.shop.removing;
+    var run = getActiveRun();
+    if (run.gold < RUN.removalCost(run.shop) || run.deck.length <= 5) return;
+    if (RUN.removalsLeft(run.shop) <= 0) return;
+    run.shop.removing = !run.shop.removing;
     RUN.show('shop');
   });
 
-  document.addEventListener('keydown', function (e) {
-    var s = getBattleState();
-    if (e.key === 'Escape') {
+  document.addEventListener('keydown', function (event) {
+    var state = getBattleState();
+    if (event.key === 'Escape') {
       if (!els.infoOverlay.hidden) { closeInfo(); return; }
       if (!els.lanesOverlay.hidden) { els.lanesOverlay.hidden = true; return; }
       if (!els.logOverlay.hidden) { els.logOverlay.hidden = true; return; }
     }
-    if (!els.tutorialOverlay.hidden && e.key === 'Escape') { RUN.closeTutorial(); return; }
-    if (!els.deckOverlay.hidden && e.key === 'Escape') { els.deckOverlay.hidden = true; return; }
-    if (!document.getElementById('cardDetailOverlay').hidden && e.key === 'Escape') { document.getElementById('cardDetailOverlay').hidden = true; return; }
-    if (!els.overlay.hidden && e.key === 'Escape') { els.overlay.hidden = true; return; }
-    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
-    if (!s || getActiveRun().screen !== 'battle') return;
-    var k = e.key.toLowerCase();
-    if (k === 'escape') { if (s.pending) cancelPending(); else if (s.mode === 'mix') { s.mode = 'place'; s.mixBase = null; render(); } return; }
-    if (s.pending) return;
-    if (k === 'p') onPass();
-    if (k === 'r') onRewind();
-    if (k === 'm') onMixToggle();
-    if (/^[1-9]$/.test(k)) {
-      var i = +k - 1;
-      if (s.hands[PLAYER][i]) {
-        s.mode = 'place'; s.mixBase = null;
-        s.selectedCard = s.selectedCard === i ? null : i;
-        if (CARDS[s.hands[PLAYER][i].id].type === 'spell' && s.selectedCard !== null) beginPlay(PLAYER, i, null);
+    if (!els.tutorialOverlay.hidden && event.key === 'Escape') { RUN.closeTutorial(); return; }
+    if (!els.deckOverlay.hidden && event.key === 'Escape') { els.deckOverlay.hidden = true; return; }
+    if (!document.getElementById('cardDetailOverlay').hidden && event.key === 'Escape') { document.getElementById('cardDetailOverlay').hidden = true; return; }
+    if (!els.overlay.hidden && event.key === 'Escape') { els.overlay.hidden = true; return; }
+    if (event.target && /INPUT|TEXTAREA/.test(event.target.tagName)) return;
+    if (!state || getActiveRun().screen !== 'battle') return;
+    var key = event.key.toLowerCase();
+    if (key === 'escape') { if (state.pending) cancelPending(); else if (state.mode === 'mix') { state.mode = 'place'; state.mixBase = null; render(); } return; }
+    if (state.pending) return;
+    if (key === 'p') onPass();
+    if (key === 'r') onRewind();
+    if (key === 'm') onMixToggle();
+    if (/^[1-9]$/.test(key)) {
+      var cardIndex = +key - 1;
+      if (state.hands[PLAYER][cardIndex]) {
+        state.mode = 'place'; state.mixBase = null;
+        state.selectedCard = state.selectedCard === cardIndex ? null : cardIndex;
+        if (CARDS[state.hands[PLAYER][cardIndex].id].type === 'spell' && state.selectedCard !== null) beginPlay(PLAYER, cardIndex, null);
         else render();
       }
     }
