@@ -2496,18 +2496,18 @@ function openTutorial(list) { tutorial.list = list; tutorial.step = 0; renderTut
 
 function renderTutorial() {
   var list = tutorial.list || TUTORIAL_STEPS;
-  var st = list[tutorial.step];
+  var step = list[tutorial.step];
   var single = list.length === 1;
   els.tutorialBody.innerHTML =
     (single ? '<span class="tut-count">Good to know</span>'
             : '<span class="tut-count">Step ' + (tutorial.step + 1) + ' of ' + list.length + '</span>') +
-    '<h2>' + st.title + '</h2>' +
-    (st.art ? '<div class="tut-art">' + st.art() + '</div>' : '') +
-    (st.artHtml ? '<div class="tut-art plain">' + st.artHtml() + '</div>' : '') +
-    (st.body ? '<p class="tut-text">' + st.body + '</p>' : '') +
-    (st.legend ? tutorialLegend(st.legend) : '') +
-    (single ? '' : '<div class="tut-dots">' + list.map(function (_, i) {
-      return '<span class="tut-dot' + (i === tutorial.step ? ' on' : '') + '"></span>';
+    '<h2>' + step.title + '</h2>' +
+    (step.art ? '<div class="tut-art">' + step.art() + '</div>' : '') +
+    (step.artHtml ? '<div class="tut-art plain">' + step.artHtml() + '</div>' : '') +
+    (step.body ? '<p class="tut-text">' + step.body + '</p>' : '') +
+    (step.legend ? tutorialLegend(step.legend) : '') +
+    (single ? '' : '<div class="tut-dots">' + list.map(function (_, index) {
+      return '<span class="tut-dot' + (index === tutorial.step ? ' on' : '') + '"></span>';
     }).join('') + '</div>');
   els.tutorialBack.hidden = single;
   els.tutorialSkip.hidden = single;
