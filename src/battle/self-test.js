@@ -8,7 +8,7 @@
    lets 3,500 lines of tests live outside the module they test. */
 
 export function createSelfTest(ctx) {
-  const { S, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD } = ctx;
+  const { S: getState, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD } = ctx;
 
   /* ===================================================================
      SELF TEST
@@ -72,12 +72,12 @@ export function createSelfTest(ctx) {
 
     // --- Black Devourer takes the CURRENT (aura-inclusive) strength, and eats the card for good ---
     check('Black Devourer takes the effective strength, not just the stored fields', (function () {
-      /* v.strength + v.temp never included what a neighbour's aura was
+      /* v.strength + v.temp never included what a neighbour'state aura was
          currently lending the target \u2014 a unit standing next to a Green
          Gardener reads larger on the board than that sum says, and the old
          code took the smaller, wrong number. evaluateBoard is the same pass
          that produces the number actually printed on the tile. Tile positions
-         here are the ones actually adjacent on this board's topology, found by
+         here are the ones actually adjacent on this board'state topology, found by
          checking real adjacency rather than assumed from row numbers. */
       var battleState2 = fresh();
       battleState2.board[PLAYER].row2[1] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0 };
@@ -87,7 +87,7 @@ export function createSelfTest(ctx) {
       var t = RUN.legalTargets(battleState2, PLAYER, CARDS.black_devourer.targets[0], [], at);
       C.CARDS.black_devourer.onPlay(battleState2, PLAYER, at, t, RUN.buildApi(battleState2, PLAYER, []));
       var got = battleState2.board[PLAYER].row2[1].strength + (battleState2.board[PLAYER].row2[1].temp || 0);
-      // devourer's own 3 + red_brute's raw 5 would be 8; the aura must push it past that
+      // devourer'state own 3 + red_brute'state raw 5 would be 8; the aura must push it past that
       return got > 8;
     })());
     check('Devouring permanently removes the meal from the run deck', (function () {
@@ -98,14 +98,14 @@ export function createSelfTest(ctx) {
         .map(function (id) { return { id: id, up: false }; });
       run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
-      s.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
-      s.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
+      var state = RUN.getState();
+      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) state.board[PLAYER][row][i] = null; });
+      state.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
+      state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
       var beforeLen = RUN.getRun().deck.length;
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(s, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(s, PLAYER, at, t, RUN.buildApi(s, PLAYER, []));
+      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, t, RUN.buildApi(state, PLAYER, []));
       var afterDeck = RUN.getRun().deck;
       var ok = afterDeck.length === beforeLen - 1 &&
                !afterDeck.some(function (c) { return c.id === 'green_gardener'; });
@@ -127,17 +127,17 @@ export function createSelfTest(ctx) {
         .map(function (id) { return { id: id, up: false }; });
       run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
-      s.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
-      s.board[PLAYER].row3[0] = { cardId: 'blue_scout', color: 'blue', strength: 1, temp: 0, deckIndex: 3 };
-      s.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
-      var api = RUN.buildApi(s, PLAYER, []);
+      var state = RUN.getState();
+      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) state.board[PLAYER][row][i] = null; });
+      state.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
+      state.board[PLAYER].row3[0] = { cardId: 'blue_scout', color: 'blue', strength: 1, temp: 0, deckIndex: 3 };
+      state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
+      var api = RUN.buildApi(state, PLAYER, []);
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(s, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(s, PLAYER, at, t, api);
-      // blue_scout's deckIndex must now point at ITS card, not whatever shifted into the old slot
-      var idx = s.board[PLAYER].row3[0].deckIndex;
+      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, t, api);
+      // blue_scout'state deckIndex must now point at ITS card, not whatever shifted into the old slot
+      var idx = state.board[PLAYER].row3[0].deckIndex;
       var slotIsBlueScout = RUN.getRun().deck[idx] && RUN.getRun().deck[idx].id === 'blue_scout';
       api.buff(PLAYER, { row: 'row3', index: 0 }, 10, true);
       var stillBlueScoutSlot = RUN.getRun().deck[idx] && RUN.getRun().deck[idx].id !== 'yellow_spark';
@@ -152,14 +152,14 @@ export function createSelfTest(ctx) {
       run.deck = ['green_gardener', 'red_brute', 'black_devourer'].map(function (id) { return { id: id, up: false }; });
       run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
-      s.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
-      s.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
+      var state = RUN.getState();
+      ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) state.board[PLAYER][row][i] = null; });
+      state.board[PLAYER].row2[0] = { cardId: 'green_gardener', color: 'green', strength: 3, temp: 0, deckIndex: 0 };
+      state.board[PLAYER].row1[0] = { cardId: 'black_devourer', color: 'black', strength: 3, temp: 0, deckIndex: 2 };
       var at = { row: 'row1', index: 0 };
-      var t = RUN.legalTargets(s, PLAYER, CARDS.black_devourer.targets[0], [], at);
-      CARDS.black_devourer.onPlay(s, PLAYER, at, t, RUN.buildApi(s, PLAYER, []));
-      s.wins[PLAYER] = 2; s.battleOver = true;
+      var t = RUN.legalTargets(state, PLAYER, CARDS.black_devourer.targets[0], [], at);
+      CARDS.black_devourer.onPlay(state, PLAYER, at, t, RUN.buildApi(state, PLAYER, []));
+      state.wins[PLAYER] = 2; state.battleOver = true;
       endBattle(true);
       var rr = RUN.getRun();
       if (rr.screen === 'reward') { rr.reward.cardTaken = true; rr.reward.taken = true; RUN.advance(); }
@@ -180,19 +180,19 @@ export function createSelfTest(ctx) {
       var run = RUN.getRun();
       run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
+      var state = RUN.getState();
       ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) {
-        s.board[PLAYER][row][i] = null; s.board[ENEMY][row][i] = null;
+        state.board[PLAYER][row][i] = null; state.board[ENEMY][row][i] = null;
       }});
-      s.hands[PLAYER][0] = { id: 'catalyst', up: false, uid: -1 };
+      state.hands[PLAYER][0] = { id: 'catalyst', up: false, uid: -1 };
       render();
       var btn = document.querySelector('.hand .card:not(.mixcard)');
       var markedDead = btn.className.indexOf('unplayable') !== -1;
       btn.click();
-      var stillInHand = S().hands[PLAYER].some(function (c) { return c.id === 'catalyst'; });
-      var noPending = !S().pending;
+      var stillInHand = getState().hands[PLAYER].some(function (c) { return c.id === 'catalyst'; });
+      var noPending = !getState().pending;
       RUN.setState(savedState); RUN.setRun(saved); RUN.show('map');
-      /* Catalyst's first ask is "pick a friendly unit" \u2014 with nothing on the
+      /* Catalyst'state first ask is "pick a friendly unit" \u2014 with nothing on the
          board, beginPlay used to find zero legal options and finish the play
          immediately with no picks: the card vanished, onPlay did nothing, and
          there was never a chance to even read it, let alone back out. */
@@ -204,15 +204,15 @@ export function createSelfTest(ctx) {
       var run = RUN.getRun();
       run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      s.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 2, temp: 0 };
-      s.board[PLAYER].row2[0] = { cardId: 'blue_scout', color: 'blue', strength: 2, temp: 0 };
-      s.hands[PLAYER][0] = { id: 'catalyst', up: false, uid: -1 };
+      var state = RUN.getState();
+      state.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 2, temp: 0 };
+      state.board[PLAYER].row2[0] = { cardId: 'blue_scout', color: 'blue', strength: 2, temp: 0 };
+      state.hands[PLAYER][0] = { id: 'catalyst', up: false, uid: -1 };
       render();
       var btn = document.querySelector('.hand .card:not(.mixcard)');
       var notMarkedDead = btn.className.indexOf('unplayable') === -1;
       btn.click();
-      var beganTargeting = !!S().pending;
+      var beganTargeting = !!getState().pending;
       RUN.setState(savedState); RUN.setRun(saved); RUN.show('map');
       return notMarkedDead && beganTargeting;
     })());
@@ -228,9 +228,9 @@ export function createSelfTest(ctx) {
       /* This is the exact corruption a player hit: onMixConsumed/onMixConsumedChain
          are plain numbers on their home cards, but every hook in the generic
          inherited list used to be composed as a callable function regardless.
-         A fused card's onMixConsumed became a function object; applyMix's
+         A fused card'state onMixConsumed became a function object; applyMix'state
          `bonus += d.onMixConsumed` then added a function to a number, which
-         JS coerces through the function's own source-code string rather than
+         JS coerces through the function'state own source-code string rather than
          throwing — turning the mix result into a string that looked fine until
          the next subtraction (any hazard, any damage) turned it into NaN. */
       var battleState2 = fresh();
@@ -447,9 +447,9 @@ export function createSelfTest(ctx) {
       var bg = getComputedStyle(box).backgroundColor;
       // must have a real alpha channel — a solid colour would hide the room
       // entirely, which is the exact thing this was written to fix
-      var m = bg.match(/rgba?\(([^)]+)\)/);
-      if (!m) return false;
-      var parts = m[1].split(',').map(function (s) { return parseFloat(s); });
+      var rgbaMatch = bg.match(/rgba?\(([^)]+)\)/);
+      if (!rgbaMatch) return false;
+      var parts = rgbaMatch[1].split(',').map(function (part) { return parseFloat(part); });
       var alpha = parts.length > 3 ? parts[3] : 1;
       return alpha > 0 && alpha < 1;
     })());
@@ -566,7 +566,7 @@ export function createSelfTest(ctx) {
         for (var depth2 = 0; depth2 < map.length; depth2++) {
           for (var i2 = 0; i2 < map[depth2].length; i2++) {
             /* A forced single-column row is the sole possible parent for every
-               column below it. The volatile gate used to overwrite that node's
+               column below it. The volatile gate used to overwrite that node'state
                .next down to a single entry unconditionally, which was fine
                when its siblings had another parent and silently orphaned them
                when it was their only one. */
@@ -601,7 +601,7 @@ export function createSelfTest(ctx) {
       var cardDef = CARDS[fused.id];
       /* The old composition kept exactly one "acting" carrier and threw the
          rest away, while the fused text — built independently — already
-         listed every source's line. So a fusion could describe an effect in
+         listed every source'state line. So a fusion could describe an effect in
          its own text and simply never run it. */
       return cardDef.text.indexOf('draw a card') !== -1 &&
              cardDef.text.indexOf('frontline') !== -1 &&
@@ -622,14 +622,14 @@ export function createSelfTest(ctx) {
     check('A fusion of two targeted effects prompts for, and uses, both targets', (function () {
       var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
       var specs = CARDS[fused.id].targets;
-      // 1 (curse) + 2 (unit, empty-tile) = 3 prompts, not one card's worth
+      // 1 (curse) + 2 (unit, empty-tile) = 3 prompts, not one card'state worth
       return specs && specs.length === 3;
     })());
     check('A merged ref points at the right pick, not wherever it used to point', (function () {
-      /* blue_current's second spec says "an empty tile touching the unit from
+      /* blue_current'state second spec says "an empty tile touching the unit from
          MY step 0". Concatenating raw target arrays leaves that index pointing
          at whichever carrier happened to land in that slot globally — put a
-         one-target card ahead of it and step 0 becomes someone else's pick. */
+         one-target card ahead of it and step 0 becomes someone else'state pick. */
       var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
       var specs = CARDS[fused.id].targets;
       return specs[0].ref === undefined && specs[1].ref === undefined && specs[2].ref === 1;
@@ -672,7 +672,7 @@ export function createSelfTest(ctx) {
           return e && e.kind === 'elite' && e.colors[0] === a.color;
         });
         /* The Spectrum is the exception by design: the final boss wears every
-           colour at once, so it leads with Red rather than its act's Black. */
+           colour at once, so it leads with Red rather than its act'state Black. */
         return elitesOk && (bo.colors[0] === a.color || a.boss === 'spectrum');
       });
     })());
@@ -692,7 +692,7 @@ export function createSelfTest(ctx) {
         });
       });
     })());
-    check('A map only fields its own act\'s enemies', (function () {
+    check('A map only fields its own act\'state enemies', (function () {
       return RUN.ACT_KEYS.every(function (k) {
         var m = RUN.buildMap(k), act = RUN.ACTS[k], ok = true;
         m.forEach(function (row) {
@@ -869,7 +869,7 @@ export function createSelfTest(ctx) {
         var mod = ENEMIES[RUN.ACTS[k].boss].mod || {};
         var mine = RULES.filter(function (rule) { return mod[rule]; });
         if (mine.length !== 1) return false;           // exactly one signature rule
-        if (seen[mine[0]]) return false;               // and nobody else's
+        if (seen[mine[0]]) return false;               // and nobody else'state
         seen[mine[0]] = 1;
         return true;
       });
@@ -1143,24 +1143,24 @@ export function createSelfTest(ctx) {
     })());
 
     check('The colour picker is visible the moment it is asked for', (function () {
-      var s = S();
-      if (!s) return true;                       // no battle in progress during tests
-      var savedPending = s.pending, savedSel = s.selectedCard;
-      var savedHand = s.hands[PLAYER][0], savedTile = s.board[PLAYER].row2[0];
-      s.board[PLAYER].row2[0] = { cardId: 'red_brute', color: 'red', strength: 4, temp: 0 };
-      s.hands[PLAYER][0] = { id: 'spectrum_shift', up: false, uid: -99 };
-      s.pending = { card: s.hands[PLAYER][0], index: 0, side: PLAYER, tile: null,
+      var state = getState();
+      if (!state) return true;                       // no battle in progress during tests
+      var savedPending = state.pending, savedSel = state.selectedCard;
+      var savedHand = state.hands[PLAYER][0], savedTile = state.board[PLAYER].row2[0];
+      state.board[PLAYER].row2[0] = { cardId: 'red_brute', color: 'red', strength: 4, temp: 0 };
+      state.hands[PLAYER][0] = { id: 'spectrum_shift', up: false, uid: -99 };
+      state.pending = { card: state.hands[PLAYER][0], index: 0, side: PLAYER, tile: null,
                     picks: [{ row: 'row2', index: 0 }] };
-      s.selectedCard = 0;
+      state.selectedCard = 0;
       render();                                   // ONE render, as a real click gives
       var picker = els.colorPicker, bar = els.controls;
       /* Both the picker and the bar holding it have to be visible after a
-         single render. The bar used to read the picker's previous value, so a
+         single render. The bar used to read the picker'state previous value, so a
          repaint effect looked broken until something else forced a redraw. */
       var ok = picker.hidden === false && bar.hidden === false &&
                picker.querySelectorAll('.pick').length === C.COLOR_KEYS.length;
-      s.pending = savedPending; s.selectedCard = savedSel;
-      s.hands[PLAYER][0] = savedHand; s.board[PLAYER].row2[0] = savedTile;
+      state.pending = savedPending; state.selectedCard = savedSel;
+      state.hands[PLAYER][0] = savedHand; state.board[PLAYER].row2[0] = savedTile;
       render();
       return ok;
     })());
@@ -1251,64 +1251,64 @@ export function createSelfTest(ctx) {
              shapedLead(SAFE_LEAD + 20) > SAFE_LEAD;
     })());
     check('A card is worth holding early and worth nothing to hold last', (function () {
-      var s = S();
-      if (!s) return true;
-      var savedWins = s.wins;
-      s.wins = { bottom: 0, top: 0 };
-      var early = reservePrice(s, ENEMY, {});
-      s.wins = { bottom: 1, top: 1 };
-      var last = reservePrice(s, ENEMY, {});
-      s.wins = savedWins;
+      var state = getState();
+      if (!state) return true;
+      var savedWins = state.wins;
+      state.wins = { bottom: 0, top: 0 };
+      var early = reservePrice(state, ENEMY, {});
+      state.wins = { bottom: 1, top: 1 };
+      var last = reservePrice(state, ENEMY, {});
+      state.wins = savedWins;
       // nothing to save for once the next round decides it
       return early > 0 && last === 0;
     })());
     check('A thin hand makes each remaining card dearer', (function () {
-      var s = S();
-      if (!s) return true;
-      var savedWins = s.wins, savedHand = s.hands[ENEMY], savedDeck = s.decks[ENEMY];
-      s.wins = { bottom: 0, top: 0 };
-      s.hands[ENEMY] = [1, 2, 3, 4, 5, 6, 7, 8]; s.decks[ENEMY] = [1, 2, 3, 4];
-      var rich = reservePrice(s, ENEMY, {});
-      s.hands[ENEMY] = [1, 2]; s.decks[ENEMY] = [];
-      var poor = reservePrice(s, ENEMY, {});
-      s.wins = savedWins; s.hands[ENEMY] = savedHand; s.decks[ENEMY] = savedDeck;
+      var state = getState();
+      if (!state) return true;
+      var savedWins = state.wins, savedHand = state.hands[ENEMY], savedDeck = state.decks[ENEMY];
+      state.wins = { bottom: 0, top: 0 };
+      state.hands[ENEMY] = [1, 2, 3, 4, 5, 6, 7, 8]; state.decks[ENEMY] = [1, 2, 3, 4];
+      var rich = reservePrice(state, ENEMY, {});
+      state.hands[ENEMY] = [1, 2]; state.decks[ENEMY] = [];
+      var poor = reservePrice(state, ENEMY, {});
+      state.wins = savedWins; state.hands[ENEMY] = savedHand; state.decks[ENEMY] = savedDeck;
       return poor > rich;
     })());
     check('The opponent holds when it is already far ahead, and fights when behind', (function () {
-      var s = S();
-      if (!s) return true;
+      var state = getState();
+      if (!state) return true;
       var saved = {
-        board: s.board, hands: s.hands, wins: s.wins, turn: s.turn,
-        pending: s.pending, mixTokens: s.mixTokens, power: s.power, enemy: s.enemy
+        board: state.board, hands: state.hands, wins: state.wins, turn: state.turn,
+        pending: state.pending, mixTokens: state.mixTokens, power: state.power, enemy: state.enemy
       };
       /* Holding a won round is tier-gated, and tier comes from the enemy in
          front of you. Borrowing whatever battle happens to be open made this
          assert the opposite of the truth in a warm-up fight, where a tier-0
          enemy is *supposed* to overcommit — so the enemy is pinned here. */
       function blank() {
-        s.board = C.emptyBoard();
-        s.hands = { bottom: [], top: [] };
-        for (var i = 0; i < 5; i++) s.hands[ENEMY].push({ id: 'red_brute', up: false, uid: -200 - i });
-        s.mixTokens = { bottom: 0, top: 0 };
-        s.pending = null; s.turn = ENEMY;
-        s.power = 45; s.enemy = ENEMIES.brawler;
+        state.board = C.emptyBoard();
+        state.hands = { bottom: [], top: [] };
+        for (var i = 0; i < 5; i++) state.hands[ENEMY].push({ id: 'red_brute', up: false, uid: -200 - i });
+        state.mixTokens = { bottom: 0, top: 0 };
+        state.pending = null; state.turn = ENEMY;
+        state.power = 45; state.enemy = ENEMIES.brawler;
       }
-      blank(); s.wins = { bottom: 0, top: 0 };
-      s.board[ENEMY].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
-      s.board[ENEMY].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+      blank(); state.wins = { bottom: 0, top: 0 };
+      state.board[ENEMY].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+      state.board[ENEMY].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
       var holdsWhenAhead = decideOpponentMove().willPass;
 
-      blank(); s.wins = { bottom: 0, top: 0 };
-      s.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
-      s.board[PLAYER].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+      blank(); state.wins = { bottom: 0, top: 0 };
+      state.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+      state.board[PLAYER].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
       var fightsWhenBehind = !decideOpponentMove().willPass;
 
-      blank(); s.wins = { bottom: 0, top: 0 };
+      blank(); state.wins = { bottom: 0, top: 0 };
       var opensOnLevelBoard = !decideOpponentMove().willPass;
 
-      s.board = saved.board; s.hands = saved.hands; s.wins = saved.wins;
-      s.turn = saved.turn; s.pending = saved.pending; s.mixTokens = saved.mixTokens;
-      s.power = saved.power; s.enemy = saved.enemy;
+      state.board = saved.board; state.hands = saved.hands; state.wins = saved.wins;
+      state.turn = saved.turn; state.pending = saved.pending; state.mixTokens = saved.mixTokens;
+      state.power = saved.power; state.enemy = saved.enemy;
       render();
       return holdsWhenAhead && fightsWhenBehind && opensOnLevelBoard;
     })());
@@ -1389,23 +1389,23 @@ export function createSelfTest(ctx) {
              shapedLead(SAFE_LEAD + 20, 1) < SAFE_LEAD + 20;
     })());
     check('Each habit switches on at its own tier and not before', (function () {
-      var s = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [1, 2, 3] },
+      var state = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [1, 2, 3] },
                 decks: { bottom: [], top: [1, 2, 3, 4] } };
-      var thriftOff = reservePrice(s, ENEMY, {}, 1) === 0;
-      var thriftOn  = reservePrice(s, ENEMY, {}, 2) > 0;
-      var concedeOff = concedeBonus(s, ENEMY, -40, 2) === 0;
-      var concedeOn  = concedeBonus(s, ENEMY, -40, 3) > 0;
+      var thriftOff = reservePrice(state, ENEMY, {}, 1) === 0;
+      var thriftOn  = reservePrice(state, ENEMY, {}, 2) > 0;
+      var concedeOff = concedeBonus(state, ENEMY, -40, 2) === 0;
+      var concedeOn  = concedeBonus(state, ENEMY, -40, 3) > 0;
       var spendOff = spendCost({ id: 'red_titan', up: false }, 3) === 0;
       var spendOn  = spendCost({ id: 'red_titan', up: false }, 4) > 0;
       return thriftOff && thriftOn && concedeOff && concedeOn && spendOff && spendOn;
     })());
     check('A round further out of reach is easier to give up on', (function () {
-      var s = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] } };
-      var near = concedeBonus(s, ENEMY, -12, 4);
-      var far = concedeBonus(s, ENEMY, -60, 4);
-      var level = concedeBonus(s, ENEMY, 0, 4);
-      s.wins = { bottom: 1, top: 1 };
-      var decider = concedeBonus(s, ENEMY, -60, 4);
+      var state = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] } };
+      var near = concedeBonus(state, ENEMY, -12, 4);
+      var far = concedeBonus(state, ENEMY, -60, 4);
+      var level = concedeBonus(state, ENEMY, 0, 4);
+      state.wins = { bottom: 1, top: 1 };
+      var decider = concedeBonus(state, ENEMY, -60, 4);
       // never give up the round that decides the battle
       return level === 0 && far > near && near > 0 && decider === 0;
     })());
@@ -1426,26 +1426,26 @@ export function createSelfTest(ctx) {
       return shaped < plain && shaped > 0;
     })());
     check('The opponent holds a won round only once it is sharp enough', (function () {
-      var s = S();
-      if (!s) return true;
-      var saved = { board: s.board, hands: s.hands, wins: s.wins, turn: s.turn,
-                    pending: s.pending, mixTokens: s.mixTokens, power: s.power, enemy: s.enemy };
+      var state = getState();
+      if (!state) return true;
+      var saved = { board: state.board, hands: state.hands, wins: state.wins, turn: state.turn,
+                    pending: state.pending, mixTokens: state.mixTokens, power: state.power, enemy: state.enemy };
       function setup(power) {
-        s.board = C.emptyBoard();
-        s.hands = { bottom: [], top: [] };
-        for (var i = 0; i < 5; i++) s.hands[ENEMY].push({ id: 'red_brute', up: false, uid: -300 - i });
-        s.mixTokens = { bottom: 0, top: 0 }; s.pending = null; s.turn = ENEMY;
-        s.wins = { bottom: 0, top: 0 }; s.power = power; s.enemy = ENEMIES.brawler;
-        s.board[ENEMY].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
-        s.board[ENEMY].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+        state.board = C.emptyBoard();
+        state.hands = { bottom: [], top: [] };
+        for (var i = 0; i < 5; i++) state.hands[ENEMY].push({ id: 'red_brute', up: false, uid: -300 - i });
+        state.mixTokens = { bottom: 0, top: 0 }; state.pending = null; state.turn = ENEMY;
+        state.wins = { bottom: 0, top: 0 }; state.power = power; state.enemy = ENEMIES.brawler;
+        state.board[ENEMY].row1[0] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
+        state.board[ENEMY].row1[1] = { cardId: 'red_brute', color: 'red', strength: 9, temp: 0 };
       }
       setup(0);
       var greenDumps = !decideOpponentMove().willPass;
       setup(45);
       var veteranHolds = decideOpponentMove().willPass;
-      s.board = saved.board; s.hands = saved.hands; s.wins = saved.wins;
-      s.turn = saved.turn; s.pending = saved.pending; s.mixTokens = saved.mixTokens;
-      s.power = saved.power; s.enemy = saved.enemy;
+      state.board = saved.board; state.hands = saved.hands; state.wins = saved.wins;
+      state.turn = saved.turn; state.pending = saved.pending; state.mixTokens = saved.mixTokens;
+      state.power = saved.power; state.enemy = saved.enemy;
       render();
       return greenDumps && veteranHolds;
     })());
@@ -1545,7 +1545,7 @@ export function createSelfTest(ctx) {
       wanted.forEach(function (rgb) {
         if (block.indexOf(rgb) !== -1) found++;
       });
-      return found >= 6;                          // Black's own hex is near-invisible; a lilac stands in
+      return found >= 6;                          // Black'state own hex is near-invisible; a lilac stands in
     })());
 
     check('An overlay never takes height from the board', (function () {
@@ -1582,7 +1582,7 @@ export function createSelfTest(ctx) {
       if (!el || !el.owner || !el.token) return true;
       var ringY = parseFloat(el.owner.getAttribute('cy'));
       var faceY = parseFloat(el.token.getAttribute('cy'));
-      // the ring used to share the top face's centre and haloed out above it
+      // the ring used to share the top face'state centre and haloed out above it
       return ringY > faceY;
     })());
     check('The default pair blinks on the same frame', (function () {
@@ -1618,7 +1618,7 @@ export function createSelfTest(ctx) {
       return RUN.ACT_KEYS.concat(RUN.SECRET_ACT_KEYS).every(function (k) {
         var art = RUN.ACT_ART[k];
         if (!art) return false;
-        // no secret road should still be borrowing another act's painting
+        // no secret road should still be borrowing another act'state painting
         if (RUN.SECRET_ACT_KEYS.indexOf(k) !== -1) {
           return art.varName === '--art-' + k && !art.filter;
         }
@@ -1630,7 +1630,7 @@ export function createSelfTest(ctx) {
       var el = document.getElementById('passPuck');
       if (!el) return false;
       showPassPuck(false);
-      var state = S();
+      var state = getState();
       if (!state) return el.hidden;
       var saved = { turn: state.turn, finalTurn: state.finalTurn, pending: state.pending,
                     sel: state.selectedCard, wins: state.wins };
@@ -1821,7 +1821,7 @@ export function createSelfTest(ctx) {
 
     check('Lost lives read differently from full ones in battle', (function () {
       /* Purely a CSS cascade bug: battle-mode restyled every .life span the
-         same warm red, so .life.lost's colour was overridden right back to
+         same warm red, so .life.lost'state colour was overridden right back to
          full — the hearts never looked like they were disappearing no matter
          how many lives the player had actually lost. Comparing computed style
          directly is what a visual diff of the two states would catch and a
@@ -2002,7 +2002,7 @@ export function createSelfTest(ctx) {
         strength: CARDS[fused.id].strength, temp: 0 };
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
-      // the Gardener's +1 to touching units came along with the fusion
+      // the Gardener'state +1 to touching units came along with the fusion
       return ev.strengthOf(ev.view['bottom-row1-0']) === 3;
     })());
     check('A fusion chain never carries more than three rules', (function () {
@@ -2620,7 +2620,7 @@ export function createSelfTest(ctx) {
         if (!cards || !cards.length) return false;
         var text = cards[0].legend.join(' ');
         cards[0].art();
-        // it must name the player's real units, not a canned example
+        // it must name the player'state real units, not a canned example
         return text.indexOf('Cyan') !== -1 && text.indexOf('Red 3') !== -1;
       } catch (e) { return false; }
     })());
@@ -2715,7 +2715,7 @@ export function createSelfTest(ctx) {
         tile: { row: 'row3', index: 0 } })[0].art();
       var chips = svg.match(/class="tut-amtbox"/g) || [];
       var ys = (svg.match(/class="tut-amtbox" x="[-\d.]+" y="([-\d.]+)"/) || [])[1];
-      return chips.length === 3 && parseFloat(ys) < 0;   // above the board's top edge
+      return chips.length === 3 && parseFloat(ys) < 0;   // above the board'state top edge
     })());
     check('Every rule has a lesson that waits for its moment', (function () {
       var need = ['lanes_row1', 'lanes_row2', 'lanes_row3', 'mixing', 'passing', 'frontline', 'roundbreak'];
@@ -2865,7 +2865,7 @@ export function createSelfTest(ctx) {
       }
       var normal = techRate('cultist'), boss = techRate('spectrum');
       /* Sampled, so the bound has to sit clear of the noise. At power 20 a
-         normal foe's true rate is about 0.16 with a standard error near 0.023,
+         normal foe'state true rate is about 0.16 with a standard error near 0.023,
          which put a 0.2 ceiling less than two standard errors away and failed
          roughly one run in twenty. The point of the test is the gap between
          ranks, not a tight bound on either. */
@@ -2965,10 +2965,10 @@ export function createSelfTest(ctx) {
       return lives === 1;
     })());
 
-    // --- the peek strip's click-to-expand overlay ---
+    // --- the peek strip'state click-to-expand overlay ---
     check('Tapping the peek strip opens the full, un-clipped card text', (function () {
       /* The strip that reads this text is fixed at two lines with overflow
-         hidden, so a three-effect fusion's third sentence was silently cut off
+         hidden, so a three-effect fusion'state third sentence was silently cut off
          with no sign anything was missing. The strip is now a button that
          opens this overlay with the complete text instead. */
       var saved = RUN.getRun();
@@ -2976,10 +2976,10 @@ export function createSelfTest(ctx) {
       var r2 = RUN.getRun();
       r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
+      var state = RUN.getState();
       var fused = C.fuseCards({ id: 'blue_current', up: false }, { id: 'black_reclaimer', up: false });
       fused = C.fuseCards(fused, { id: 'magenta_lancer', up: false });
-      s.hands.bottom[0] = { id: fused.id, up: false, uid: -1 };
+      state.hands.bottom[0] = { id: fused.id, up: false, uid: -1 };
       render();
       var card = document.querySelector('.hand .card:not(.mixcard)');
       card.dispatchEvent(new Event('mouseenter'));
@@ -2994,7 +2994,7 @@ export function createSelfTest(ctx) {
       return gotId && opened && fullTextShown;
     })());
     check('Moving off a hovered card toward the peek strip does not blank it first', (function () {
-      /* The actual bug a player would hit: mouseenter sets the peek strip's
+      /* The actual bug a player would hit: mouseenter sets the peek strip'state
          content, but the strip sits below the cards — reaching it with a mouse
          means leaving the card first. That used to fire mouseleave, which
          cleared the strip back to the empty prompt (and wiped the card id with
@@ -3005,8 +3005,8 @@ export function createSelfTest(ctx) {
       var r2 = RUN.getRun();
       r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      s.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
+      var state = RUN.getState();
+      state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
       render();
       var card = document.querySelector('.hand .card:not(.mixcard)');
       card.dispatchEvent(new Event('mouseenter'));
@@ -3022,8 +3022,8 @@ export function createSelfTest(ctx) {
       var r2 = RUN.getRun();
       r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      s.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
+      var state = RUN.getState();
+      state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
       render();
       var card = document.querySelector('.hand .card:not(.mixcard)');
       card.dispatchEvent(new Event('mouseenter'));
@@ -3055,8 +3055,8 @@ export function createSelfTest(ctx) {
       var r2 = RUN.getRun();
       r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
       RUN.enterNode(0);
-      var s = RUN.getState();
-      s.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
+      var state = RUN.getState();
+      state.hands.bottom[0] = { id: 'red_brute', up: false, uid: -1 };
       render();
       document.querySelector('.hand .card:not(.mixcard)').dispatchEvent(new Event('mouseenter'));
       var content = getComputedStyle(document.getElementById('cardPeek'), '::after').content;
@@ -3083,7 +3083,7 @@ export function createSelfTest(ctx) {
       RUN.applyMix(battleState2, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
       var mine = battleState2.chains.bottom;
       RUN.applyMix(battleState2, 'top', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
-      // the enemy mixing must not wipe the player's chain
+      // the enemy mixing must not wipe the player'state chain
       return mine === 1 && battleState2.chains.bottom === 1 && battleState2.chains.top === 1;
     })());
     check('Magenta Echo reads its own side\u2019s chain', (function () {
@@ -3091,7 +3091,7 @@ export function createSelfTest(ctx) {
       put(battleState2, 'bottom', 'row1', 1, 'magenta_echo', 3);
       var quiet = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 0, top: 3 } });
       var loud = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 2, top: 0 } });
-      // +2 per link on its own side, and nothing from the enemy's
+      // +2 per link on its own side, and nothing from the enemy'state
       return quiet.strengthOf(quiet.get('bottom', 'row1', 1)) === 3 &&
              loud.strengthOf(loud.get('bottom', 'row1', 1)) === 7;
     })());
@@ -3353,7 +3353,7 @@ export function createSelfTest(ctx) {
       RUN.resolveCard(battleState3, 'bottom', { id: 'cyan_mender' }, { row: 'row1', index: 2 }, []);
       var quiet = C.evaluateBoard(battleState3.board, battleState3.hazards, RUN.evalCtx(battleState3));
       var reachesAgain = C.lanesOfFor('bottom', 'row2', 1, C.boardTopo(RUN.evalCtx(battleState3).fissures)).length === 2;
-      // the scar itself is untouched: it is still on the run's list
+      // the scar itself is untouched: it is still on the run'state list
       return quiet.view['bottom-row2-1'].bonus > loud.view['bottom-row2-1'].bonus &&
              reachesAgain && fissures.length === 1 && battleState3.quieted &&
              Object.keys(battleState3.quieted).length === 1;
