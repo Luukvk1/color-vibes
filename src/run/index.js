@@ -2886,22 +2886,22 @@ var LAB_SCENARIOS = [
 
 function rollLab() {
   var total = 0;
-  LAB_SCENARIOS.forEach(function (x) { total += x.weight; });
-  var r = rnd() * total, key = 'boost';
+  LAB_SCENARIOS.forEach(function (scenario) { total += scenario.weight; });
+  var roll = rnd() * total, key = 'boost';
   for (var i = 0; i < LAB_SCENARIOS.length; i++) {
-    r -= LAB_SCENARIOS[i].weight;
-    if (r <= 0) { key = LAB_SCENARIOS[i].key; break; }
+    roll -= LAB_SCENARIOS[i].weight;
+    if (roll <= 0) { key = LAB_SCENARIOS[i].key; break; }
   }
   run.lab = { kind: key, picks: [], presses: 0, results: [], done: false, curses: 0 };
 }
 
 function deckUnits() {
-  return run.deck.map(function (c, i) { return { c: c, i: i }; })
-    .filter(function (e) { return CARDS[e.c.id].type === 'unit'; });
+  return run.deck.map(function (entry, index) { return { entry: entry, index: index }; })
+    .filter(function (unit) { return CARDS[unit.entry.id].type === 'unit'; });
 }
 function randomUnitIndex() {
-  var u = deckUnits();
-  return u.length ? u[Math.floor(rnd() * u.length)].i : -1;
+  var units = deckUnits();
+  return units.length ? units[Math.floor(rnd() * units.length)].index : -1;
 }
 
 function renderLab() {
@@ -2917,38 +2917,38 @@ function renderFuseLab() {
   var lab = run.lab, units = deckUnits();
   var preview = '';
   if (lab.picks.length === 2) {
-    var a = run.deck[lab.picks[0]], b = run.deck[lab.picks[1]];
-    var p = C.fusePreview(a, b), ci = C.colorInfo(p.color);
+    var entryA = run.deck[lab.picks[0]], entryB = run.deck[lab.picks[1]];
+    var previewResult = C.fusePreview(entryA, entryB), colorDef = C.colorInfo(previewResult.color);
     /* Fusing a secondary against the one primary it does not already contain
        cannot make Black on its own — that takes two secondaries. The mix
        still happens; it just stays the secondary, added together. Worth
        saying here, since the printed maths ("+bonus, Black in the mix")
        otherwise implies something it is not doing. */
-    var rawWouldBe = C.mixColor(CARDS[a.id].color, CARDS[b.id].color);
-    var redirected = rawWouldBe === 'black' && p.color !== 'black';
+    var rawWouldBe = C.mixColor(CARDS[entryA.id].color, CARDS[entryB.id].color);
+    var redirected = rawWouldBe === 'black' && previewResult.color !== 'black';
     preview = '<div class="lab-preview"><span class="lbl">Result</span>' +
-      '<div class="mini-card" style="--card:' + ci.hex + ';--card-ink:' + ci.ink + '">' +
-      '<span class="mini-top">' + p.strength + '</span>' +
-      '<span class="mini-name">' + ci.name + ' Amalgam</span>' +
-      '<span class="mini-text">' + C.cardName(a) + ' + ' + C.cardName(b) + ' + ' + p.bonus + '. No rules text.</span></div>' +
+      '<div class="mini-card" style="--card:' + colorDef.hex + ';--card-ink:' + colorDef.ink + '">' +
+      '<span class="mini-top">' + previewResult.strength + '</span>' +
+      '<span class="mini-name">' + colorDef.name + ' Amalgam</span>' +
+      '<span class="mini-text">' + C.cardName(entryA) + ' + ' + C.cardName(entryB) + ' + ' + previewResult.bonus + '. No rules text.</span></div>' +
       (redirected ? '<p class="legend-note">Black only comes from two secondary colours — this stays ' +
-        ci.name + ', just stronger.</p>' : '') +
+        colorDef.name + ', just stronger.</p>' : '') +
       '<button class="primary" id="labConfirm">Fuse them permanently</button></div>';
   }
   els.labBody.innerHTML = '<h2>Permanent Fusion</h2>' +
     '<p class="screen-lead">Pick two units from your deck. They are consumed and reforged into a single card ' +
     'following the usual mixing rules — colours combine, strengths add plus one, plus two if Black is in the mix. ' +
     'Like any mixed unit, the result carries no rules text.</p>' +
-    '<div class="deck-grid">' + units.map(function (e) {
-      var on = lab.picks.indexOf(e.i) !== -1;
-      return '<button class="swap-card' + (on ? ' picked' : '') + '" data-i="' + e.i + '">' + cardMini(e.c) + '</button>';
+    '<div class="deck-grid">' + units.map(function (unit) {
+      var on = lab.picks.indexOf(unit.index) !== -1;
+      return '<button class="swap-card' + (on ? ' picked' : '') + '" data-i="' + unit.index + '">' + cardMini(unit.entry) + '</button>';
     }).join('') + '</div>' + preview;
 
   Array.prototype.forEach.call(els.labBody.querySelectorAll('.swap-card'), function (btn) {
     btn.addEventListener('click', function () {
-      var i = +btn.getAttribute('data-i'), at = lab.picks.indexOf(i);
+      var index = +btn.getAttribute('data-i'), at = lab.picks.indexOf(index);
       if (at !== -1) lab.picks.splice(at, 1);
-      else if (lab.picks.length < 2) lab.picks.push(i);
+      else if (lab.picks.length < 2) lab.picks.push(index);
       renderFuseLab();
     });
   });
@@ -2979,16 +2979,16 @@ function renderBoostLab() {
   els.labBody.innerHTML = '<h2>Reinforcement</h2>' +
     '<p class="screen-lead">Pick a unit to reinforce. The bench is imprecise — it will add either ' +
     '<b>+1</b> or <b>+2</b> strength, permanently.</p>' +
-    '<div class="deck-grid">' + units.map(function (e) {
-      return '<button class="swap-card" data-i="' + e.i + '">' + cardMini(e.c) + '</button>';
+    '<div class="deck-grid">' + units.map(function (unit) {
+      return '<button class="swap-card" data-i="' + unit.index + '">' + cardMini(unit.entry) + '</button>';
     }).join('') + '</div>';
   Array.prototype.forEach.call(els.labBody.querySelectorAll('.swap-card'), function (btn) {
     btn.addEventListener('click', function () {
       if (lab.done) return;
-      var i = +btn.getAttribute('data-i');
+      var index = +btn.getAttribute('data-i');
       var amount = rnd() < 0.65 ? 1 : 2;
-      run.deck[i] = liftStrength(run.deck[i], amount);
-      lab.done = true; lab.target = i;
+      run.deck[index] = liftStrength(run.deck[index], amount);
+      lab.done = true; lab.target = index;
       lab.message = 'The bench settles on <b>+' + amount + '</b>.';
       renderRunBar();
       renderBoostLab();
@@ -3130,8 +3130,8 @@ function applyVolatile(kind) {
        so the bench is free to pick any two units exactly as mixing on the
        board can. A secondary landing on the wrong primary here just comes
        back as that secondary, stronger, the same as it would in battle. */
-    i = units[Math.floor(rnd() * units.length)].i;
-    do { j = units[Math.floor(rnd() * units.length)].i; } while (j === i && units.length > 1);
+    i = units[Math.floor(rnd() * units.length)].index;
+    do { j = units[Math.floor(rnd() * units.length)].index; } while (j === i && units.length > 1);
     if (i === j) return null;
     var hi = Math.max(i, j), lo = Math.min(i, j);
     var na = C.cardName(run.deck[lo]), nb = C.cardName(run.deck[hi]);
