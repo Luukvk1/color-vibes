@@ -1738,10 +1738,10 @@ var ACT_OMENS = {
 function noteActOmens() {
   codex.omens = codex.omens || {};
   var changed = false;
-  ACT_KEYS.forEach(function (k) {
-    if (codex.omens[k]) return;
-    if (!C.actUnlocked(ACTS[k].color, run.deck)) return;
-    codex.omens[k] = 1; changed = true;
+  ACT_KEYS.forEach(function (key) {
+    if (codex.omens[key]) return;
+    if (!C.actUnlocked(ACTS[key].color, run.deck)) return;
+    codex.omens[key] = 1; changed = true;
   });
   if (changed) saveCodex();
 }
@@ -1832,27 +1832,27 @@ function beginAct(key) {
 
 function renderActSelect() {
   var offer = run.actOffer || [];
-  var cleared = run.actsCleared.map(function (k) {
-    return '<span class="chip" style="background:' + COLORS[ACTS[k].color].hex +
-      ';color:' + COLORS[ACTS[k].color].ink + '">' + ACTS[k].name + '</span>';
+  var cleared = run.actsCleared.map(function (key) {
+    return '<span class="chip" style="background:' + COLORS[ACTS[key].color].hex +
+      ';color:' + COLORS[ACTS[key].color].ink + '">' + ACTS[key].name + '</span>';
   }).join(' ');
 
   /* Each option wears its own room. A scrim sits between the painting and the
      words rather than dimming the painting itself, so the art keeps its colour
      while the text keeps a solid dark backing — the two darkest paintings and
      the two brightest all stay readable without per-act tuning. */
-  var cards = offer.map(function (k) {
-    var a = ACTS[k], c = COLORS[a.color], art = ACT_ART[k] || {};
+  var cards = offer.map(function (key) {
+    var act = ACTS[key], colorDef = COLORS[act.color], art = ACT_ART[key] || {};
     var bg = art.varName ? 'var(' + art.varName + ')' : 'none';
-    return '<button class="act-pick" data-act="' + k + '" style="--act:' + c.hex +
+    return '<button class="act-pick" data-act="' + key + '" style="--act:' + colorDef.hex +
       ';--act-art:' + bg + ';--act-art-filter:' + (art.filter || 'none') +
       ';--act-art-y:' + Math.round((art.seam || 0.25) * 100) + '%">' +
       '<span class="act-art" aria-hidden="true"></span>' +
       '<span class="act-scrim" aria-hidden="true"></span>' +
       '<span class="act-copy">' +
-        '<span class="act-name">' + a.name + '</span>' +
-        '<span class="act-blurb">' + a.blurb + '</span>' +
-        '<span class="act-boss">Boss · ' + ENEMIES[a.boss].name + '</span>' +
+        '<span class="act-name">' + act.name + '</span>' +
+        '<span class="act-blurb">' + act.blurb + '</span>' +
+        '<span class="act-boss">Boss · ' + ENEMIES[act.boss].name + '</span>' +
       '</span></button>';
   }).join('');
 
@@ -1873,8 +1873,8 @@ function renderActSelect() {
     'Where you can go next is decided by what your deck is made of.</p>' +
     '<div class="act-picks">' + cards + '</div>';
 
-  Array.prototype.forEach.call(els.actBody.querySelectorAll('.act-pick'), function (b) {
-    b.addEventListener('click', function () { beginAct(b.getAttribute('data-act')); });
+  Array.prototype.forEach.call(els.actBody.querySelectorAll('.act-pick'), function (btn) {
+    btn.addEventListener('click', function () { beginAct(btn.getAttribute('data-act')); });
   });
 }
 
@@ -1885,9 +1885,9 @@ function renderActSelect() {
 /* White is offered only when every road of the wheel was already behind the
    player at the moment Black fell. Checked against the distinct set, so an
    endless run cannot accumulate its way to it by repeating one act. */
-function whiteUnlocked(r) {
-  if (r.actsCleared.indexOf('white') !== -1) return false;
-  return ACT_KEYS.every(function (k) { return r.actsCleared.indexOf(k) !== -1; });
+function whiteUnlocked(runState) {
+  if (runState.actsCleared.indexOf('white') !== -1) return false;
+  return ACT_KEYS.every(function (key) { return runState.actsCleared.indexOf(key) !== -1; });
 }
 
 /* Thresholds for the two roads earned by how a run was lived rather than by
@@ -1899,21 +1899,21 @@ function whiteUnlocked(r) {
 var ROT_THRESHOLD = 3;      // curses still in the deck
 var RIFT_THRESHOLD = 4;     // cracks opened across the run
 
-function rotUnlocked(r) {
-  if (r.actsCleared.indexOf('rot') !== -1) return false;
-  return curseCount(r.deck) >= ROT_THRESHOLD;
+function rotUnlocked(runState) {
+  if (runState.actsCleared.indexOf('rot') !== -1) return false;
+  return curseCount(runState.deck) >= ROT_THRESHOLD;
 }
-function riftUnlocked(r) {
-  if (r.actsCleared.indexOf('rift') !== -1) return false;
-  return (r.fissures || []).length >= RIFT_THRESHOLD;
+function riftUnlocked(runState) {
+  if (runState.actsCleared.indexOf('rift') !== -1) return false;
+  return (runState.fissures || []).length >= RIFT_THRESHOLD;
 }
 /* Every secret road currently on offer, in a stable order. */
-function secretOffers(r) {
-  var out = [];
-  if (whiteUnlocked(r)) out.push('white');
-  if (rotUnlocked(r)) out.push('rot');
-  if (riftUnlocked(r)) out.push('rift');
-  return out;
+function secretOffers(runState) {
+  var offers = [];
+  if (whiteUnlocked(runState)) offers.push('white');
+  if (rotUnlocked(runState)) offers.push('rot');
+  if (riftUnlocked(runState)) offers.push('rift');
+  return offers;
 }
 
 /* Why each secret road opened, in the player's own terms. Shown on the card
