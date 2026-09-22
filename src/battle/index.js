@@ -777,25 +777,25 @@ function hazardInfo(hz) {
     'whoever set it pays the same price. Cyan Cleanser can clear it.</p>';
 }
 
-function tileInfo(ev, t) {
-  var s = getBattleState();
-  var unit = unitAt(s.board, t.side, t.row, t.index);
+function tileInfo(ev, tile) {
+  var state = getBattleState();
+  var unit = unitAt(state.board, tile.side, tile.row, tile.index);
   /* Read the live topology, not the pristine one: a severed tile really does
      feed fewer lanes, and the panel is where a player checks why. */
-  var topo = C.boardTopo(s.fissures);
-  var lanes = C.lanesOfFor(t.side, t.row, t.index, topo);
-  var neighbours = C.adjacentTilesFor(t.side, t.row, t.index, topo);
-  var natural = adjacentTiles(t.row, t.index);
-  var lost = natural.filter(function (n) {
-    return !neighbours.some(function (m) { return C.sameTile(m, n); });
+  var topo = C.boardTopo(state.fissures);
+  var lanes = C.lanesOfFor(tile.side, tile.row, tile.index, topo);
+  var neighbours = C.adjacentTilesFor(tile.side, tile.row, tile.index, topo);
+  var natural = adjacentTiles(tile.row, tile.index);
+  var lost = natural.filter(function (naturalNeighbor) {
+    return !neighbours.some(function (currentNeighbor) { return C.sameTile(currentNeighbor, naturalNeighbor); });
   });
-  var gained = neighbours.filter(function (n) {
-    return !natural.some(function (m) { return C.sameTile(m, n); });
+  var gained = neighbours.filter(function (currentNeighbor) {
+    return !natural.some(function (naturalNeighbor) { return C.sameTile(naturalNeighbor, currentNeighbor); });
   });
-  var touching = C.fissuresTouching(t.side, t.row, t.index, s.fissures);
-  var cut = lanesOf(t.row, t.index).filter(function (L) { return lanes.indexOf(L) === -1; });
-  var extraLanes = lanes.filter(function (L) { return lanesOf(t.row, t.index).indexOf(L) === -1; });
-  function names(list) { return list.map(function (n) { return slotName(n.row, n.index); }).join(' and '); }
+  var touching = C.fissuresTouching(tile.side, tile.row, tile.index, state.fissures);
+  var cut = lanesOf(tile.row, tile.index).filter(function (laneIndex) { return lanes.indexOf(laneIndex) === -1; });
+  var extraLanes = lanes.filter(function (laneIndex) { return lanesOf(tile.row, tile.index).indexOf(laneIndex) === -1; });
+  function names(list) { return list.map(function (neighborTile) { return slotName(neighborTile.row, neighborTile.index); }).join(' and '); }
   var crackNote = (lost.length || gained.length || touching)
     ? '<p class="inspect-note">' +
       (lost.length
@@ -807,10 +807,10 @@ function tileInfo(ev, t) {
           ', and everything carries across. '
         : '') +
       (cut.length
-        ? 'It no longer reaches lane ' + cut.map(function (L) { return L + 1; }).join(' or ') + '. '
+        ? 'It no longer reaches lane ' + cut.map(function (laneIndex) { return laneIndex + 1; }).join(' or ') + '. '
         : '') +
       (extraLanes.length
-        ? 'It now also feeds lane ' + extraLanes.map(function (L) { return L + 1; }).join(' and ') +
+        ? 'It now also feeds lane ' + extraLanes.map(function (laneIndex) { return laneIndex + 1; }).join(' and ') +
           ', thinning every share it sends. '
         : '') +
       (touching
@@ -819,39 +819,39 @@ function tileInfo(ev, t) {
       '</p>'
     : ''
   if (!unit) {
-    return '<p class="inspect-sub">Empty · needs strength ' + ROW_INFO[t.row].min + '</p>' +
+    return '<p class="inspect-sub">Empty · needs strength ' + ROW_INFO[tile.row].min + '</p>' +
       '<div class="link-row"><span>Feeds lanes</span><span>' +
-      lanes.map(function (L) { return L + 1; }).join(', ') + '</span></div>' + crackNote;
+      lanes.map(function (laneIndex) { return laneIndex + 1; }).join(', ') + '</span></div>' + crackNote;
   }
-  var v = ev.get(t.side, t.row, t.index), cd = CARDS[unit.cardId];
-  var html = '<p class="inspect-sub">' + RUN.chip(v.color) + '<b>' + (cd ? cd.name : 'Mixed unit') + '</b></p>';
-  html += '<p class="card-rules">' + (cd ? cd.text : 'Mixed units carry no card text.') + '</p>';
-  html += '<div class="link-row"><span>Strength now</span><span><b>' + ev.strengthOf(v) + '</b></span></div>';
+  var view = ev.get(tile.side, tile.row, tile.index), cardDef = CARDS[unit.cardId];
+  var html = '<p class="inspect-sub">' + RUN.chip(view.color) + '<b>' + (cardDef ? cardDef.name : 'Mixed unit') + '</b></p>';
+  html += '<p class="card-rules">' + (cardDef ? cardDef.text : 'Mixed units carry no card text.') + '</p>';
+  html += '<div class="link-row"><span>Strength now</span><span><b>' + ev.strengthOf(view) + '</b></span></div>';
   html += crackNote;
 
-  if (v.colorless || !C.EFFECTIVE[v.color]) {
+  if (view.colorless || !C.EFFECTIVE[view.color]) {
     html += '<p class="inspect-note">Colourless — it cannot be effective, and nothing is effective against it.</p>';
   } else {
-    var beats = C.EFFECTIVE[v.color];
-    var beatenBy = C.COLOR_KEYS.filter(function (k) { return C.isEffective(k, v.color); });
+    var beats = C.EFFECTIVE[view.color];
+    var beatenBy = C.COLOR_KEYS.filter(function (colorKey) { return C.isEffective(colorKey, view.color); });
     html += '<div class="matchup"><span class="lbl">Strong against</span><div class="mchips">' +
-      beats.map(function (k) { return RUN.chip(k); }).join('') + '</div></div>' +
+      beats.map(function (colorKey) { return RUN.chip(colorKey); }).join('') + '</div></div>' +
       '<div class="matchup"><span class="lbl">Weak to</span><div class="mchips">' +
-      beatenBy.map(function (k) { return RUN.chip(k); }).join('') + '</div></div>';
-    lanes.forEach(function (L) {
-      var mine = ev.lanes[L][t.side], foe = ev.lanes[L][otherSide(t.side)];
+      beatenBy.map(function (colorKey) { return RUN.chip(colorKey); }).join('') + '</div></div>';
+    lanes.forEach(function (laneIndex) {
+      var mine = ev.lanes[laneIndex][tile.side], foe = ev.lanes[laneIndex][otherSide(tile.side)];
       if (!mine || !foe) return;
-      if (mine.champion.row !== t.row || mine.champion.index !== t.index) return;
-      html += '<p class="inspect-note">Lane ' + (L + 1) + ' versus ' + colorInfo(foe.color).name + ' — ' +
+      if (mine.champion.row !== tile.row || mine.champion.index !== tile.index) return;
+      html += '<p class="inspect-note">Lane ' + (laneIndex + 1) + ' versus ' + colorInfo(foe.color).name + ' — ' +
         (mine.effective ? '<b class="good">you double here</b>'
          : foe.effective ? '<b class="bad">they double here</b>' : 'neither side is effective') + '.</p>';
     });
   }
-  lanes.forEach(function (L) {
-    var d = ev.lanes[L][t.side];
-    var isFront = d && d.champion.row === t.row && d.champion.index === t.index;
-    html += '<div class="link-row"><span>Lane ' + (L + 1) + ' · ' + (isFront ? '<b>frontline</b>' : 'support') +
-      '</span><span>' + ev.shares[t.side + '-' + t.row + '-' + t.index][L] + '</span></div>';
+  lanes.forEach(function (laneIndex) {
+    var laneSide = ev.lanes[laneIndex][tile.side];
+    var isFront = laneSide && laneSide.champion.row === tile.row && laneSide.champion.index === tile.index;
+    html += '<div class="link-row"><span>Lane ' + (laneIndex + 1) + ' · ' + (isFront ? '<b>frontline</b>' : 'support') +
+      '</span><span>' + ev.shares[tile.side + '-' + tile.row + '-' + tile.index][laneIndex] + '</span></div>';
   });
   return html;
 }
