@@ -2557,17 +2557,17 @@ var NEEDS_HAZARDS  = ['cyan_shield', 'cyan_cleanser'];
 var NEEDS_CURSES   = ['black_gravebloom', 'black_reclaimer', 'cyan_absolver'];
 
 function curseCount(deck) {
-  return (deck || []).filter(function (e) { return CARDS[e.id] && CARDS[e.id].curse; }).length;
+  return (deck || []).filter(function (entry) { return CARDS[entry.id] && CARDS[entry.id].curse; }).length;
 }
 
-function situationalOk(k) {
-  if (NEEDS_FISSURES.indexOf(k) !== -1) return (run.fissures || []).length > 0;
-  if (NEEDS_CURSES.indexOf(k) !== -1) return curseCount(run.deck) > 0;
+function situationalOk(cardId) {
+  if (NEEDS_FISSURES.indexOf(cardId) !== -1) return (run.fissures || []).length > 0;
+  if (NEEDS_CURSES.indexOf(cardId) !== -1) return curseCount(run.deck) > 0;
   /* Hazards are not permanent like fissures — they are played from cards. So
      the test is whether the run can produce one at all: either you carry a
      hazard card, or you have met enemies deep enough to field them. */
-  if (NEEDS_HAZARDS.indexOf(k) !== -1) {
-    var haveHazard = run.deck.some(function (e) { return CARDS[e.id].type === 'hazard'; });
+  if (NEEDS_HAZARDS.indexOf(cardId) !== -1) {
+    var haveHazard = run.deck.some(function (entry) { return CARDS[entry.id].type === 'hazard'; });
     return haveHazard || powerAt(run, run.depth) >= 6;
   }
   return true;
@@ -2575,11 +2575,11 @@ function situationalOk(k) {
 
 function offerableCards() {
   var held = C.colourCounts(run.deck);
-  return C.DRAWABLE.filter(function (k) {
-    var d = CARDS[k];
-    if (!situationalOk(k)) return false;
-    if (!d.color) return true;                 // colourless: always available
-    return held[d.color] > 0;
+  return C.DRAWABLE.filter(function (cardId) {
+    var cardDef = CARDS[cardId];
+    if (!situationalOk(cardId)) return false;
+    if (!cardDef.color) return true;                 // colourless: always available
+    return held[cardDef.color] > 0;
   });
 }
 
@@ -2620,11 +2620,11 @@ function removalsLeft(shop) {
    and taking a reward stopped being worth the deck slot long before the run
    ended. Rares overtake Commons around the third act. */
 function rarityWeights(power) {
-  var t = Math.min(1, power / 45);              // 0 at the start, 1 by act four or so
+  var progress = Math.min(1, power / 45);        // 0 at the start, 1 by act four or so
   return {
-    Common:   Math.max(1, 6 - t * 5),
-    Uncommon: 3 + t * 2,
-    Rare:     1 + t * 5
+    Common:   Math.max(1, 6 - progress * 5),
+    Uncommon: 3 + progress * 2,
+    Rare:     1 + progress * 5
   };
 }
 
@@ -2637,7 +2637,7 @@ function rollReward(node) {
      — and because the pick is yours, the boss you beat is the boss you wanted
      to beat. Colour gating does not apply here: you earned it in the field. */
   if (node.type === 'boss') {
-    var mine = ACTS[run.act] ? ACTS[run.act].color : null;
+    var myColor = ACTS[run.act] ? ACTS[run.act].color : null;
     var offer, shortfall = 0;
     if (ACTS[run.act] && ACTS[run.act].secret && C.SECRET_TROPHIES[run.act]) {
       /* A secret road drops its own three, unconditionally — never the seven
@@ -2652,12 +2652,12 @@ function rollReward(node) {
          someone who had never made a single Black, which is precisely the thing
          the colour gate exists to prevent. The act's own colour always
          qualifies: you just beat that road, so you hold it by definition. */
-      var trophies = C.BOSS_CARDS.filter(function (k) {
-        var col = CARDS[k].color;
-        return !col || col === mine || C.actUnlocked(col, run.deck);
+      var trophies = C.BOSS_CARDS.filter(function (cardId) {
+        var cardColor = CARDS[cardId].color;
+        return !cardColor || cardColor === myColor || C.actUnlocked(cardColor, run.deck);
       });
-      var own = trophies.filter(function (k) { return CARDS[k].color === mine; });
-      var rest = trophies.filter(function (k) { return CARDS[k].color !== mine; });
+      var own = trophies.filter(function (cardId) { return CARDS[cardId].color === myColor; });
+      var rest = trophies.filter(function (cardId) { return CARDS[cardId].color !== myColor; });
       shuffle(rest);
       offer = own.concat(rest).slice(0, 3);
       /* If the run is still narrow there may not be three unlocked trophies.
@@ -2665,15 +2665,15 @@ function rollReward(node) {
          a short offer is honest, a padded one is a tease. */
       shortfall = 3 - offer.length;
     }
-    offer = offer.map(function (k) { return { id: k, up: false }; });
+    offer = offer.map(function (cardId) { return { id: cardId, up: false }; });
     run.reward = {
       cards: offer, gold: 140 + Math.floor(rnd() * 30) + shortfall * 60, relic: null, node: node,
       taken: false, cardTaken: false, relicTaken: false, rotted: null, trophy: true
     };
-    offer.forEach(function (c) { discoverCard(c.id); });
-    var availB = RELIC_KEYS.filter(function (k) { return !hasRelic(run.relics, k); });
-    if (availB.length && run.relics.length < C.RELIC_LIMIT) {
-      run.reward.relic = availB[Math.floor(rnd() * availB.length)];
+    offer.forEach(function (entry) { discoverCard(entry.id); });
+    var availableRelics = RELIC_KEYS.filter(function (key) { return !hasRelic(run.relics, key); });
+    if (availableRelics.length && run.relics.length < C.RELIC_LIMIT) {
+      run.reward.relic = availableRelics[Math.floor(rnd() * availableRelics.length)];
     }
     return;
   }
@@ -2687,10 +2687,10 @@ function rollReward(node) {
   var weight = rarityWeights(effPower);
   var picks = [], guard = 0;
   while (picks.length < count && guard++ < 400) {
-    var id = pool[Math.floor(rnd() * pool.length)];
-    if (rnd() * 10 > (weight[CARDS[id].rarity] || 1)) continue;
-    if (picks.some(function (p) { return p.id === id; })) continue;
-    picks.push({ id: id, up: false });
+    var cardId = pool[Math.floor(rnd() * pool.length)];
+    if (rnd() * 10 > (weight[CARDS[cardId].rarity] || 1)) continue;
+    if (picks.some(function (pick) { return pick.id === cardId; })) continue;
+    picks.push({ id: cardId, up: false });
   }
   var gold = (node.type === 'boss' ? 120 : node.type === 'elite' ? 80 : 35) + Math.floor(rnd() * 20);
   /* Whatever broke in the lab is loose now. The bigger things on the road carry
@@ -2699,8 +2699,8 @@ function rollReward(node) {
   if ((run.corruption || 0) > 0 && (node.type === 'elite' || node.type === 'boss')) {
     if (rnd() < Math.min(0.65, 0.25 + run.corruption * 0.08)) {
       var held = {};
-      run.deck.forEach(function (c) { if (CARDS[c.id].curse) held[c.id] = true; });
-      var fresh = C.CURSE_KEYS.filter(function (k) { return !held[k]; });
+      run.deck.forEach(function (entry) { if (CARDS[entry.id].curse) held[entry.id] = true; });
+      var fresh = C.CURSE_KEYS.filter(function (key) { return !held[key]; });
       rotted = gainCurse((fresh.length ? fresh : C.CURSE_KEYS)[Math.floor(rnd() * (fresh.length ? fresh.length : C.CURSE_KEYS.length))]);
     }
   }
@@ -2713,76 +2713,76 @@ function rollReward(node) {
      tax, and it makes the shop the only other supply. */
   var relic = null;
   if (node.type === 'elite' || node.type === 'boss') {
-    var avail = RELIC_KEYS.filter(function (k) { return !hasRelic(run.relics, k); });
+    var avail = RELIC_KEYS.filter(function (key) { return !hasRelic(run.relics, key); });
     if (avail.length) relic = avail[Math.floor(rnd() * avail.length)];
   }
-  picks.forEach(function (c) { discoverCard(c.id); });
+  picks.forEach(function (entry) { discoverCard(entry.id); });
   if (rotted) discoverCard(rotted.id);
   run.reward = { cards: picks, gold: gold, relic: relic, node: node, taken: false, cardTaken: false, relicTaken: false, rotted: rotted };
 }
 
 function renderReward() {
-  var r = run.reward;
+  var reward = run.reward;
 
-  els.rewardRot.hidden = !r.rotted;
-  els.rewardRot.innerHTML = r.rotted
-    ? 'Something clung to it. <b>' + r.rotted.name + '</b> is in your deck now — ' + r.rotted.text
+  els.rewardRot.hidden = !reward.rotted;
+  els.rewardRot.innerHTML = reward.rotted
+    ? 'Something clung to it. <b>' + reward.rotted.name + '</b> is in your deck now — ' + reward.rotted.text
     : '';
-  els.rewardCards.innerHTML = r.cards.map(function (c, i) {
-    return '<button class="reward-pick' + (r.cardTaken ? ' taken' : '') + '" data-i="' + i + '"' +
-      (r.cardTaken ? ' disabled' : '') + '>' + cardMini(c) + '</button>';
+  els.rewardCards.innerHTML = reward.cards.map(function (entry, index) {
+    return '<button class="reward-pick' + (reward.cardTaken ? ' taken' : '') + '" data-i="' + index + '"' +
+      (reward.cardTaken ? ' disabled' : '') + '>' + cardMini(entry) + '</button>';
   }).join('');
   var lead = document.getElementById('rewardLead');
   var head = document.getElementById('rewardHead');
-  if (head) head.textContent = r.trophy ? 'The road gives up its prize' : 'Spoils';
+  if (head) head.textContent = reward.trophy ? 'The road gives up its prize' : 'Spoils';
   if (lead) {
     /* A relic is a second, independent prize, not an alternative to the card
        — this line used to sit on both a card AND a relic and the click
        handler quietly let you leave with only one of them, since either
        button advanced past the whole reward on its own. Said plainly here so
        a player who has taken the card still knows the relic is theirs too. */
-    var relicNote = r.relic ? (r.cardTaken ? ' The relic is still yours to take.' : ' Take the relic too — it is not instead of the card.') : '';
-    lead.innerHTML = r.trophy
-      ? 'You earned <b>' + r.gold + '</b> gold, and the act itself. Take one of these three \u2014 ' +
+    var relicNote = reward.relic ? (reward.cardTaken ? ' The relic is still yours to take.' : ' Take the relic too — it is not instead of the card.') : '';
+    lead.innerHTML = reward.trophy
+      ? 'You earned <b>' + reward.gold + '</b> gold, and the act itself. Take one of these three \u2014 ' +
         'they are the only cards on the road that are both this large and still do something.' + relicNote
-      : 'You earned <b>' + r.gold + '</b> gold. Take one card, or skip to keep your deck lean \u2014 ' +
+      : 'You earned <b>' + reward.gold + '</b> gold. Take one card, or skip to keep your deck lean \u2014 ' +
         'it currently holds <b>' + run.deck.length + '</b> cards, and a smaller deck draws its best cards more often.' + relicNote;
   }
   var skipBtn = document.getElementById('skipRewardBtn');
   if (skipBtn) {
     // there is no sane reason to decline a trophy, so do not dangle a price
-    skipBtn.hidden = !!r.trophy || !!r.cardTaken;
+    skipBtn.hidden = !!reward.trophy || !!reward.cardTaken;
     skipBtn.textContent = 'Skip the card \u2014 take ' + skipValue() + ' gold instead';
   }
-  els.screen_reward.classList.toggle('trophy', !!r.trophy);
-  els.rewardRelic.hidden = !r.relic;
+  els.screen_reward.classList.toggle('trophy', !!reward.trophy);
+  els.rewardRelic.hidden = !reward.relic;
   // Clear it either way — leaving the previous reward's markup in a hidden
   // container leaves a live button behind that can push a null relic.
-  els.rewardRelic.innerHTML = r.relic
-    ? '<span class="lbl">Relic on offer' + (r.relicTaken ? ' \u2014 taken' : '') + '</span>' +
-      '<button class="reward-pick relic' + (r.relicTaken ? ' taken' : '') + '" data-relic="1"' +
-      (r.relicTaken ? ' disabled' : '') + '>' +
-      '<div class="mini-card relicbox"><span class="mini-name">' + RELICS[r.relic].name + '</span>' +
-      '<span class="mini-text">' + RELICS[r.relic].text + '</span></div></button>'
+  els.rewardRelic.innerHTML = reward.relic
+    ? '<span class="lbl">Relic on offer' + (reward.relicTaken ? ' \u2014 taken' : '') + '</span>' +
+      '<button class="reward-pick relic' + (reward.relicTaken ? ' taken' : '') + '" data-relic="1"' +
+      (reward.relicTaken ? ' disabled' : '') + '>' +
+      '<div class="mini-card relicbox"><span class="mini-name">' + RELICS[reward.relic].name + '</span>' +
+      '<span class="mini-text">' + RELICS[reward.relic].text + '</span></div></button>'
     : '';
   /* Advance only once every prize on offer has been resolved: the card slot
      (taken or skipped) and the relic slot (taken, or simply absent). Either
      button used to set one shared `taken` flag and leave immediately —
      whichever you clicked first was the only one you ever got. */
   function maybeAdvance() {
-    if (r.cardTaken && (!r.relic || r.relicTaken)) { r.taken = true; advance(); }
+    if (reward.cardTaken && (!reward.relic || reward.relicTaken)) { reward.taken = true; advance(); }
     else renderReward();
   }
-  Array.prototype.forEach.call(els.screen_reward.querySelectorAll('.reward-pick'), function (b) {
-    b.addEventListener('click', function () {
-      if (b.getAttribute('data-relic')) {
-        if (!r.relic || r.relicTaken) return;
-        run.relics.push(r.relic);
-        r.relicTaken = true;
+  Array.prototype.forEach.call(els.screen_reward.querySelectorAll('.reward-pick'), function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.getAttribute('data-relic')) {
+        if (!reward.relic || reward.relicTaken) return;
+        run.relics.push(reward.relic);
+        reward.relicTaken = true;
       } else {
-        if (r.cardTaken) return;
-        run.deck.push(r.cards[+b.getAttribute('data-i')]);
-        r.cardTaken = true;
+        if (reward.cardTaken) return;
+        run.deck.push(reward.cards[+btn.getAttribute('data-i')]);
+        reward.cardTaken = true;
       }
       renderRunBar();
       maybeAdvance();
