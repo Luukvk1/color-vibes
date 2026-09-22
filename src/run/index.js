@@ -31,73 +31,73 @@ var rnd = Math.random;
    MIXING — Free Mix and Mix Chain (GDD §17, §18)
    =================================================================== */
 function canMix(board, side, base, other, fissures) {
-  var a = unitAt(board, side, base.row, base.index), b = unitAt(board, side, other.row, other.index);
-  if (!a || !b) return { ok: false, reason: 'Both tiles need a unit.' };
+  var unitA = unitAt(board, side, base.row, base.index), unitB = unitAt(board, side, other.row, other.index);
+  if (!unitA || !unitB) return { ok: false, reason: 'Both tiles need a unit.' };
   if (base.row === other.row && base.index === other.index) return { ok: false, reason: 'Pick two different units.' };
-  var sev = C.boardTopo(fissures || (run && run.fissures));
-  if (!adjacentTilesFor(side, base.row, base.index, sev).some(function (t) { return t.row === other.row && t.index === other.index; })) {
+  var topology = C.boardTopo(fissures || (run && run.fissures));
+  if (!adjacentTilesFor(side, base.row, base.index, topology).some(function (tile) { return tile.row === other.row && tile.index === other.index; })) {
     /* Distinguish the two failures: tiles that never touched, and tiles a
        fissure has since pulled apart. The second needs explaining. */
-    var everAdjacent = adjacentTiles(base.row, base.index).some(function (t) { return t.row === other.row && t.index === other.index; });
+    var everAdjacent = adjacentTiles(base.row, base.index).some(function (tile) { return tile.row === other.row && tile.index === other.index; });
     return { ok: false, reason: everAdjacent ? 'A fissure runs between those tiles.' : 'Those tiles do not touch.' };
   }
   return { ok: true };
 }
 function mixOptions(board, side, fissures) {
-  var out = [], sev = C.boardTopo(fissures || (run && run.fissures));
+  var options = [], topology = C.boardTopo(fissures || (run && run.fissures));
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      if (!unitAt(board, side, row, i)) continue;
-      adjacentTilesFor(side, row, i, sev).forEach(function (t) {
-        if (unitAt(board, side, t.row, t.index)) out.push({ base: { row: row, index: i }, other: { row: t.row, index: t.index } });
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      if (!unitAt(board, side, row, index)) continue;
+      adjacentTilesFor(side, row, index, topology).forEach(function (tile) {
+        if (unitAt(board, side, tile.row, tile.index)) options.push({ base: { row: row, index: index }, other: { row: tile.row, index: tile.index } });
       });
     }
   });
-  return out;
+  return options;
 }
 
-/* g needs: board, hazards, hands, decks, relics (player), mixChain, mixesThisRound, freeMixesThisRound */
-function applyMix(g, side, base, other, extra, isFree) {
-  var relics = (side === PLAYER && g.relics) ? g.relics : [];
-  var a = unitAt(g.board, side, base.row, base.index), b = unitAt(g.board, side, other.row, other.index);
-  var color = mixResultColor(a.color, b.color);
+/* battleState needs: board, hazards, hands, decks, relics (player), mixChain, mixesThisRound, freeMixesThisRound */
+function applyMix(battleState, side, base, other, extra, isFree) {
+  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
+  var unitA = unitAt(battleState.board, side, base.row, base.index), unitB = unitAt(battleState.board, side, other.row, other.index);
+  var color = mixResultColor(unitA.color, unitB.color);
   /* Chains belong to the side that built them. A shared counter meant the enemy
      taking a turn wiped yours — and Magenta Echo, which scales off it, lost its
      bonus before scoring ever happened. */
-  g.chains = g.chains || { bottom: 0, top: 0 };
-  var chainBefore = g.chains[side] || 0;
+  battleState.chains = battleState.chains || { bottom: 0, top: 0 };
+  var chainBefore = battleState.chains[side] || 0;
 
-  var bonus = (a.color === 'black' || b.color === 'black') ? 2 : 1;
+  var bonus = (unitA.color === 'black' || unitB.color === 'black') ? 2 : 1;
   if (hasRelic(relics, 'stable_fusion')) bonus += 1;
-  if (hasRelic(relics, 'prism_core') && (g.mixesThisRound || 0) === 0) bonus += 2;
-  [a, b].forEach(function (u) {
-    var d = CARDS[u.cardId];
-    if (!d) return;
-    if (d.onMixConsumed) bonus += d.onMixConsumed;
-    if (d.onMixConsumedChain) bonus += d.onMixConsumedChain * chainBefore;
+  if (hasRelic(relics, 'prism_core') && (battleState.mixesThisRound || 0) === 0) bonus += 2;
+  [unitA, unitB].forEach(function (unit) {
+    var cardDef = CARDS[unit.cardId];
+    if (!cardDef) return;
+    if (cardDef.onMixConsumed) bonus += cardDef.onMixConsumed;
+    if (cardDef.onMixConsumedChain) bonus += cardDef.onMixConsumedChain * chainBefore;
   });
-  eachUnit(g.board, side, function (u) {
-    var d = CARDS[u.cardId];
-    if (d && d.mixBonus) bonus += d.mixBonus;
+  eachUnit(battleState.board, side, function (unit) {
+    var cardDef = CARDS[unit.cardId];
+    if (cardDef && cardDef.mixBonus) bonus += cardDef.mixBonus;
   });
   bonus += (extra || 0);
 
-  var strength = (a.strength + (a.temp || 0)) + (b.strength + (b.temp || 0)) + bonus;
-  g.board[side][base.row][base.index] = { cardId: null, color: color, strength: strength, temp: 0, cracked: 0 };
-  g.board[side][other.row][other.index] = null;
+  var strength = (unitA.strength + (unitA.temp || 0)) + (unitB.strength + (unitB.temp || 0)) + bonus;
+  battleState.board[side][base.row][base.index] = { cardId: null, color: color, strength: strength, temp: 0, cracked: 0 };
+  battleState.board[side][other.row][other.index] = null;
 
-  g.mixesThisRound = (g.mixesThisRound || 0) + 1;
+  battleState.mixesThisRound = (battleState.mixesThisRound || 0) + 1;
   var links = 1;
-  if (isFree && side === PLAYER && hasRelic(relics, 'double_rainbow') && (g.freeMixesThisRound || 0) === 0) links = 3;
-  if (isFree) g.freeMixesThisRound = (g.freeMixesThisRound || 0) + 1;
-  g.chains[side] = chainBefore + links;
-  g.mixChain = g.chains[side];
+  if (isFree && side === PLAYER && hasRelic(relics, 'double_rainbow') && (battleState.freeMixesThisRound || 0) === 0) links = 3;
+  if (isFree) battleState.freeMixesThisRound = (battleState.freeMixesThisRound || 0) + 1;
+  battleState.chains[side] = chainBefore + links;
+  battleState.mixChain = battleState.chains[side];
 
   // Black Paint fires whenever something becomes Black
   if (side === PLAYER && color === 'black' && hasRelic(relics, 'black_paint')) {
-    g.board[side][base.row][base.index].temp += 3;
+    battleState.board[side][base.row][base.index].temp += 3;
   }
-  return { color: color, strength: strength, bonus: bonus, chain: g.mixChain, links: links };
+  return { color: color, strength: strength, bonus: bonus, chain: battleState.mixChain, links: links };
 }
 
 /* Curses never reach a hand: drawing one resolves it against you immediately
@@ -113,39 +113,39 @@ function applyMix(g, side, base, other, extra, isFree) {
    rather than the number actually drawn, so an empty deck still paid it.
    `opening` skips the count, and the tally now happens at the end from the
    real total. */
-function drawInto(g, side, n, opening) {
+function drawInto(battleState, side, count, opening) {
   var got = 0, guard = 0;
-  for (var i = 0; i < n; i++) {
+  for (var drawIndex = 0; drawIndex < count; drawIndex++) {
     while (guard++ < 60) {
-      if (!g.decks[side].length) { countDraws(g, side, got, opening); return got; }
-      var card = g.decks[side].shift();
-      var d = CARDS[card.id];
-      if (d && d.curse) {
-        var note = d.onDraw ? d.onDraw(g, side, buildApi(g, side, [])) : '';
-        (g.curseFired = g.curseFired || []).push({ side: side, name: d.name, note: note });
+      if (!battleState.decks[side].length) { countDraws(battleState, side, got, opening); return got; }
+      var card = battleState.decks[side].shift();
+      var cardDef = CARDS[card.id];
+      if (cardDef && cardDef.curse) {
+        var note = cardDef.onDraw ? cardDef.onDraw(battleState, side, buildApi(battleState, side, [])) : '';
+        (battleState.curseFired = battleState.curseFired || []).push({ side: side, name: cardDef.name, note: note });
         continue;                        // burned the draw, try the next card
       }
-      if (g.hands[side].length >= C.HAND_LIMIT) continue;
-      g.hands[side].push(card);
+      if (battleState.hands[side].length >= C.HAND_LIMIT) continue;
+      battleState.hands[side].push(card);
       got++;
       break;
     }
   }
-  countDraws(g, side, got, opening);
+  countDraws(battleState, side, got, opening);
   return got;
 }
-function countDraws(g, side, got, opening) {
+function countDraws(battleState, side, got, opening) {
   if (opening || !got) return;
-  if (g.drawn && side === PLAYER) g.drawn.extra += got;
+  if (battleState.drawn && side === PLAYER) battleState.drawn.extra += got;
 }
 
-function buildApi(g, side, notes) {
-  var relics = (side === PLAYER && g.relics) ? g.relics : [];
+function buildApi(battleState, side, notes) {
+  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
   var api = {
-    draw: function (s, n) {
+    draw: function (drawSide, count) {
       var extra = 0;
-      if (s === PLAYER && hasRelic(relics, 'echo_chamber') && !g.echoUsedThisRound) { extra = 1; g.echoUsedThisRound = true; }
-      return drawInto(g, s, n + extra);
+      if (drawSide === PLAYER && hasRelic(relics, 'echo_chamber') && !battleState.echoUsedThisRound) { extra = 1; battleState.echoUsedThisRound = true; }
+      return drawInto(battleState, drawSide, count + extra);
     },
     /* Damage is written into `temp`, a persistent negative, rather than
        clamped off the printed strength.
@@ -162,34 +162,34 @@ function buildApi(g, side, notes) {
        Subtracting through `temp` means the full amount always lands, and the
        floor is applied to what the player can actually see: effective
        strength stops at 1 instead of the printed value doing so. */
-    damage: function (s, row, index, amount) {
-      var u = unitAt(g.board, s, row, index);
-      if (!u) return 0;
-      var ev = evaluateBoard(g.board, g.hazards, evalCtx(g));
-      var v = ev.view[s + '-' + row + '-' + index];
-      var shown = v ? ev.strengthOf(v) : u.strength;
+    damage: function (side2, row, index, amount) {
+      var unit = unitAt(battleState.board, side2, row, index);
+      if (!unit) return 0;
+      var evaluation = evaluateBoard(battleState.board, battleState.hazards, evalCtx(battleState));
+      var tileView = evaluation.view[side2 + '-' + row + '-' + index];
+      var shown = tileView ? evaluation.strengthOf(tileView) : unit.strength;
       var dealt = Math.max(0, Math.min(amount, shown - 1));
-      u.temp = (u.temp || 0) - dealt;
-      if (s === PLAYER && hasRelic(relics, 'glass_cannon')) u.cracked = (u.cracked || 0) + 1;
+      unit.temp = (unit.temp || 0) - dealt;
+      if (side2 === PLAYER && hasRelic(relics, 'glass_cannon')) unit.cracked = (unit.cracked || 0) + 1;
       return dealt;
     },
-    buff: function (s, tile, amount, permanent) {
-      var u = unitAt(g.board, s, tile.row, tile.index);
-      if (!u) return;
+    buff: function (side2, tile, amount, permanent) {
+      var unit = unitAt(battleState.board, side2, tile.row, tile.index);
+      if (!unit) return;
       if (permanent) {
-        u.strength += amount;
+        unit.strength += amount;
         /* "Permanently" should outlive the battle, not just the board —
            write the increase back into the run's own deck too. Skipped
-           during AI lookahead (g.sim) so a hypothetical move the AI never
-           actually commits to can't leave a mark on the real deck, and
+           during AI lookahead (battleState.sim) so a hypothetical move the AI
+           never actually commits to can't leave a mark on the real deck, and
            skipped for anything without a traceable deck slot (tokens, the
            enemy's disposable deck) since there's nothing persistent to
            write to. */
-        if (!g.sim && s === PLAYER && typeof u.deckIndex === 'number' && run && run.deck && run.deck[u.deckIndex]) {
-          run.deck[u.deckIndex] = liftStrength(run.deck[u.deckIndex], amount);
+        if (!battleState.sim && side2 === PLAYER && typeof unit.deckIndex === 'number' && run && run.deck && run.deck[unit.deckIndex]) {
+          run.deck[unit.deckIndex] = liftStrength(run.deck[unit.deckIndex], amount);
         }
       } else {
-        u.temp = (u.temp || 0) + amount;
+        unit.temp = (unit.temp || 0) + amount;
       }
     },
     /* Permanently strikes a card from the run's own deck, not just this
@@ -206,75 +206,75 @@ function buildApi(g, side, notes) {
        shifted down in the same stroke. Skip that and the very next
        permanent buff on any of those cards would silently land on the
        wrong slot for the rest of the fight. */
-    removeFromDeck: function (s, tile) {
-      if (g.sim || s !== PLAYER || !run || !run.deck) return false;
-      var u = unitAt(g.board, s, tile.row, tile.index);
-      if (!u || typeof u.deckIndex !== 'number' || !run.deck[u.deckIndex]) return false;
-      var idx = u.deckIndex;
-      run.deck.splice(idx, 1);
+    removeFromDeck: function (side2, tile) {
+      if (battleState.sim || side2 !== PLAYER || !run || !run.deck) return false;
+      var unit = unitAt(battleState.board, side2, tile.row, tile.index);
+      if (!unit || typeof unit.deckIndex !== 'number' || !run.deck[unit.deckIndex]) return false;
+      var removedIndex = unit.deckIndex;
+      run.deck.splice(removedIndex, 1);
       function resync(entry) {
-        if (entry && typeof entry.deckIndex === 'number' && entry.deckIndex > idx) entry.deckIndex--;
+        if (entry && typeof entry.deckIndex === 'number' && entry.deckIndex > removedIndex) entry.deckIndex--;
       }
-      (g.hands[PLAYER] || []).forEach(resync);
-      (g.decks[PLAYER] || []).forEach(resync);
+      (battleState.hands[PLAYER] || []).forEach(resync);
+      (battleState.decks[PLAYER] || []).forEach(resync);
       ROWS.forEach(function (row) {
-        for (var i = 0; i < ROW_INFO[row].count; i++) resync(g.board[PLAYER][row][i]);
+        for (var index = 0; index < ROW_INFO[row].count; index++) resync(battleState.board[PLAYER][row][index]);
       });
       return true;
     },
-    create: function (s, row, index, cardId) {
-      if (g.board[s][row][index]) return;
-      var d = CARDS[cardId];
-      g.board[s][row][index] = { cardId: cardId, color: d.color, strength: d.strength, temp: 0, cracked: 0 };
+    create: function (side2, row, index, cardId) {
+      if (battleState.board[side2][row][index]) return;
+      var cardDef = CARDS[cardId];
+      battleState.board[side2][row][index] = { cardId: cardId, color: cardDef.color, strength: cardDef.strength, temp: 0, cracked: 0 };
     },
-    destroy: function (s, tile) { g.board[s][tile.row][tile.index] = null; },
-    move: function (s, from, to) {
-      var u = unitAt(g.board, s, from.row, from.index);
-      if (!u || g.board[s][to.row][to.index]) return;
-      if (u.strength + (u.temp || 0) < ROW_INFO[to.row].min) return;
-      g.board[s][to.row][to.index] = u; g.board[s][from.row][from.index] = null;
-      if (s === PLAYER && hasRelic(relics, 'heavy_brush') && ROW_INFO[to.row].depth === 3) u.strength += 1;
+    destroy: function (side2, tile) { battleState.board[side2][tile.row][tile.index] = null; },
+    move: function (side2, from, to) {
+      var unit = unitAt(battleState.board, side2, from.row, from.index);
+      if (!unit || battleState.board[side2][to.row][to.index]) return;
+      if (unit.strength + (unit.temp || 0) < ROW_INFO[to.row].min) return;
+      battleState.board[side2][to.row][to.index] = unit; battleState.board[side2][from.row][from.index] = null;
+      if (side2 === PLAYER && hasRelic(relics, 'heavy_brush') && ROW_INFO[to.row].depth === 3) unit.strength += 1;
     },
-    recolor: function (s, tile, color) {
-      var u = unitAt(g.board, s, tile.row, tile.index);
-      if (!u) return;
-      var was = u.color;
-      u.color = color;
-      if (s === PLAYER && was !== color) {
-        if (hasRelic(relics, 'chromatic_memory')) u.temp = (u.temp || 0) + Math.ceil((u.strength + (u.temp || 0)) / 4);
-        if (color === 'black' && hasRelic(relics, 'black_paint')) u.temp = (u.temp || 0) + 3;
+    recolor: function (side2, tile, color) {
+      var unit = unitAt(battleState.board, side2, tile.row, tile.index);
+      if (!unit) return;
+      var previousColor = unit.color;
+      unit.color = color;
+      if (side2 === PLAYER && previousColor !== color) {
+        if (hasRelic(relics, 'chromatic_memory')) unit.temp = (unit.temp || 0) + Math.ceil((unit.strength + (unit.temp || 0)) / 4);
+        if (color === 'black' && hasRelic(relics, 'black_paint')) unit.temp = (unit.temp || 0) + 3;
       }
     },
-    clearHazard: function (s, row) { g.hazards[s][row] = null; },
+    clearHazard: function (side2, row) { battleState.hazards[side2][row] = null; },
     /* Silence every scar touching any of these tiles until the round ends.
        The fissures themselves are untouched; only this battle stops seeing
        them, which is what makes Cyan a reprieve rather than a cure. */
-    quietFissuresAt: function (s, tiles) {
-      g.quieted = g.quieted || {};
-      var n = 0;
-      (g.fissures || []).forEach(function (f) {
-        if (f.side !== s) return;
-        var hit = tiles.some(function (t) { return C.sameTile(f.a, t) || C.sameTile(f.b, t); });
+    quietFissuresAt: function (side2, tiles) {
+      battleState.quieted = battleState.quieted || {};
+      var quietedCount = 0;
+      (battleState.fissures || []).forEach(function (fissure) {
+        if (fissure.side !== side2) return;
+        var hit = tiles.some(function (tile) { return C.sameTile(fissure.a, tile) || C.sameTile(fissure.b, tile); });
         if (!hit) return;
-        var k = C.edgeKey(f.side, f.a, f.b);
-        if (g.quieted[k]) return;
-        g.quieted[k] = 1; n++;
+        var key = C.edgeKey(fissure.side, fissure.a, fissure.b);
+        if (battleState.quieted[key]) return;
+        battleState.quieted[key] = 1; quietedCount++;
       });
-      return n;
+      return quietedCount;
     },
-    freeMix: function (s, base, other, extra) { return doMixCascade(g, s, base, other, extra, true, notes); },
+    freeMix: function (side2, base, other, extra) { return doMixCascade(battleState, side2, base, other, extra, true, notes); },
     enemyFrontlinesIn: function (laneList) {
-      var ev = evaluateBoard(g.board, g.hazards, evalCtx(g));
-      var foe = otherSide(side), out = [], seen = {};
-      laneList.forEach(function (L) {
-        var d = ev.lanes[L][foe];
-        if (!d) return;
-        var k = d.champion.row + '-' + d.champion.index;
-        if (seen[k]) return;
-        seen[k] = 1;
-        out.push({ row: d.champion.row, index: d.champion.index, strength: ev.strengthOf(d.champion) });
+      var evaluation = evaluateBoard(battleState.board, battleState.hazards, evalCtx(battleState));
+      var foe = otherSide(side), frontlines = [], seen = {};
+      laneList.forEach(function (laneIndex) {
+        var laneData = evaluation.lanes[laneIndex][foe];
+        if (!laneData) return;
+        var key = laneData.champion.row + '-' + laneData.champion.index;
+        if (seen[key]) return;
+        seen[key] = 1;
+        frontlines.push({ row: laneData.champion.row, index: laneData.champion.index, strength: evaluation.strengthOf(laneData.champion) });
       });
-      return out;
+      return frontlines;
     },
     /* Everything in those lanes that is NOT the champion — the units standing
        behind the line, feeding it. Nothing could reach them before: every
@@ -284,30 +284,30 @@ function buildApi(g, side, notes) {
     /* First empty tile touching `at` that the unit could legally stand in.
        Used by cards that grow something rather than target it, so they need
        no targeting UI. */
-    emptyAdjacent: function (s2, at) {
+    emptyAdjacent: function (side2, at) {
       var found = null;
-      C.adjacentTilesFor(s2, at.row, at.index, C.boardTopo(g.fissures)).forEach(function (t) {
+      C.adjacentTilesFor(side2, at.row, at.index, C.boardTopo(battleState.fissures)).forEach(function (tile) {
         if (found) return;
-        if (g.board[s2][t.row][t.index]) return;
-        found = t;
+        if (battleState.board[side2][tile.row][tile.index]) return;
+        found = tile;
       });
       return found;
     },
     enemySupportIn: function (laneList) {
-      var ev = evaluateBoard(g.board, g.hazards, evalCtx(g));
-      var foe = otherSide(side), out = [], seen = {};
-      laneList.forEach(function (L) {
-        var d = ev.lanes[L][foe];
-        if (!d) return;
-        d.members.forEach(function (m) {
-          if (m.row === d.champion.row && m.index === d.champion.index) return;
-          var k = m.row + '-' + m.index;
-          if (seen[k]) return;
-          seen[k] = 1;
-          out.push({ row: m.row, index: m.index, strength: ev.strengthOf(m) });
+      var evaluation = evaluateBoard(battleState.board, battleState.hazards, evalCtx(battleState));
+      var foe = otherSide(side), support = [], seen = {};
+      laneList.forEach(function (laneIndex) {
+        var laneData = evaluation.lanes[laneIndex][foe];
+        if (!laneData) return;
+        laneData.members.forEach(function (member) {
+          if (member.row === laneData.champion.row && member.index === laneData.champion.index) return;
+          var key = member.row + '-' + member.index;
+          if (seen[key]) return;
+          seen[key] = 1;
+          support.push({ row: member.row, index: member.index, strength: evaluation.strengthOf(member) });
         });
       });
-      return out;
+      return support;
     }
   };
   return api;
@@ -315,95 +315,95 @@ function buildApi(g, side, notes) {
 
 /* Quieted fissures are still on the run — they come back next round — but
    for as long as they are quiet the board behaves as though they healed. */
-function activeFissures(g) {
-  var all = g.fissures || (run && run.fissures) || [];
-  var q = g && g.quieted;
-  if (!q) return all;
-  return all.filter(function (f) { return !q[C.edgeKey(f.side, f.a, f.b)]; });
+function activeFissures(battleState) {
+  var all = battleState.fissures || (run && run.fissures) || [];
+  var quieted = battleState && battleState.quieted;
+  if (!quieted) return all;
+  return all.filter(function (fissure) { return !quieted[C.edgeKey(fissure.side, fissure.a, fissure.b)]; });
 }
-function evalCtx(g) {
-  return { relics: g.relics || [], enemyMod: g.enemyMod || {},
-           chains: g.chains || { bottom: 0, top: 0 },
-           drawn: g.drawn || { extra: 0 },
-           hands: g.hands || null,
+function evalCtx(battleState) {
+  return { relics: battleState.relics || [], enemyMod: battleState.enemyMod || {},
+           chains: battleState.chains || { bottom: 0, top: 0 },
+           drawn: battleState.drawn || { extra: 0 },
+           hands: battleState.hands || null,
            // read by feedsOnCurses: what the player carried into this fight
-           playerCurses: g.playerCurses || 0,
-           curseFired: g.curseFired || [],
-           mixChain: g.mixChain || 0, spectrumColor: g.spectrumColor,
+           playerCurses: battleState.playerCurses || 0,
+           curseFired: battleState.curseFired || [],
+           mixChain: battleState.mixChain || 0, spectrumColor: battleState.spectrumColor,
            /* The board's scars travel with every evaluation, including the
               ones the AI runs against hypothetical futures. Anything Cyan has
               quieted is filtered out here, so adjacency, lanes and drain all
               stop seeing it at once without any of them knowing why. */
-           fissures: activeFissures(g) };
+           fissures: activeFissures(battleState) };
 }
 
 /* Collected before firing, because an effect may add or remove units and we
    do not want the list mutating underneath the loop. Position travels with
    each trigger so a card can act on itself \u2014 without it, "this gains 1" had
    no way to say which tile "this" was. */
-function fireFriendlyMix(g, side, notes) {
-  var trig = [];
-  eachUnit(g.board, side, function (u, row, index) {
-    var d = CARDS[u.cardId];
-    if (d && d.onFriendlyMix) trig.push({ d: d, at: { row: row, index: index } });
+function fireFriendlyMix(battleState, side, notes) {
+  var triggered = [];
+  eachUnit(battleState.board, side, function (unit, row, index) {
+    var cardDef = CARDS[unit.cardId];
+    if (cardDef && cardDef.onFriendlyMix) triggered.push({ cardDef: cardDef, at: { row: row, index: index } });
   });
-  trig.forEach(function (t) {
-    var note = t.d.onFriendlyMix(g, side, buildApi(g, side, notes), t.at);
+  triggered.forEach(function (trigger) {
+    var note = trigger.cardDef.onFriendlyMix(battleState, side, buildApi(battleState, side, notes), trigger.at);
     if (note && notes) notes.push(note);
   });
 }
 
 /* A mix, plus anything it cascades into. Volatile Fusion can chain further. */
-function doMixCascade(g, side, base, other, extra, isFree, notes) {
-  var res = applyMix(g, side, base, other, extra, isFree);
-  if (notes) notes.push((isFree ? 'Free Mix' : 'Mix') + ' \u2192 ' + colorInfo(res.color).name + ' ' + res.strength + ' (chain ' + res.chain + ')');
-  fireFriendlyMix(g, side, notes);
+function doMixCascade(battleState, side, base, other, extra, isFree, notes) {
+  var result = applyMix(battleState, side, base, other, extra, isFree);
+  if (notes) notes.push((isFree ? 'Free Mix' : 'Mix') + ' \u2192 ' + colorInfo(result.color).name + ' ' + result.strength + ' (chain ' + result.chain + ')');
+  fireFriendlyMix(battleState, side, notes);
 
-  var relics = (side === PLAYER && g.relics) ? g.relics : [];
+  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
   /* GDD §29 says "every third mix in a chain". With one Mix token a round a
      chain can never reach three on its own, so the relic could never fire.
      It now also triggers on the opening link, which is what makes chains
      reachable at all — everything downstream (Black Singularity, Magenta
      Echo, Double Rainbow) depends on a chain existing in the first place. */
-  var chainNow = (g.chains && g.chains[side]) || 0;
+  var chainNow = (battleState.chains && battleState.chains[side]) || 0;
   var triggers = (chainNow === 1 || (chainNow > 0 && chainNow % 3 === 0));
-  if (hasRelic(relics, 'volatile_fusion') && triggers && (g.cascadeDepth || 0) < 6) {
-    var opts = mixOptions(g.board, side);
-    if (opts.length) {
-      g.cascadeDepth = (g.cascadeDepth || 0) + 1;
-      var pick = bestMixOption(g, side, opts);
+  if (hasRelic(relics, 'volatile_fusion') && triggers && (battleState.cascadeDepth || 0) < 6) {
+    var options = mixOptions(battleState.board, side);
+    if (options.length) {
+      battleState.cascadeDepth = (battleState.cascadeDepth || 0) + 1;
+      var pick = bestMixOption(battleState, side, options);
       if (notes) notes.push('Volatile Fusion erupts');
-      doMixCascade(g, side, pick.base, pick.other, 0, true, notes);
-      g.cascadeDepth--;
+      doMixCascade(battleState, side, pick.base, pick.other, 0, true, notes);
+      battleState.cascadeDepth--;
     }
   }
-  return res;
+  return result;
 }
 
-function bestMixOption(g, side, opts) {
+function bestMixOption(battleState, side, options) {
   var best = null;
-  opts.forEach(function (o) {
-    var sim = simGame(g);
-    applyMix(sim, side, o.base, o.other, 0, true);
-    var ev = evaluateBoard(sim.board, sim.hazards, evalCtx(sim));
-    var v = ev.totals[side] - ev.totals[otherSide(side)];
-    if (!best || v > best.v) best = { v: v, base: o.base, other: o.other };
+  options.forEach(function (option) {
+    var sim = simGame(battleState);
+    applyMix(sim, side, option.base, option.other, 0, true);
+    var evaluation = evaluateBoard(sim.board, sim.hazards, evalCtx(sim));
+    var scoreDelta = evaluation.totals[side] - evaluation.totals[otherSide(side)];
+    if (!best || scoreDelta > best.scoreDelta) best = { scoreDelta: scoreDelta, base: option.base, other: option.other };
   });
-  return best || opts[0];
+  return best || options[0];
 }
 
-function simGame(s) {
-  return { board: C.cloneBoard(s.board), hazards: C.cloneHazards(s.hazards),
-    hands: { bottom: s.hands.bottom.slice(), top: s.hands.top.slice() },
-    decks: { bottom: s.decks.bottom.slice(), top: s.decks.top.slice() },
-    relics: (s.relics || []).slice(), enemyMod: s.enemyMod, spectrumColor: s.spectrumColor,
-    fissures: s.fissures || [],
+function simGame(sourceState) {
+  return { board: C.cloneBoard(sourceState.board), hazards: C.cloneHazards(sourceState.hazards),
+    hands: { bottom: sourceState.hands.bottom.slice(), top: sourceState.hands.top.slice() },
+    decks: { bottom: sourceState.decks.bottom.slice(), top: sourceState.decks.top.slice() },
+    relics: (sourceState.relics || []).slice(), enemyMod: sourceState.enemyMod, spectrumColor: sourceState.spectrumColor,
+    fissures: sourceState.fissures || [],
     // cloned: a simulated Cyan play must not quiet the real board
-    quieted: s.quieted ? Object.assign({}, s.quieted) : null,
-    mixChain: s.mixChain || 0,
-    chains: { bottom: (s.chains && s.chains.bottom) || 0, top: (s.chains && s.chains.top) || 0 },
-    mixesThisRound: s.mixesThisRound || 0,
-    freeMixesThisRound: s.freeMixesThisRound || 0, echoUsedThisRound: s.echoUsedThisRound, sim: true };
+    quieted: sourceState.quieted ? Object.assign({}, sourceState.quieted) : null,
+    mixChain: sourceState.mixChain || 0,
+    chains: { bottom: (sourceState.chains && sourceState.chains.bottom) || 0, top: (sourceState.chains && sourceState.chains.top) || 0 },
+    mixesThisRound: sourceState.mixesThisRound || 0,
+    freeMixesThisRound: sourceState.freeMixesThisRound || 0, echoUsedThisRound: sourceState.echoUsedThisRound, sim: true };
 }
 
 /* ===================================================================
@@ -3409,7 +3409,7 @@ const CV_RUN = {
   easeInHand: easeInHand, EASE_IN_BATTLES: EASE_IN_BATTLES,
   show: show, advance: advance, enterNode: enterNode, beginBattle: beginBattle,
   gainCurse: gainCurse, applyGrey: applyGrey, carveVolatileBranch: carveVolatileBranch,
-  rollReward: rollReward, rollShop: rollShop, rollEvent: rollEvent, EVENTS: EVENTS,
+  rollReward: rollReward, rollShop: rollShop, rollEvent: rollEvent,
   rollLab: rollLab, applyVolatile: applyVolatile, volatilePress: volatilePress,
   curseRisk: curseRisk, liftStrength: liftStrength, recolourCard: recolourCard,
   LAB_SCENARIOS: LAB_SCENARIOS, deckUnits: deckUnits,
