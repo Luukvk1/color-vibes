@@ -424,23 +424,23 @@ var REWIND = {
    figure the growth curve above is tuned against. Taking back a pass costs
    roughly half that; unwinding a mix that killed something and swung the score
    costs two or three times it. Measured in play: mean 1.05, range 0.5 to 2.6. */
-function rewindImpact(snap, now, evBefore, evAfter) {
-  var m = 0.5;
+function rewindImpact(snap, now, evaluationBefore, evaluationAfter) {
+  var impact = 0.5;
   var cardsPlayed = (snap.handCount.bottom - now.hands[PLAYER].length) +
                     (snap.handCount.top - now.hands[ENEMY].length);
-  m += 0.2 * Math.max(0, cardsPlayed);
-  if (snap.mixesThisRound !== (now.mixesThisRound || 0)) m += 0.35;
-  var unitsBefore = evBefore.units.bottom + evBefore.units.top;
-  var unitsAfter = evAfter.units.bottom + evAfter.units.top;
-  if (unitsAfter < unitsBefore) m += 0.35 * (unitsBefore - unitsAfter);
-  var swingBefore = evBefore.totals.bottom - evBefore.totals.top;
-  var swingAfter = evAfter.totals.bottom - evAfter.totals.top;
-  m += Math.min(0.9, Math.abs(swingAfter - swingBefore) / 16);
-  return Math.min(REWIND.MAX_IMPACT, m);
+  impact += 0.2 * Math.max(0, cardsPlayed);
+  if (snap.mixesThisRound !== (now.mixesThisRound || 0)) impact += 0.35;
+  var unitsBefore = evaluationBefore.units.bottom + evaluationBefore.units.top;
+  var unitsAfter = evaluationAfter.units.bottom + evaluationAfter.units.top;
+  if (unitsAfter < unitsBefore) impact += 0.35 * (unitsBefore - unitsAfter);
+  var swingBefore = evaluationBefore.totals.bottom - evaluationBefore.totals.top;
+  var swingAfter = evaluationAfter.totals.bottom - evaluationAfter.totals.top;
+  impact += Math.min(0.9, Math.abs(swingAfter - swingBefore) / 16);
+  return Math.min(REWIND.MAX_IMPACT, impact);
 }
 
-function rewindChunk(r, impact) {
-  return REWIND.BASE_CHUNK * Math.pow(REWIND.GROWTH, r.rewindsUsed || 0) * impact;
+function rewindChunk(runState, impact) {
+  return REWIND.BASE_CHUNK * Math.pow(REWIND.GROWTH, runState.rewindsUsed || 0) * impact;
 }
 
 /* Pick a link to cut. Prefer somewhere the player is actually standing — a
@@ -450,8 +450,8 @@ function rewindChunk(r, impact) {
    rather than discovered three rounds later. */
 function preferLive(links, side, board) {
   if (!board) return links;
-  var live = links.filter(function (l) {
-    return !!C.unitAt(board, side, l.a.row, l.a.index) || !!C.unitAt(board, side, l.b.row, l.b.index);
+  var live = links.filter(function (link) {
+    return !!C.unitAt(board, side, link.a.row, link.a.index) || !!C.unitAt(board, side, link.b.row, link.b.index);
   });
   return live.length ? live : links;
 }
@@ -466,28 +466,28 @@ function preferLive(links, side, board) {
    becomes free — the board simply stops having new ways to say no and starts
    saying it louder. */
 function spawnFissure(side, board) {
-  var sev = C.severableLinks(side, run.fissures);
-  var bri = C.bridgeableLinks(side, run.fissures);
-  var room = sev.length + bri.length;
-  var deepenable = run.fissures.filter(function (f) {
-    return f.side === side && C.fissurePower(f) < C.FISSURE_MAX_POWER;
+  var severableList = C.severableLinks(side, run.fissures);
+  var bridgeableList = C.bridgeableLinks(side, run.fissures);
+  var room = severableList.length + bridgeableList.length;
+  var deepenable = run.fissures.filter(function (fissure) {
+    return fissure.side === side && C.fissurePower(fissure) < C.FISSURE_MAX_POWER;
   });
 
   // near-saturated boards start deepening instead of breaking
   var deepenChance = room === 0 ? 1 : (room <= 3 ? 0.55 : 0.12);
   if (deepenable.length && rnd() < deepenChance) {
-    var grow = preferLive(deepenable, side, board);
-    var g = grow[Math.floor(rnd() * grow.length)];
-    g.power = C.fissurePower(g) + 1;
-    return { grew: g };
+    var growCandidates = preferLive(deepenable, side, board);
+    var chosen = growCandidates[Math.floor(rnd() * growCandidates.length)];
+    chosen.power = C.fissurePower(chosen) + 1;
+    return { grew: chosen };
   }
   if (!room) return null;
 
-  var wantBridge = bri.length && (!sev.length || rnd() < 0.34);
-  var pool = preferLive(wantBridge ? bri : sev, side, board);
-  var f = pool[Math.floor(rnd() * pool.length)];
-  run.fissures.push(f);
-  return { born: f };
+  var wantBridge = bridgeableList.length && (!severableList.length || rnd() < 0.34);
+  var pool = preferLive(wantBridge ? bridgeableList : severableList, side, board);
+  var newFissure = pool[Math.floor(rnd() * pool.length)];
+  run.fissures.push(newFissure);
+  return { born: newFissure };
 }
 
 /* Add to the meter and, if it has overflowed, damage the board once.
@@ -503,70 +503,70 @@ function spawnFissure(side, board) {
 function addInstability(amount, side, board) {
   run.instability = (run.instability || 0) + amount;
   if (run.instability < REWIND.THRESHOLD) return [];
-  var e = spawnFissure(side, board);
-  if (!e) {                                    // nothing left to give
+  var event = spawnFissure(side, board);
+  if (!event) {                                    // nothing left to give
     run.instability = REWIND.THRESHOLD - 1;
     return [];
   }
   run.instability = Math.min(run.instability - REWIND.THRESHOLD, REWIND.THRESHOLD - 1);
-  return [e];
+  return [event];
 }
 
 /* ===================================================================
    TARGETING AND CARD RESOLUTION
    =================================================================== */
-function legalTargets(g, side, spec, picks, selfTile) {
-  var out = [], sev = C.boardTopo(g.fissures || (run && run.fissures));
-  function adj(t) { return adjacentTilesFor(side, t.row, t.index, sev); }
-  if (spec.kind === 'friendlyUnit') eachUnit(g.board, side, function (u, row, index) { out.push({ row: row, index: index }); });
+function legalTargets(battleState, side, spec, picks, selfTile) {
+  var legal = [], topology = C.boardTopo(battleState.fissures || (run && run.fissures));
+  function adjacentOf(tile) { return adjacentTilesFor(side, tile.row, tile.index, topology); }
+  if (spec.kind === 'friendlyUnit') eachUnit(battleState.board, side, function (unit, row, index) { legal.push({ row: row, index: index }); });
   else if (spec.kind === 'friendlyAdjacentToSelf') {
-    if (selfTile) adj(selfTile).forEach(function (t) { if (unitAt(g.board, side, t.row, t.index)) out.push(t); });
+    if (selfTile) adjacentOf(selfTile).forEach(function (tile) { if (unitAt(battleState.board, side, tile.row, tile.index)) legal.push(tile); });
   } else if (spec.kind === 'friendlyAdjacentTo') {
     var ref = picks[spec.ref];
-    if (ref) adj(ref).forEach(function (t) { if (unitAt(g.board, side, t.row, t.index)) out.push(t); });
+    if (ref) adjacentOf(ref).forEach(function (tile) { if (unitAt(battleState.board, side, tile.row, tile.index)) legal.push(tile); });
   } else if (spec.kind === 'emptyAdjacentTo') {
-    var r = picks[spec.ref];
-    if (r) {
-      var mv = unitAt(g.board, side, r.row, r.index), str = mv ? mv.strength + (mv.temp || 0) : 0;
-      adj(r).forEach(function (t) {
-        if (!unitAt(g.board, side, t.row, t.index) && str >= ROW_INFO[t.row].min) out.push(t);
+    var refTile = picks[spec.ref];
+    if (refTile) {
+      var movingUnit = unitAt(battleState.board, side, refTile.row, refTile.index), movingStrength = movingUnit ? movingUnit.strength + (movingUnit.temp || 0) : 0;
+      adjacentOf(refTile).forEach(function (tile) {
+        if (!unitAt(battleState.board, side, tile.row, tile.index) && movingStrength >= ROW_INFO[tile.row].min) legal.push(tile);
       });
     }
   } else if (spec.kind === 'hazard') {
-    ['bottom', 'top'].forEach(function (s) { ROWS.forEach(function (r) { if (g.hazards[s][r]) out.push({ side: s, row: r, hazard: g.hazards[s][r] }); }); });
-  } else if (spec.kind === 'color') COLOR_KEYS.forEach(function (c) { out.push({ color: c }); });
-  return out;
+    ['bottom', 'top'].forEach(function (hazardSide) { ROWS.forEach(function (row) { if (battleState.hazards[hazardSide][row]) legal.push({ side: hazardSide, row: row, hazard: battleState.hazards[hazardSide][row] }); }); });
+  } else if (spec.kind === 'color') COLOR_KEYS.forEach(function (colorKey) { legal.push({ color: colorKey }); });
+  return legal;
 }
 
-function autoTargets(g, side, card, selfTile) {
-  var d = CARDS[card.id];
-  if (!d.targets) return [];
+function autoTargets(battleState, side, card, selfTile) {
+  var cardDef = CARDS[card.id];
+  if (!cardDef.targets) return [];
   var picks = [];
-  for (var i = 0; i < d.targets.length; i++) {
-    var spec = d.targets[i], opts = legalTargets(g, side, spec, picks, selfTile);
+  for (var specIndex = 0; specIndex < cardDef.targets.length; specIndex++) {
+    var spec = cardDef.targets[specIndex], options = legalTargets(battleState, side, spec, picks, selfTile);
     if (/^friendly/.test(spec.kind)) {
-      opts = opts.slice().sort(function (a, b) {
-        var ua = unitAt(g.board, side, a.row, a.index), ub = unitAt(g.board, side, b.row, b.index);
-        return (ub.strength + (ub.temp || 0)) - (ua.strength + (ua.temp || 0));
+      options = options.slice().sort(function (tileA, tileB) {
+        var unitA = unitAt(battleState.board, side, tileA.row, tileA.index), unitB = unitAt(battleState.board, side, tileB.row, tileB.index);
+        return (unitB.strength + (unitB.temp || 0)) - (unitA.strength + (unitA.temp || 0));
       });
     }
-    if (!opts.length) return picks;
-    picks.push(opts[0]);
+    if (!options.length) return picks;
+    picks.push(options[0]);
   }
   return picks;
 }
 
-function resolveCard(g, side, card, tile, targets) {
-  var d = CARDS[card.id], notes = [];
-  if (d.type === 'hazard') { g.hazards[side][tile.row] = d.hazardKind; notes.push('hazard on ' + ROW_INFO[tile.row].label); return notes; }
-  if (d.type === 'unit') {
-    var str = cardStrength(card);
-    var relics = (side === PLAYER && g.relics) ? g.relics : [];
-    if (hasRelic(relics, 'heavy_brush') && ROW_INFO[tile.row].depth === 3) str += 1;
-    g.board[side][tile.row][tile.index] = { cardId: card.id, color: d.color, strength: str, temp: 0, up: card.up, cracked: 0, deckIndex: card.deckIndex };
+function resolveCard(battleState, side, card, tile, targets) {
+  var cardDef = CARDS[card.id], notes = [];
+  if (cardDef.type === 'hazard') { battleState.hazards[side][tile.row] = cardDef.hazardKind; notes.push('hazard on ' + ROW_INFO[tile.row].label); return notes; }
+  if (cardDef.type === 'unit') {
+    var strength = cardStrength(card);
+    var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
+    if (hasRelic(relics, 'heavy_brush') && ROW_INFO[tile.row].depth === 3) strength += 1;
+    battleState.board[side][tile.row][tile.index] = { cardId: card.id, color: cardDef.color, strength: strength, temp: 0, up: card.up, cracked: 0, deckIndex: card.deckIndex };
   }
-  if (d.onPlay) {
-    var note = d.onPlay(g, side, tile || { row: null, index: null }, targets || [], buildApi(g, side, notes));
+  if (cardDef.onPlay) {
+    var note = cardDef.onPlay(battleState, side, tile || { row: null, index: null }, targets || [], buildApi(battleState, side, notes));
     if (note) notes.push(note);
   }
   return notes;
