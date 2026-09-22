@@ -31,4 +31,4 @@ export var RELICS = {
   field_commission: { name: 'Field Commission', rarity: 'Rare', cost: 140, text: 'Your units may stand in any row, whatever their strength.' }
 };
 export var RELIC_KEYS = Object.keys(RELICS);
-export function hasRelic(relics, key) { return relics.indexOf(key) !== -1; }
+export function hasRelic(relics, relicKey) { return relics.indexOf(relicKey) !== -1; }

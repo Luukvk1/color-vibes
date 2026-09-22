@@ -142,9 +142,9 @@ export function enemyDeckSize(enemy, power) {
    rots at the rate you rot it. */
 export function enemyCurseCount(playerCurses, corruption, rnd) {
   var pressure = Math.min(0.42, (playerCurses || 0) * 0.07 + (corruption || 0) * 0.02);
-  var n = 0;
-  for (var i = 0; i < 3; i++) if (rnd() < pressure) n++;
-  return n;
+  var curseCount = 0;
+  for (var rollIndex = 0; rollIndex < 3; rollIndex++) if (rnd() < pressure) curseCount++;
+  return curseCount;
 }
 
 /* Cards that turn curses to advantage. A normal foe almost never has them;
@@ -165,10 +165,10 @@ export function buildEnemyDeck(enemy, power, rnd, corruption, playerCurses, actT
   var traits = actTraits || {};
   var depth = power;
   var allowUncommon = depth >= 3, allowRare = depth >= 8;
-  function allowed(k) {
-    var r = CARDS[k].rarity;
-    if (r === 'Rare') return allowRare;
-    if (r === 'Uncommon') return allowUncommon;
+  function allowed(cardId) {
+    var rarity = CARDS[cardId].rarity;
+    if (rarity === 'Rare') return allowRare;
+    if (rarity === 'Uncommon') return allowUncommon;
     return true;
   }
   /* Situational cards are kept out of the generic roll and only ever added
@@ -177,41 +177,41 @@ export function buildEnemyDeck(enemy, power, rnd, corruption, playerCurses, actT
      the same cards the tech roll was supposed to be gating. */
   var SITUATIONAL = ENEMY_CURSE_TECH.concat(['black_riftwalker', 'black_chorus',
                                              'cyan_mender', 'cyan_keystone']);
-  var pool = DRAWABLE.filter(function (k) {
-    if (!allowed(k)) return false;
-    if (SITUATIONAL.indexOf(k) !== -1) return false;
-    var d = CARDS[k];
-    if (d.type !== 'unit') return true;
-    return enemy.colors.indexOf(d.color) !== -1;
+  var pool = DRAWABLE.filter(function (cardId) {
+    if (!allowed(cardId)) return false;
+    if (SITUATIONAL.indexOf(cardId) !== -1) return false;
+    var cardDef = CARDS[cardId];
+    if (cardDef.type !== 'unit') return true;
+    return enemy.colors.indexOf(cardDef.color) !== -1;
   });
-  var units = pool.filter(function (k) { return CARDS[k].type === 'unit'; });
-  var others = pool.filter(function (k) { return CARDS[k].type !== 'unit'; });
-  if (!units.length) units = DRAWABLE.filter(function (k) { return CARDS[k].type === 'unit' && CARDS[k].rarity === 'Common'; });
+  var units = pool.filter(function (cardId) { return CARDS[cardId].type === 'unit'; });
+  var others = pool.filter(function (cardId) { return CARDS[cardId].type !== 'unit'; });
+  if (!units.length) units = DRAWABLE.filter(function (cardId) { return CARDS[cardId].type === 'unit' && CARDS[cardId].rarity === 'Common'; });
   // Rarity is weighted even where it is allowed, so rares stay a spike not a staple.
-  function pickFrom(list) {
+  function pickFrom(cardIds) {
     var weights = { Common: 6, Uncommon: allowRare ? 3 : 4, Rare: 1 };
     for (var tries = 0; tries < 20; tries++) {
-      var k = list[Math.floor(rnd() * list.length)];
-      if (rnd() * 6 < weights[CARDS[k].rarity]) return k;
+      var cardId = cardIds[Math.floor(rnd() * cardIds.length)];
+      if (rnd() * 6 < weights[CARDS[cardId].rarity]) return cardId;
     }
-    return list[Math.floor(rnd() * list.length)];
+    return cardIds[Math.floor(rnd() * cardIds.length)];
   }
-  var deck = [], i;
+  var deck = [], slotIndex;
   var upgradeChance = Math.min(0.55, Math.max(0, depth - 2) * 0.055);
   var size = enemyDeckSize(enemy, power);
   /* Once the world starts breaking, it breaks for everyone: the rot turns up in
      enemy decks too, and it lands on them exactly as it lands on you. */
   /* The Rotting Choir seeds every deck with rot regardless of how clean the
      player is: it is the road's whole identity, not a reaction to them. */
-  var rot = traits.alwaysCurses
+  var curseCount = traits.alwaysCurses
     ? 2 + (enemy.kind === 'boss' ? 2 : enemy.kind === 'elite' ? 1 : 0)
     : enemyCurseCount(playerCurses, corruption, rnd);
-  for (i = 0; i < rot; i++) deck.push(makeCard(CURSE_KEYS[Math.floor(rnd() * CURSE_KEYS.length)], false));
+  for (slotIndex = 0; slotIndex < curseCount; slotIndex++) deck.push(makeCard(CURSE_KEYS[Math.floor(rnd() * CURSE_KEYS.length)], false));
   // an elite or boss that expects rot brings the tools to profit from it
   var techChance = traits.alwaysCurses ? 1
-    : curseTechChance(enemy, power, rot + (playerCurses || 0));
-  var tech = ENEMY_CURSE_TECH.filter(function (k) {
-    return CARDS[k] && enemy.colors.indexOf(CARDS[k].color) !== -1;
+    : curseTechChance(enemy, power, curseCount + (playerCurses || 0));
+  var tech = ENEMY_CURSE_TECH.filter(function (cardId) {
+    return CARDS[cardId] && enemy.colors.indexOf(CARDS[cardId].color) !== -1;
   });
   if (tech.length && rnd() < techChance) {
     deck.push(makeCard(tech[Math.floor(rnd() * tech.length)], false));
@@ -219,9 +219,9 @@ export function buildEnemyDeck(enemy, power, rnd, corruption, playerCurses, actT
       deck.push(makeCard(tech[Math.floor(rnd() * tech.length)], false));
     }
   }
-  for (i = deck.length; i < size; i++) {
-    var list = (rnd() < 0.8 || !others.length) ? units : others;
-    deck.push(makeCard(pickFrom(list), rnd() < upgradeChance));
+  for (slotIndex = deck.length; slotIndex < size; slotIndex++) {
+    var pickPool = (rnd() < 0.8 || !others.length) ? units : others;
+    deck.push(makeCard(pickFrom(pickPool), rnd() < upgradeChance));
   }
   return deck;
 }

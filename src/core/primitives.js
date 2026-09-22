@@ -15,29 +15,33 @@ export function emptyBoard() {
 export function emptyHazards() {
   return { bottom: { row1: null, row2: null, row3: null }, top: { row1: null, row2: null, row3: null } };
 }
-export function cloneBoard(b) {
-  var o = { bottom: {}, top: {} };
-  ['bottom', 'top'].forEach(function (s) {
-    ROWS.forEach(function (r) {
-      o[s][r] = b[s][r].map(function (u) {
-        return u ? { cardId: u.cardId, color: u.color, strength: u.strength, temp: u.temp || 0, up: u.up || false, cracked: u.cracked || 0, deckIndex: u.deckIndex } : null;
+export function cloneBoard(board) {
+  var copy = { bottom: {}, top: {} };
+  ['bottom', 'top'].forEach(function (side) {
+    ROWS.forEach(function (row) {
+      copy[side][row] = board[side][row].map(function (unit) {
+        return unit ? { cardId: unit.cardId, color: unit.color, strength: unit.strength, temp: unit.temp || 0,
+          up: unit.up || false, cracked: unit.cracked || 0, deckIndex: unit.deckIndex } : null;
       });
     });
   });
-  return o;
+  return copy;
 }
-export function cloneHazards(h) {
-  var o = emptyHazards();
-  ['bottom', 'top'].forEach(function (s) { ROWS.forEach(function (r) { o[s][r] = h[s][r]; }); });
-  return o;
+export function cloneHazards(hazards) {
+  var copy = emptyHazards();
+  ['bottom', 'top'].forEach(function (side) { ROWS.forEach(function (row) { copy[side][row] = hazards[side][row]; }); });
+  return copy;
 }
-export function otherSide(s) { return s === 'bottom' ? 'top' : 'bottom'; }
-export function unitAt(b, s, r, i) { return b[s][r][i]; }
-export function sideName(s) { return s === PLAYER ? 'You' : 'Enemy'; }
-export function slotName(r, i) { return ROW_INFO[r].label + ' · Slot ' + (i + 1); }
-export function eachUnit(board, side, fn) {
+export function otherSide(side) { return side === 'bottom' ? 'top' : 'bottom'; }
+export function unitAt(board, side, row, index) { return board[side][row][index]; }
+export function sideName(side) { return side === PLAYER ? 'You' : 'Enemy'; }
+export function slotName(row, index) { return ROW_INFO[row].label + ' · Slot ' + (index + 1); }
+export function eachUnit(board, side, callback) {
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) { var u = board[side][row][i]; if (u) fn(u, row, i); }
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      var unit = board[side][row][index];
+      if (unit) callback(unit, row, index);
+    }
   });
 }
 /* Row minimums are the single biggest structural constraint in the game: Row 2
@@ -51,46 +55,46 @@ export function eachUnit(board, side, fn) {
    amount of extra cheap cards would have helped. */
 export function canPlace(board, side, row, index, strength, opts) {
   if (unitAt(board, side, row, index)) return { ok: false, reason: 'That tile is already occupied.' };
-  var free = opts && (opts.anyRow || (opts.freeRows && opts.freeRows[row]));
-  if (!free && strength < ROW_INFO[row].min) {
+  var rowIsFree = opts && (opts.anyRow || (opts.freeRows && opts.freeRows[row]));
+  if (!rowIsFree && strength < ROW_INFO[row].min) {
     return { ok: false, reason: ROW_INFO[row].label + ' needs strength ' + ROW_INFO[row].min + ' or higher.' };
   }
   return { ok: true };
 }
 export function legalTiles(board, side, strength, opts) {
-  var out = [];
+  var tiles = [];
   ROWS.forEach(function (row) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      if (canPlace(board, side, row, i, strength, opts).ok) out.push({ row: row, index: i });
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      if (canPlace(board, side, row, index, strength, opts).ok) tiles.push({ row: row, index: index });
     }
   });
-  return out;
+  return tiles;
 }
 /* Whether a given card, in a given run, ignores row minimums. */
 export function placeOpts(cardId, relics, board, side) {
-  var d = CARDS[cardId];
-  var free = !!(d && d.anyRow) || hasRelic(relics || [], 'field_commission');
+  var cardDef = CARDS[cardId];
+  var anyRow = !!(cardDef && cardDef.anyRow) || hasRelic(relics || [], 'field_commission');
   var freeRows = null;
   /* A Footing on the board opens its own row to anything, so the enabler can
      come from the board as well as from the card or the relic. */
-  if (!free && board && side) {
+  if (!anyRow && board && side) {
     ROWS.forEach(function (row) {
-      for (var i = 0; i < ROW_INFO[row].count; i++) {
-        var u = board[side][row][i];
-        if (u && CARDS[u.cardId] && CARDS[u.cardId].rowFreesPlacement) {
+      for (var index = 0; index < ROW_INFO[row].count; index++) {
+        var unit = board[side][row][index];
+        if (unit && CARDS[unit.cardId] && CARDS[unit.cardId].rowFreesPlacement) {
           (freeRows = freeRows || {})[row] = 1;
         }
       }
     });
   }
-  return { anyRow: free, freeRows: freeRows };
+  return { anyRow: anyRow, freeRows: freeRows };
 }
-export function splitStrength(strength, n) {
-  if (n <= 0) return [];
-  var base = Math.floor(strength / n), rem = strength - base * n, out = [];
-  for (var i = 0; i < n; i++) out.push(base + (i < rem ? 1 : 0));
-  return out;
+export function splitStrength(strength, shareCount) {
+  if (shareCount <= 0) return [];
+  var base = Math.floor(strength / shareCount), remainder = strength - base * shareCount, shares = [];
+  for (var index = 0; index < shareCount; index++) shares.push(base + (index < remainder ? 1 : 0));
+  return shares;
 }
-export function hazardsOnRow(h, row) { return ['bottom', 'top'].map(function (s) { return h[s][row]; }).filter(Boolean); }
-export function rowHasHazard(h, row, kind) { return hazardsOnRow(h, row).indexOf(kind) !== -1; }
-export function freeHazardRows(h, side) { return ROWS.filter(function (r) { return !h[side][r]; }); }
+export function hazardsOnRow(hazards, row) { return ['bottom', 'top'].map(function (side) { return hazards[side][row]; }).filter(Boolean); }
+export function rowHasHazard(hazards, row, kind) { return hazardsOnRow(hazards, row).indexOf(kind) !== -1; }
+export function freeHazardRows(hazards, side) { return ROWS.filter(function (row) { return !hazards[side][row]; }); }
