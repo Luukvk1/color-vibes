@@ -600,9 +600,9 @@ function newBattle(node) {
   // The very first battle of a run always opens with the player, so the tutorial
   // lands on their own move rather than after the enemy has already acted.
   var starter = (run.battlesFought === 0) ? PLAYER : (rnd() < 0.5 ? PLAYER : ENEMY);
-  var s = {
+  var battleState = {
     board: C.emptyBoard(), hazards: C.emptyHazards(),
-    decks: { bottom: run.deck.map(function (c, i) { return makeCard(c.id, c.up, i); }), top: C.buildEnemyDeck(enemy, powerAt(run, node.depth), rnd, run.corruption || 0, curseCount(run.deck), ACTS[run.act]) },
+    decks: { bottom: run.deck.map(function (entry, index) { return makeCard(entry.id, entry.up, index); }), top: C.buildEnemyDeck(enemy, powerAt(run, node.depth), rnd, run.corruption || 0, curseCount(run.deck), ACTS[run.act]) },
     hands: { bottom: [], top: [] },
     relics: run.relics.slice(),
     enemyKey: enemyKey, enemy: enemy,
@@ -629,8 +629,8 @@ function newBattle(node) {
     mode: 'place', selectedCard: null, mixBase: null, pending: null,
     inspected: null, lastPlaced: null, bestChain: 0
   };
-  shuffle(s.decks.bottom);
-  if (enemy.mod && enemy.mod.rotatingColor) s.spectrumColor = COLOR_KEYS[Math.floor(rnd() * COLOR_KEYS.length)];
+  shuffle(battleState.decks.bottom);
+  if (enemy.mod && enemy.mod.rotatingColor) battleState.spectrumColor = COLOR_KEYS[Math.floor(rnd() * COLOR_KEYS.length)];
   /* Meeting something is what puts it in the codex \u2014 the enemy you are about
      to fight, and every card you are carrying into the fight. */
   discoverFoe(enemyKey);
@@ -640,19 +640,25 @@ function newBattle(node) {
   noteActOmens();
   // a marker left over from the last fight is not about this one
   if (window.CV_BATTLE && window.CV_BATTLE.showPassPuck) window.CV_BATTLE.showPassPuck(false);
-  run.deck.forEach(function (e) { discoverCard(e.id); });
-  drawInto(s, PLAYER, C.OPENING_HAND + (hasRelic(run.relics, 'open_ledger') ? 2 : 0), true);
-  drawInto(s, ENEMY, C.OPENING_HAND - easeInHand(run.battlesFought));
-  return s;
+  run.deck.forEach(function (entry) { discoverCard(entry.id); });
+  drawInto(battleState, PLAYER, C.OPENING_HAND + (hasRelic(run.relics, 'open_ledger') ? 2 : 0), true);
+  drawInto(battleState, ENEMY, C.OPENING_HAND - easeInHand(run.battlesFought));
+  return battleState;
 }
-function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function shuffle(list) {
+  for (var index = list.length - 1; index > 0; index--) {
+    var swapIndex = Math.floor(rnd() * (index + 1));
+    var temp = list[index]; list[index] = list[swapIndex]; list[swapIndex] = temp;
+  }
+  return list;
+}
 
 function addLog(msg) {
   log.unshift('R' + (state ? state.round : 0) + ' · ' + msg);
   if (log.length > 90) log.pop();
-  if (els.logList) els.logList.innerHTML = log.map(function (m) { return '<li>' + m + '</li>'; }).join('');
+  if (els.logList) els.logList.innerHTML = log.map(function (entry) { return '<li>' + entry + '</li>'; }).join('');
 }
-function tileKey(s, r, i) { return s + '-' + r + '-' + i; }
+function tileKey(side, row, index) { return side + '-' + row + '-' + index; }
 
 /* ===================================================================
    RUN / MAP  (GDD §25, §38)
@@ -754,17 +760,17 @@ var ACT_PLANNED = {};
 
 /* An act may name one elite or several; a map picks per node. */
 function eliteFor(act, rnd) {
-  var e = act.elite;
-  if (!Array.isArray(e)) return e;
-  return e[Math.floor(rnd() * e.length)];
+  var elite = act.elite;
+  if (!Array.isArray(elite)) return elite;
+  return elite[Math.floor(rnd() * elite.length)];
 }
 function elitesOf(act) { return Array.isArray(act.elite) ? act.elite : [act.elite]; }
 /* ACT_KEYS is the seven roads of the wheel. Secret acts are deliberately
    excluded: every gate, fork, glossary count and full-clear check reads this
    list, so leaving White out of it means none of them need to know it
    exists. */
-var ACT_KEYS = Object.keys(ACTS).filter(function (k) { return !ACTS[k].secret; });
-var SECRET_ACT_KEYS = Object.keys(ACTS).filter(function (k) { return ACTS[k].secret; });
+var ACT_KEYS = Object.keys(ACTS).filter(function (key) { return !ACTS[key].secret; });
+var SECRET_ACT_KEYS = Object.keys(ACTS).filter(function (key) { return ACTS[key].secret; });
 var ACT_LENGTH = 13;          // nodes per act; every act is the same length
 
 /* Which acts you could walk into next: built, unlocked by your deck, and not
@@ -772,24 +778,24 @@ var ACT_LENGTH = 13;          // nodes per act; every act is the same length
    cleared act is a road again rather than a dead end. The colour gate still
    applies either way; endless removes the "already visited" exclusion, not
    the requirement that earned the visit in the first place. */
-function eligibleActs(r) {
-  return ACT_KEYS.filter(function (k) {
-    if (!r.endless && r.actsCleared.indexOf(k) !== -1) return false;
-    return C.actUnlocked(ACTS[k].color, r.deck);
+function eligibleActs(runState) {
+  return ACT_KEYS.filter(function (key) {
+    if (!runState.endless && runState.actsCleared.indexOf(key) !== -1) return false;
+    return C.actUnlocked(ACTS[key].color, runState.deck);
   });
 }
 /* Every act has been beaten at least once — the condition for the run being
    truly finished, as opposed to merely stuck because some colours were never
    made. Checked against the distinct set, since actsCleared accumulates a
    duplicate entry on every loop once a run goes endless. */
-function allActsConquered(r) {
-  return ACT_KEYS.every(function (k) { return r.actsCleared.indexOf(k) !== -1; });
+function allActsConquered(runState) {
+  return ACT_KEYS.every(function (key) { return runState.actsCleared.indexOf(key) !== -1; });
 }
 /* A run-wide difficulty level. Cleared acts carry their full length forward,
    so an act-two opener is harder than an act-one finale rather than resetting
    the curve every time the road changes colour. */
-function powerAt(r, depth) {
-  return (r.actsCleared ? r.actsCleared.length : 0) * ACT_LENGTH + depth;
+function powerAt(runState, depth) {
+  return (runState.actsCleared ? runState.actsCleared.length : 0) * ACT_LENGTH + depth;
 }
 
 /* Map generation walks paths down a fixed three-column grid, one column step
@@ -843,44 +849,44 @@ function buildMap(actKey, isFirstAct) {
     : { 0: 1, 12: 1 };
 
   var visited = {}, edgeSeen = {}, edgeList = [];
-  for (var p = 0; p < MAP_PATHS; p++) {
-    var c = FORCED[0];
-    visited['0:' + c] = true;
-    for (var r = 0; r < depth - 1; r++) {
-      var nc;
-      if (FORCED[r + 1] !== undefined) nc = FORCED[r + 1];
+  for (var pathIndex = 0; pathIndex < MAP_PATHS; pathIndex++) {
+    var pathCol = FORCED[0];
+    visited['0:' + pathCol] = true;
+    for (var pathRow = 0; pathRow < depth - 1; pathRow++) {
+      var nextCol;
+      if (FORCED[pathRow + 1] !== undefined) nextCol = FORCED[pathRow + 1];
       else {
-        var cand = [c - 1, c, c + 1].filter(function (x) { return x >= 0 && x < MAP_COLS; });
-        cand = cand.filter(function (x) {
-          return x === c || !edgeSeen[r + ':' + x + '>' + c];   // no crossing
+        var candidates = [pathCol - 1, pathCol, pathCol + 1].filter(function (candidateCol) { return candidateCol >= 0 && candidateCol < MAP_COLS; });
+        candidates = candidates.filter(function (candidateCol) {
+          return candidateCol === pathCol || !edgeSeen[pathRow + ':' + candidateCol + '>' + pathCol];   // no crossing
         });
-        nc = cand[Math.floor(rnd() * cand.length)];
+        nextCol = candidates[Math.floor(rnd() * candidates.length)];
       }
-      var key = r + ':' + c + '>' + nc;
-      if (!edgeSeen[key]) { edgeSeen[key] = true; edgeList.push({ r: r, from: c, to: nc }); }
-      visited[(r + 1) + ':' + nc] = true;
-      c = nc;
+      var key = pathRow + ':' + pathCol + '>' + nextCol;
+      if (!edgeSeen[key]) { edgeSeen[key] = true; edgeList.push({ row: pathRow, from: pathCol, to: nextCol }); }
+      visited[(pathRow + 1) + ':' + nextCol] = true;
+      pathCol = nextCol;
     }
   }
 
   var rows = [], cols = [];
-  for (var d = 0; d < depth; d++) {
+  for (var rowIndex = 0; rowIndex < depth; rowIndex++) {
     var present = [];
-    for (var col = 0; col < MAP_COLS; col++) if (visited[d + ':' + col]) present.push(col);
+    for (var col = 0; col < MAP_COLS; col++) if (visited[rowIndex + ':' + col]) present.push(col);
     cols.push(present);
     rows.push(present.map(function (colIndex) {
-      var type = PLAN[d][Math.floor(rnd() * PLAN[d].length)];
-      var node = { depth: d, col: colIndex, type: type, next: [], done: false };
+      var type = PLAN[rowIndex][Math.floor(rnd() * PLAN[rowIndex].length)];
+      var node = { depth: rowIndex, col: colIndex, type: type, next: [], done: false };
       if (type === 'battle') node.enemy = act.normals[Math.floor(rnd() * act.normals.length)];
       if (type === 'elite') node.enemy = eliteFor(act, rnd);
       if (type === 'boss') node.enemy = act.boss;
       return node;
     }));
   }
-  edgeList.forEach(function (e) {
-    var fromIdx = cols[e.r].indexOf(e.from), toIdx = cols[e.r + 1].indexOf(e.to);
+  edgeList.forEach(function (edge) {
+    var fromIdx = cols[edge.row].indexOf(edge.from), toIdx = cols[edge.row + 1].indexOf(edge.to);
     if (fromIdx === -1 || toIdx === -1) return;
-    if (rows[e.r][fromIdx].next.indexOf(toIdx) === -1) rows[e.r][fromIdx].next.push(toIdx);
+    if (rows[edge.row][fromIdx].next.indexOf(toIdx) === -1) rows[edge.row][fromIdx].next.push(toIdx);
   });
   carveVolatileBranch(rows, act);
   ensureEliteIsSkippable(rows, act, rnd);
