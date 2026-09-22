@@ -31,8 +31,8 @@ export function createSelfTest(ctx) {
     check('Board has 18 tiles', GEO.length === 18);
     check('Row 1/2/3 serve 1/2/3 lanes',
       lanesOf('row1', 2).length === 1 && lanesOf('row2', 1).length === 2 && lanesOf('row3', 0).length === 3);
-    check('Colours are balanced three-and-three', COLOR_KEYS.every(function (k) {
-      return C.EFFECTIVE[k].length === 3 && COLOR_KEYS.filter(function (a) { return C.isEffective(a, k); }).length === 3;
+    check('Colours are balanced three-and-three', COLOR_KEYS.every(function (key) {
+      return C.EFFECTIVE[key].length === 3 && COLOR_KEYS.filter(function (a) { return C.isEffective(a, key); }).length === 3;
     }));
 
     // --- mixing baseline ---
@@ -254,8 +254,8 @@ export function createSelfTest(ctx) {
                    'guardsColour', 'drawsEachRound', 'swarmAura'];
       return HOOKS.every(function (h) {
         var types = {};
-        C.DRAWABLE.concat(C.BOSS_CARDS).forEach(function (k) {
-          var v = CARDS[k][h];
+        C.DRAWABLE.concat(C.BOSS_CARDS).forEach(function (key) {
+          var v = CARDS[key][h];
           if (v !== undefined) types[typeof v] = 1;
         });
         return Object.keys(types).length <= 1;
@@ -531,9 +531,9 @@ export function createSelfTest(ctx) {
     })());
     check('Curses are not a colour you earned', (function () {
       var deck = RUN.startingDeck();
-      var counts = C.colourCounts(deck.concat(C.CURSE_KEYS.map(function (k) { return { id: k, up: false }; })));
+      var counts = C.colourCounts(deck.concat(C.CURSE_KEYS.map(function (key) { return { id: key, up: false }; })));
       var base = C.colourCounts(deck);
-      return C.COLOR_KEYS.every(function (k) { return counts[k] === base[k]; });
+      return C.COLOR_KEYS.every(function (key) { return counts[key] === base[key]; });
     })());
     check('Rewards and shops only offer colours the deck already holds', (function () {
       var saved = RUN.getRun();
@@ -664,8 +664,8 @@ export function createSelfTest(ctx) {
       return true;
     })());
     check('Every act has an elite and a boss wearing its own colour', (function () {
-      return RUN.ACT_KEYS.every(function (k) {
-        var a = RUN.ACTS[k], bo = ENEMIES[a.boss];
+      return RUN.ACT_KEYS.every(function (key) {
+        var a = RUN.ACTS[key], bo = ENEMIES[a.boss];
         if (!bo || bo.kind !== 'boss') return false;
         var elitesOk = RUN.elitesOf(a).every(function (id) {
           var e = ENEMIES[id];
@@ -677,24 +677,24 @@ export function createSelfTest(ctx) {
       });
     })());
     check('Every act has a painting with its own measured seam', (function () {
-      return RUN.ACT_KEYS.every(function (k) {
-        var art = RUN.ACT_ART[k];
+      return RUN.ACT_KEYS.every(function (key) {
+        var art = RUN.ACT_ART[key];
         if (!art || !art.w || !art.h) return false;
         // the eyes must sit in the upper half or the aligner has nothing to pin
         return art.seam > 0.05 && art.seam < 0.5;
       });
     })());
     check('Every act elite is 2 stronger in its own colour', (function () {
-      return RUN.ACT_KEYS.every(function (k) {
-        var a = RUN.ACTS[k];
+      return RUN.ACT_KEYS.every(function (key) {
+        var a = RUN.ACTS[key];
         return RUN.elitesOf(a).every(function (id) {
           return ENEMIES[id].mod.colorBonus[a.color] === 2;
         });
       });
     })());
     check('A map only fields its own act\'state enemies', (function () {
-      return RUN.ACT_KEYS.every(function (k) {
-        var m = RUN.buildMap(k), act = RUN.ACTS[k], ok = true;
+      return RUN.ACT_KEYS.every(function (key) {
+        var m = RUN.buildMap(key), act = RUN.ACTS[key], ok = true;
         m.forEach(function (row) {
           row.forEach(function (n) {
             if (!n.enemy) return;
@@ -865,8 +865,8 @@ export function createSelfTest(ctx) {
       var RULES = ['growth', 'supportPenalty', 'echoBestLane', 'taxDominantColor',
                    'echoMix', 'wardWeakLanes', 'devourWeakest'];
       var seen = {};
-      return RUN.ACT_KEYS.every(function (k) {
-        var mod = ENEMIES[RUN.ACTS[k].boss].mod || {};
+      return RUN.ACT_KEYS.every(function (key) {
+        var mod = ENEMIES[RUN.ACTS[key].boss].mod || {};
         var mine = RULES.filter(function (rule) { return mod[rule]; });
         if (mine.length !== 1) return false;           // exactly one signature rule
         if (seen[mine[0]]) return false;               // and nobody else'state
@@ -875,8 +875,8 @@ export function createSelfTest(ctx) {
       });
     })());
     check('A boss leans on its rule, not on raw colour bonus', (function () {
-      return RUN.ACT_KEYS.every(function (k) {
-        var a = RUN.ACTS[k], mod = ENEMIES[a.boss].mod || {};
+      return RUN.ACT_KEYS.every(function (key) {
+        var a = RUN.ACTS[key], mod = ENEMIES[a.boss].mod || {};
         var cb = (mod.colorBonus && mod.colorBonus[a.color]) || 0;
         // elites are the +2 stat check; bosses must not simply be +3 versions
         return cb <= 1;
@@ -912,7 +912,7 @@ export function createSelfTest(ctx) {
          two primaries. The invariant worth protecting is that it is never
          *easier* to reach than a secondary, not a specific inflated number. */
       if (need < C.ACT_REQUIREMENT) return false;
-      if (!['yellow', 'cyan', 'magenta'].every(function (k) { return C.requirementFor(k) === 2; })) return false;
+      if (!['yellow', 'cyan', 'magenta'].every(function (key) { return C.requirementFor(key) === 2; })) return false;
       var deck = RUN.startingDeck();
       for (var i = 0; i < need - 1; i++) deck.push({ id: 'black_voidling', up: false });
       if (C.actUnlocked('black', deck)) return false;      // one short stays shut
@@ -972,7 +972,7 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       var clean = run.deck.length;
-      C.CURSE_KEYS.forEach(function (k) { run.deck.push({ id: k, up: false }); });
+      C.CURSE_KEYS.forEach(function (key) { run.deck.push({ id: key, up: false }); });
       var sieve = RUN.EVENTS.filter(function (e) { return e.title === 'The Sieve'; })[0];
       sieve.options[0].run();
       var ok = RUN.getRun().deck.length === clean &&
@@ -983,12 +983,12 @@ export function createSelfTest(ctx) {
 
     // --- the draw archetype ---
     check('Drawing is a build, not a single card', (function () {
-      var drawCards = C.DRAWABLE.filter(function (k) {
-        var cardDef = CARDS[k];
+      var drawCards = C.DRAWABLE.filter(function (key) {
+        var cardDef = CARDS[key];
         return cardDef.drawsEachRound || /draw/i.test(cardDef.text || '');
       });
-      var drawRelics = Object.keys(RELICS).filter(function (k) {
-        return /draw|opening hand/i.test(RELICS[k].text);
+      var drawRelics = Object.keys(RELICS).filter(function (key) {
+        return /draw|opening hand/i.test(RELICS[key].text);
       });
       return drawCards.length >= 5 && drawRelics.length >= 4;
     })());
@@ -1009,10 +1009,10 @@ export function createSelfTest(ctx) {
     // --- boss trophies and reward quality over a run ---
     check('Legendaries exist only as boss drops, never in a random pool', (function () {
       if (C.BOSS_CARDS.length < 7) return false;
-      if (C.DRAWABLE.some(function (k) { return CARDS[k].bossOnly; })) return false;
+      if (C.DRAWABLE.some(function (key) { return CARDS[key].bossOnly; })) return false;
       // one for every act colour, so each road has a signature card
-      return RUN.ACT_KEYS.every(function (k) {
-        var col = RUN.ACTS[k].color;
+      return RUN.ACT_KEYS.every(function (key) {
+        var col = RUN.ACTS[key].color;
         return C.BOSS_CARDS.some(function (c) { return CARDS[c].color === col; });
       });
     })());
@@ -1039,8 +1039,8 @@ export function createSelfTest(ctx) {
       return total === 45 && u.strength === 5 && (u.temp || 0) === 40;
     })());
     check('Every trophy is big AND still does something', (function () {
-      return C.BOSS_CARDS.every(function (k) {
-        var cardDef = CARDS[k];
+      return C.BOSS_CARDS.every(function (key) {
+        var cardDef = CARDS[key];
         var hasText = !!(cardDef.passive || cardDef.aura || cardDef.rowAura || cardDef.matchup || cardDef.onPlay ||
                          cardDef.drawsEachRound || cardDef.guardsColour);
         // the whole point: unlike a fused Amalgam these are not silenced
@@ -1050,15 +1050,15 @@ export function createSelfTest(ctx) {
     check('A boss offers three trophies including its own colour', (function () {
       var saved = RUN.getRun();
       var ok = true;
-      RUN.ACT_KEYS.forEach(function (k) {
+      RUN.ACT_KEYS.forEach(function (key) {
         RUN.setRun(RUN.newRun());
         var run = RUN.getRun();
-        run.act = k;
+        run.act = key;
         RUN.rollReward({ type: 'boss', depth: 12 });
         var rw = RUN.getRun().reward;
         if (!rw.trophy || rw.cards.length !== 3) { ok = false; return; }
         if (!rw.cards.every(function (c) { return CARDS[c.id].bossOnly; })) ok = false;
-        if (!rw.cards.some(function (c) { return CARDS[c.id].color === RUN.ACTS[k].color; })) ok = false;
+        if (!rw.cards.some(function (c) { return CARDS[c.id].color === RUN.ACTS[key].color; })) ok = false;
         var ids = rw.cards.map(function (c) { return c.id; });
         if (ids.length !== ids.filter(function (v, i) { return ids.indexOf(v) === i; }).length) ok = false;
       });
@@ -1087,8 +1087,8 @@ export function createSelfTest(ctx) {
 
     // --- what the player is told about what they are fighting ---
     check('Every enemy rule has an icon and words to go with it', (function () {
-      return Object.keys(ENEMIES).every(function (k) {
-        var mod = ENEMIES[k].mod || {}, icons = C.enemyIcons(k);
+      return Object.keys(ENEMIES).every(function (key) {
+        var mod = ENEMIES[key].mod || {}, icons = C.enemyIcons(key);
         var ruleKeys = Object.keys(mod).filter(function (rule) { return rule !== 'depthBonus'; });
         // every rule on the enemy must surface as at least one icon
         if (ruleKeys.length && !icons.length) return false;
@@ -1107,8 +1107,8 @@ export function createSelfTest(ctx) {
     check('A boss signature rule always reaches the player as an icon', (function () {
       var RULES = { growth: 1, supportPenalty: 1, echoBestLane: 1, taxDominantColor: 1,
                     echoMix: 1, wardWeakLanes: 1, devourWeakest: 1 };
-      return RUN.ACT_KEYS.every(function (k) {
-        var key = RUN.ACTS[k].boss, mod = ENEMIES[key].mod || {};
+      return RUN.ACT_KEYS.every(function (actKey) {
+        var key = RUN.ACTS[actKey].boss, mod = ENEMIES[key].mod || {};
         var sig = Object.keys(mod).filter(function (rule) { return RULES[rule]; });
         var icons = C.enemyIcons(key);
         // the rule icons must outnumber the plain colour-bonus ones
@@ -1206,7 +1206,7 @@ export function createSelfTest(ctx) {
       return ev.strengthOf(ev.view['top-row1-0']) === 1;
     })());
     check('Every curse is worth the same on the board', (function () {
-      var vals = C.CURSE_KEYS.map(function (k) { return CARDS[k].strength; });
+      var vals = C.CURSE_KEYS.map(function (key) { return CARDS[key].strength; });
       return vals.every(function (v) { return v === vals[0]; }) && vals[0] >= 1;
     })());
     check('A curse never grows with the enemy', (function () {
@@ -1225,9 +1225,9 @@ export function createSelfTest(ctx) {
       C.COLOR_KEYS.forEach(function (c) { run.deck.push({ id: 'black_voidling', up: false }); });
       run.deck.push({ id: 'cyan_shield', up: false });   // gives the pool cyan and black
       run.fissures = [];
-      var dry = RUN.NEEDS_FISSURES.every(function (k) { return !RUN.situationalOk(k); });
+      var dry = RUN.NEEDS_FISSURES.every(function (key) { return !RUN.situationalOk(key); });
       run.fissures = [{ side: PLAYER, a: { row: 'row1', index: 0 }, b: { row: 'row1', index: 1 } }];
-      var wet = RUN.NEEDS_FISSURES.every(function (k) { return RUN.situationalOk(k); });
+      var wet = RUN.NEEDS_FISSURES.every(function (key) { return RUN.situationalOk(key); });
       var pool = RUN.offerableCards();
       RUN.setRun(saved);
       return dry && wet && pool.indexOf('black_chorus') !== -1;
@@ -1239,7 +1239,7 @@ export function createSelfTest(ctx) {
       run.deck = RUN.startingDeck();
       run.fissures = []; run.depth = 0; run.actsCleared = [];
       var pool = RUN.offerableCards();
-      var blanks = pool.filter(function (k) { return RUN.NEEDS_FISSURES.indexOf(k) !== -1; });
+      var blanks = pool.filter(function (key) { return RUN.NEEDS_FISSURES.indexOf(key) !== -1; });
       RUN.setRun(saved);
       return blanks.length === 0;
     })());
@@ -1314,18 +1314,18 @@ export function createSelfTest(ctx) {
     })());
 
     check('Black works without ever touching a fissure', (function () {
-      var plain = C.DRAWABLE.filter(function (k) {
-        return CARDS[k].color === 'black' &&
-               RUN.NEEDS_FISSURES.indexOf(k) === -1 &&
-               RUN.NEEDS_CURSES.indexOf(k) === -1;
+      var plain = C.DRAWABLE.filter(function (key) {
+        return CARDS[key].color === 'black' &&
+               RUN.NEEDS_FISSURES.indexOf(key) === -1 &&
+               RUN.NEEDS_CURSES.indexOf(key) === -1;
       });
       /* Gating the fissure cards left Black almost empty for a player who never
          used Rewind, which made the hardest colour gate the least supported. */
       return plain.length >= 6;
     })());
     check('Curse cards read the board, not a tally', (function () {
-      return RUN.NEEDS_CURSES.every(function (k) {
-        var cardDef = CARDS[k];
+      return RUN.NEEDS_CURSES.every(function (key) {
+        var cardDef = CARDS[key];
         // adjacency or consumption — never a count of curses owned, which is
         // how the fissure cards work and would make these feel like a reskin
         var positional = !!(cardDef.targets || (cardDef.text || '').indexOf('touch') !== -1);
@@ -1365,9 +1365,9 @@ export function createSelfTest(ctx) {
       run.deck = RUN.startingDeck();
       C.COLOR_KEYS.forEach(function () { run.deck.push({ id: 'black_voidling', up: false }); });
       run.deck.push({ id: 'cyan_shield', up: false });
-      var dry = RUN.NEEDS_CURSES.every(function (k) { return !RUN.situationalOk(k); });
+      var dry = RUN.NEEDS_CURSES.every(function (key) { return !RUN.situationalOk(key); });
       run.deck.push({ id: C.CURSE_KEYS[0], up: false });
-      var cursed = RUN.NEEDS_CURSES.every(function (k) { return RUN.situationalOk(k); });
+      var cursed = RUN.NEEDS_CURSES.every(function (key) { return RUN.situationalOk(key); });
       RUN.setRun(saved);
       return dry && cursed;
     })());
@@ -1494,8 +1494,8 @@ export function createSelfTest(ctx) {
 
     check('Every act has its own painting, none borrowed', (function () {
       var seen = {};
-      return RUN.ACT_KEYS.every(function (k) {
-        var art = RUN.ACT_ART[k];
+      return RUN.ACT_KEYS.every(function (key) {
+        var art = RUN.ACT_ART[key];
         if (!art || !art.varName) return false;
         if (seen[art.varName]) return false;      // two acts sharing one room
         seen[art.varName] = 1;
@@ -1504,14 +1504,14 @@ export function createSelfTest(ctx) {
       });
     })());
     check('Only the room with no painted eyes draws its own', (function () {
-      var drawn = RUN.ACT_KEYS.filter(function (k) { return RUN.ACT_ART[k].drawEyes; });
+      var drawn = RUN.ACT_KEYS.filter(function (key) { return RUN.ACT_ART[key].drawEyes; });
       return drawn.length === 1 && drawn[0] === 'black';
     })());
     check('Every seam sits where a watcher would', (function () {
       // all seven paintings frame their eyes in a narrow band; a value outside
       // it means a mismeasured painting rather than an unusual composition
-      return RUN.ACT_KEYS.every(function (k) {
-        var seam = RUN.ACT_ART[k].seam;
+      return RUN.ACT_KEYS.every(function (key) {
+        var seam = RUN.ACT_ART[key].seam;
         return seam > 0.15 && seam < 0.30;
       });
     })());
@@ -1525,7 +1525,7 @@ export function createSelfTest(ctx) {
         var n = parseInt(hex.slice(1), 16);
         return 'rgb(' + ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ')';
       }
-      var wanted = C.COLOR_KEYS.map(function (k) { return toRgb(COLORS[k].hex); });
+      var wanted = C.COLOR_KEYS.map(function (key) { return toRgb(COLORS[key].hex); });
       /* Read through the CSSOM rather than scraping <style> text. The single-file
          build has an inline stylesheet and the split build links an external
          one; styleSheets covers both, so this test does not quietly stop
@@ -1605,22 +1605,22 @@ export function createSelfTest(ctx) {
     })());
     check('Each secret road watches in its own way', (function () {
       var styles = {};
-      RUN.SECRET_ACT_KEYS.forEach(function (k) {
-        var art = RUN.ACT_ART[k];
+      RUN.SECRET_ACT_KEYS.forEach(function (key) {
+        var art = RUN.ACT_ART[key];
         if (!art || !art.drawEyes) return;
         styles[art.eyeStyle] = (styles[art.eyeStyle] || 0) + 1;
       });
       // three secret roads, three different watchers, none of them repeated
       return Object.keys(styles).length === RUN.SECRET_ACT_KEYS.length &&
-             Object.keys(styles).every(function (k) { return styles[k] === 1; });
+             Object.keys(styles).every(function (key) { return styles[key] === 1; });
     })());
     check('Every act with drawn eyes has real art of its own', (function () {
-      return RUN.ACT_KEYS.concat(RUN.SECRET_ACT_KEYS).every(function (k) {
-        var art = RUN.ACT_ART[k];
+      return RUN.ACT_KEYS.concat(RUN.SECRET_ACT_KEYS).every(function (key) {
+        var art = RUN.ACT_ART[key];
         if (!art) return false;
         // no secret road should still be borrowing another act'state painting
-        if (RUN.SECRET_ACT_KEYS.indexOf(k) !== -1) {
-          return art.varName === '--art-' + k && !art.filter;
+        if (RUN.SECRET_ACT_KEYS.indexOf(key) !== -1) {
+          return art.varName === '--art-' + key && !art.filter;
         }
         return !!art.varName;
       });
@@ -1666,8 +1666,8 @@ export function createSelfTest(ctx) {
       var leaks = ['needs', 'you hold', 'still shut', 'cards —', 'requirement'];
       var clean = !leaks.some(function (w) { return txt.indexOf(w) !== -1; });
       // and it must not name an act that is not on offer
-      var named = RUN.ACT_KEYS.filter(function (k) {
-        return txt.indexOf(RUN.ACTS[k].name.toLowerCase()) !== -1;
+      var named = RUN.ACT_KEYS.filter(function (key) {
+        return txt.indexOf(RUN.ACTS[key].name.toLowerCase()) !== -1;
       });
       RUN.setRun(saved);
       RUN.show('map');
@@ -1677,8 +1677,8 @@ export function createSelfTest(ctx) {
       var keys = Object.keys(RUN.ACT_OMENS);
       if (keys.length !== RUN.ACT_KEYS.length) return false;
       var seen = {};
-      return keys.every(function (k) {
-        var t = RUN.ACT_OMENS[k];
+      return keys.every(function (key) {
+        var t = RUN.ACT_OMENS[key];
         if (!t || t.length < 40) return false;
         if (seen[t]) return false;                 // each act says something different
         seen[t] = 1;
@@ -1694,7 +1694,7 @@ export function createSelfTest(ctx) {
       var run = RUN.getRun();
       run.deck = RUN.startingDeck();
       RUN.noteActOmens();
-      var primariesOnly = ['red', 'green', 'blue'].every(function (k) { return RUN.codex.omens[k]; }) &&
+      var primariesOnly = ['red', 'green', 'blue'].every(function (key) { return RUN.codex.omens[key]; }) &&
                           !RUN.codex.omens.yellow;
       run.deck.push({ id: 'yellow_spark', up: false });
       run.deck.push({ id: 'yellow_banner', up: false });
@@ -1784,7 +1784,7 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       var keys = Object.keys(C.RELICS);
-      keys.forEach(function (k) { run.relics.push(k); });
+      keys.forEach(function (key) { run.relics.push(key); });
       var count = run.relics.length;
       RUN.rollReward({ type: 'battle', depth: 6 });     // must not throw or refuse
       var ok = C.RELIC_LIMIT === Infinity && count === keys.length;
@@ -1800,8 +1800,8 @@ export function createSelfTest(ctx) {
       var picks = els.actBody.querySelectorAll('.act-pick');
       var ok = picks.length === 2;
       Array.prototype.forEach.call(picks, function (p2) {
-        var k = p2.getAttribute('data-act');
-        var want = RUN.ACT_ART[k] && RUN.ACT_ART[k].varName;
+        var key = p2.getAttribute('data-act');
+        var want = RUN.ACT_ART[key] && RUN.ACT_ART[key].varName;
         if (p2.style.getPropertyValue('--act-art').indexOf(want) === -1) ok = false;
         // and the words need something solid behind them
         if (!p2.querySelector('.act-scrim') || !p2.querySelector('.act-copy')) ok = false;
@@ -1812,10 +1812,10 @@ export function createSelfTest(ctx) {
     check('An omen says which colours opened the road', (function () {
       var NAMES = { red: 'red', green: 'green', blue: 'blue',
                     yellow: 'red', cyan: 'green', magenta: 'red' };
-      return RUN.ACT_KEYS.every(function (k) {
-        var t = RUN.ACT_OMENS[k].toLowerCase();
-        if (k === 'black') return /mixture|made colour/.test(t);
-        return t.indexOf(NAMES[k]) !== -1;
+      return RUN.ACT_KEYS.every(function (key) {
+        var t = RUN.ACT_OMENS[key].toLowerCase();
+        if (key === 'black') return /mixture|made colour/.test(t);
+        return t.indexOf(NAMES[key]) !== -1;
       });
     })());
 
@@ -1885,7 +1885,7 @@ export function createSelfTest(ctx) {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
-      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });
       RUN.endAsVictory();
       var after = RUN.getRun();
       var ok = after.screen === 'gameover' && !after.endless && RUN.allActsConquered(after);
@@ -1897,7 +1897,7 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       run.deck = RUN.startingDeck();
-      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });
       var beforeCount = RUN.eligibleActs(run).length;    // zero: everything is "behind" it
       RUN.goEndless();
       var after = RUN.getRun();
@@ -1911,7 +1911,7 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
       run.deck = RUN.startingDeck();
-      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });
       RUN.goEndless();
       var open = RUN.getRun().actOffer;
       RUN.beginAct(open[0]);
@@ -1926,7 +1926,7 @@ export function createSelfTest(ctx) {
     })());
     check('Endless power keeps climbing loop after loop', (function () {
       var run = { actsCleared: [] };
-      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });   // one full lap
+      RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });   // one full lap
       var afterLap1 = RUN.powerAt(run, 0);
       run.actsCleared.push(RUN.ACT_KEYS[0]);                              // one more clear, endless
       var afterLap2 = RUN.powerAt(run, 0);
@@ -1981,8 +1981,8 @@ export function createSelfTest(ctx) {
       return ok;
     })());
     check('Shop relics cost more than their printed price', (function () {
-      return Object.keys(RELICS).every(function (k) {
-        return RUN.shopRelicPrice(k) > RELICS[k].cost;
+      return Object.keys(RELICS).every(function (key) {
+        return RUN.shopRelicPrice(key) > RELICS[key].cost;
       });
     })());
 
@@ -2007,8 +2007,8 @@ export function createSelfTest(ctx) {
     })());
     check('A fusion chain never carries more than three rules', (function () {
       var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-      ['yellow_banner', 'green_titan', 'red_scout', 'cyan_shield'].forEach(function (k) {
-        fused = C.fuseCards(fused, { id: k, up: false });
+      ['yellow_banner', 'green_titan', 'red_scout', 'cyan_shield'].forEach(function (key) {
+        fused = C.fuseCards(fused, { id: key, up: false });
       });
       return CARDS[fused.id].effectSources.length === C.FUSED_EFFECT_CAP;
     })());
@@ -2026,8 +2026,8 @@ export function createSelfTest(ctx) {
         fused = C.fuseCards(fused, { id: 'green_titan', up: false });
         var afterSet = CARDS[fused.id].effectSources;
         if (afterSet.length !== C.FUSED_EFFECT_CAP) return false;
-        if (!afterSet.every(function (k) { return union.indexOf(k) !== -1; })) return false;
-        if (!union.some(function (k) { return afterSet.indexOf(k) === -1; })) return false;
+        if (!afterSet.every(function (key) { return union.indexOf(key) !== -1; })) return false;
+        if (!union.some(function (key) { return afterSet.indexOf(key) === -1; })) return false;
       }
       return true;
     })());
@@ -2046,7 +2046,7 @@ export function createSelfTest(ctx) {
       var back = RUN.loadRun();
       var got = back && CARDS[wantId] && CARDS[wantId].effectSources;
       var ok = !!got && got.length === wantEff.length &&
-               got.every(function (k, i) { return k === wantEff[i]; });
+               got.every(function (key, i) { return key === wantEff[i]; });
       RUN.clearSave();
       RUN.setRun(saved);
       return ok;
@@ -2077,12 +2077,12 @@ export function createSelfTest(ctx) {
              ev.strengthOf(ev.view['bottom-row3-0']) === 6;
     })());
     check('Something in every colour can threaten the back rows', (function () {
-      var reachers = C.DRAWABLE.filter(function (k) {
-        var cardDef = CARDS[k];
+      var reachers = C.DRAWABLE.filter(function (key) {
+        var cardDef = CARDS[key];
         return cardDef.enemyRowAura || /behind the line|back row/i.test(cardDef.text || '');
       });
       var colours = {};
-      reachers.forEach(function (k) { colours[CARDS[k].color] = 1; });
+      reachers.forEach(function (key) { colours[CARDS[key].color] = 1; });
       return reachers.length >= 4 && Object.keys(colours).length >= 3;
     })());
 
@@ -2103,7 +2103,7 @@ export function createSelfTest(ctx) {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
-      run.actsCleared = RUN.ACT_KEYS.filter(function (k) { return k !== 'black'; });
+      run.actsCleared = RUN.ACT_KEYS.filter(function (key) { return key !== 'black'; });
       run.act = 'black'; run.deck = RUN.startingDeck();
       RUN.finishAct();
       var after = RUN.getRun();
@@ -2120,7 +2120,7 @@ export function createSelfTest(ctx) {
       var run = RUN.getRun();
       run.deck = RUN.startingDeck();
       run.endless = true;
-      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });
       var offered = RUN.eligibleActs(run).indexOf('white') !== -1;
       RUN.setRun(saved);
       return !offered;
@@ -2294,8 +2294,8 @@ export function createSelfTest(ctx) {
       return mine > 0 && theirs > 0;
     })());
     check('Every secret boss carries a rule of its own', (function () {
-      return RUN.SECRET_ACT_KEYS.every(function (k) {
-        var bossKey = RUN.ACTS[k].boss, e = ENEMIES[bossKey];
+      return RUN.SECRET_ACT_KEYS.every(function (key) {
+        var bossKey = RUN.ACTS[key].boss, e = ENEMIES[bossKey];
         if (!e || e.kind !== 'boss') return false;
         return C.enemyIcons(bossKey).length > 0 && (e.behaviour || '').length > 40;
       });
@@ -2350,12 +2350,12 @@ export function createSelfTest(ctx) {
     })());
     check('Every archetype has enough cards to actually build around', (function () {
       function count(test) { return C.DRAWABLE.filter(test).length; }
-      var swarm = count(function (k) { return /friendly unit|friendly units/i.test(CARDS[k].text || ''); });
-      var spectrum = count(function (k) { return /distinct colour/i.test(CARDS[k].text || ''); });
-      var chain = count(function (k) { return /mix chain|whenever you mix/i.test(CARDS[k].text || ''); });
-      var control = count(function (k) { return /weaker|loses \\d/i.test(CARDS[k].text || ''); });
-      var ward = count(function (k) { return /ignores? all negative/i.test(CARDS[k].text || ''); });
-      var draw = count(function (k) { return /draw/i.test(CARDS[k].text || ''); });
+      var swarm = count(function (key) { return /friendly unit|friendly units/i.test(CARDS[key].text || ''); });
+      var spectrum = count(function (key) { return /distinct colour/i.test(CARDS[key].text || ''); });
+      var chain = count(function (key) { return /mix chain|whenever you mix/i.test(CARDS[key].text || ''); });
+      var control = count(function (key) { return /weaker|loses \\d/i.test(CARDS[key].text || ''); });
+      var ward = count(function (key) { return /ignores? all negative/i.test(CARDS[key].text || ''); });
+      var draw = count(function (key) { return /draw/i.test(CARDS[key].text || ''); });
       /* Three is the floor for something to be a build rather than a card that
          happens to exist \u2014 below that a deck cannot reliably find two of them. */
       return swarm >= 3 && spectrum >= 3 && chain >= 3 &&
@@ -2378,12 +2378,12 @@ export function createSelfTest(ctx) {
 
     check('No archetype is locked behind the colour gate', (function () {
       var AR = {
-        swarm:    function (k) { return /friendly unit/i.test(CARDS[k].text || ''); },
-        spectrum: function (k) { return /distinct colour/i.test(CARDS[k].text || ''); },
-        chain:    function (k) { return /mix chain|whenever you mix/i.test(CARDS[k].text || ''); },
-        control:  function (k) { return /weaker|loses \\d/i.test(CARDS[k].text || ''); },
-        ward:     function (k) { return /ignores? all negative/i.test(CARDS[k].text || ''); },
-        draw:     function (k) { return /draw/i.test(CARDS[k].text || ''); }
+        swarm:    function (key) { return /friendly unit/i.test(CARDS[key].text || ''); },
+        spectrum: function (key) { return /distinct colour/i.test(CARDS[key].text || ''); },
+        chain:    function (key) { return /mix chain|whenever you mix/i.test(CARDS[key].text || ''); },
+        control:  function (key) { return /weaker|loses \\d/i.test(CARDS[key].text || ''); },
+        ward:     function (key) { return /ignores? all negative/i.test(CARDS[key].text || ''); },
+        draw:     function (key) { return /draw/i.test(CARDS[key].text || ''); }
       };
       /* Measured: with Spectrum and Ward living only in secondary colours they
          were reachable in 0 of 30 runs, because a deck cannot draft toward
@@ -2391,9 +2391,9 @@ export function createSelfTest(ctx) {
          a colour the player starts with, or it is not a playstyle \u2014 it is a
          reward for having already played a different one. */
       return Object.keys(AR).every(function (a) {
-        return C.DRAWABLE.some(function (k) {
-          var cardDef = CARDS[k];
-          return AR[a](k) && C.PRIMARY_COLORS.indexOf(cardDef.color) !== -1;
+        return C.DRAWABLE.some(function (key) {
+          var cardDef = CARDS[key];
+          return AR[a](key) && C.PRIMARY_COLORS.indexOf(cardDef.color) !== -1;
         });
       });
     })());
@@ -2480,15 +2480,15 @@ export function createSelfTest(ctx) {
         ward:     ['cyan_bulwark', 'green_bramblewall', 'cyan_sanctum']
       };
       return Object.keys(need).every(function (arch) {
-        return need[arch].every(function (k) {
-          return CARDS[k] && C.DRAWABLE.indexOf(k) !== -1;
+        return need[arch].every(function (key) {
+          return CARDS[key] && C.DRAWABLE.indexOf(key) !== -1;
         });
       });
     })());
     check('The pool is broad enough that a colour is not one deck', (function () {
       var byColour = {};
-      C.DRAWABLE.forEach(function (k) {
-        var c = CARDS[k].color || 'colourless';
+      C.DRAWABLE.forEach(function (key) {
+        var c = CARDS[key].color || 'colourless';
         byColour[c] = (byColour[c] || 0) + 1;
       });
       // every colour needs enough cards to support more than a single line of play
@@ -2531,8 +2531,8 @@ export function createSelfTest(ctx) {
     })());
     check('Every archetype has enablers and a payoff to build toward', (function () {
       function have(pattern, min) {
-        var n = C.DRAWABLE.filter(function (k) {
-          return pattern.test(CARDS[k].text || '');
+        var n = C.DRAWABLE.filter(function (key) {
+          return pattern.test(CARDS[key].text || '');
         }).length;
         return n >= min;
       }
@@ -2719,7 +2719,7 @@ export function createSelfTest(ctx) {
     })());
     check('Every rule has a lesson that waits for its moment', (function () {
       var need = ['lanes_row1', 'lanes_row2', 'lanes_row3', 'mixing', 'passing', 'frontline', 'roundbreak'];
-      return need.every(function (k) { return typeof RUN.TUTORIAL_LESSONS[k] === 'function'; });
+      return need.every(function (key) { return typeof RUN.TUTORIAL_LESSONS[key] === 'function'; });
     })());
     check('Lane lessons draw the row the player actually used', (function () {
       try {
@@ -2745,7 +2745,7 @@ export function createSelfTest(ctx) {
     check('Turning the tutorial off silences every lesson', (function () {
       var was = RUN.tutorial.enabled;
       RUN.setTutorial(false);
-      var quiet = ['mixing', 'passing', 'frontline', 'lanes_row1'].every(function (k) { return !RUN.shouldTeach(k); });
+      var quiet = ['mixing', 'passing', 'frontline', 'lanes_row1'].every(function (key) { return !RUN.shouldTeach(key); });
       RUN.setTutorial(was);
       return quiet;
     })());
@@ -2776,7 +2776,7 @@ export function createSelfTest(ctx) {
       RUN.curseRisk(0) < RUN.curseRisk(1) && RUN.curseRisk(1) < RUN.curseRisk(5) &&
       RUN.curseRisk(99) <= 0.75, [0, 1, 5, 99].map(function (n) { return Math.round(RUN.curseRisk(n) * 100); }).join('/'));
     check('Curses stay out of rewards and shops',
-      C.DRAWABLE.every(function (k) { return !CARDS[k].curse; }) && C.CURSE_KEYS.length >= 4);
+      C.DRAWABLE.every(function (key) { return !CARDS[key].curse; }) && C.CURSE_KEYS.length >= 4);
     check('A drawn curse plants itself and never enters the hand', (function () {
       var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [C.makeCard('curse_husk'), C.makeCard('red_brute')], top: [] },
@@ -2941,7 +2941,7 @@ export function createSelfTest(ctx) {
       for (var i = 0; i < 4; i++) {
         var held = {};
         r2.deck.forEach(function (c) { if (CARDS[c.id].curse) held[c.id] = true; });
-        var fresh = C.CURSE_KEYS.filter(function (k) { return !held[k]; });
+        var fresh = C.CURSE_KEYS.filter(function (key) { return !held[key]; });
         if (!fresh.length) break;
         r2.deck.push({ id: fresh[0], up: false });
         kinds[fresh[0]] = 1;
@@ -3247,7 +3247,7 @@ export function createSelfTest(ctx) {
       return whole.ok && !cracked.ok && cracked.reason.indexOf('fissure') !== -1 && opts.length === 0;
     })());
     check('An aura does not cross a fissure', (function () {
-      var aura = Object.keys(C.CARDS).filter(function (k) { return C.CARDS[k].aura && C.CARDS[k].type === 'unit'; })[0];
+      var aura = Object.keys(C.CARDS).filter(function (key) { return C.CARDS[key].aura && C.CARDS[key].type === 'unit'; })[0];
       if (!aura) return true;
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: aura, color: C.CARDS[aura].color, strength: C.CARDS[aura].strength || 3, temp: 0 };
@@ -3492,8 +3492,8 @@ export function createSelfTest(ctx) {
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 3 } });
       return e2.strengthOf(e2.get('bottom', 'row1', 0)) === 2;
     })());
-    check('Every relic has text and a price', Object.keys(RELICS).every(function (k) { return RELICS[k].text && RELICS[k].cost > 0; }));
-    check('Every card has a price', C.DRAWABLE.every(function (k) { return CARDS[k].cost > 0; }));
+    check('Every relic has text and a price', Object.keys(RELICS).every(function (key) { return RELICS[key].text && RELICS[key].cost > 0; }));
+    check('Every card has a price', C.DRAWABLE.every(function (key) { return CARDS[key].cost > 0; }));
 
     // --- enemy deck quality is gated by depth ---
     var early = [], late = [];
