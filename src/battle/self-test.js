@@ -655,11 +655,11 @@ export function createSelfTest(ctx) {
     })());
 
     check('Every act carries a Lab that no route can dodge', (function () {
-      for (var t = 0; t < 40; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length]);
+      for (var attempt = 0; attempt < 40; attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length]);
         // depth 6 must be solid lab: with rewards colour-gated it is the only
         // place a new colour can be made, so a skippable one can strand a run
-        if (!m[6].length || !m[6].every(function (n) { return n.type === 'lab'; })) return false;
+        if (!map[6].length || !map[6].every(function (node) { return node.type === 'lab'; })) return false;
       }
       return true;
     })());
@@ -694,13 +694,13 @@ export function createSelfTest(ctx) {
     })());
     check('A map only fields its own act\'s enemies', (function () {
       return RUN.ACT_KEYS.every(function (key) {
-        var m = RUN.buildMap(key), act = RUN.ACTS[key], ok = true;
-        m.forEach(function (row) {
-          row.forEach(function (n) {
-            if (!n.enemy) return;
-            if (n.type === 'battle' && act.normals.indexOf(n.enemy) === -1) ok = false;
-            if (n.type === 'elite' && RUN.elitesOf(act).indexOf(n.enemy) === -1) ok = false;
-            if (n.type === 'boss' && n.enemy !== act.boss) ok = false;
+        var map = RUN.buildMap(key), act = RUN.ACTS[key], ok = true;
+        map.forEach(function (row) {
+          row.forEach(function (node) {
+            if (!node.enemy) return;
+            if (node.type === 'battle' && act.normals.indexOf(node.enemy) === -1) ok = false;
+            if (node.type === 'elite' && RUN.elitesOf(act).indexOf(node.enemy) === -1) ok = false;
+            if (node.type === 'boss' && node.enemy !== act.boss) ok = false;
           });
         });
         return ok;
@@ -1002,7 +1002,7 @@ export function createSelfTest(ctx) {
              capped.raw.bottom === cold.raw.bottom + 8;   // the cap holds
     })());
     check('Deep Pockets pays a lean deck and nothing to a bloated one', (function () {
-      function lean(n) { return Math.max(0, Math.floor((25 - n) / 5)); }
+      function lean(deckLen) { return Math.max(0, Math.floor((25 - deckLen) / 5)); }
       return lean(40) === 0 && lean(25) === 0 && lean(20) === 1 && lean(15) === 2 && lean(10) === 3;
     })());
 
@@ -1522,8 +1522,8 @@ export function createSelfTest(ctx) {
          parses, so a hex needle could never match the haystack no matter how
          the stylesheet was written. */
       function toRgb(hex) {
-        var n = parseInt(hex.slice(1), 16);
-        return 'rgb(' + ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255) + ')';
+        var packed = parseInt(hex.slice(1), 16);
+        return 'rgb(' + ((packed >> 16) & 255) + ', ' + ((packed >> 8) & 255) + ', ' + (packed & 255) + ')';
       }
       var wanted = C.COLOR_KEYS.map(function (key) { return toRgb(COLORS[key].hex); });
       /* Read through the CSSOM rather than scraping <style> text. The single-file
@@ -2531,10 +2531,10 @@ export function createSelfTest(ctx) {
     })());
     check('Every archetype has enablers and a payoff to build toward', (function () {
       function have(pattern, min) {
-        var n = C.DRAWABLE.filter(function (key) {
+        var count = C.DRAWABLE.filter(function (key) {
           return pattern.test(CARDS[key].text || '');
         }).length;
-        return n >= min;
+        return count >= min;
       }
       return have(/every 2 other friendly|other friendly unit|units stand with it/i, 3) &&  // swarm
              have(/distinct colour|different colour/i, 5) &&                                 // coverage
@@ -2774,7 +2774,7 @@ export function createSelfTest(ctx) {
     })());
     check('Curse risk climbs with every pull and is capped',
       RUN.curseRisk(0) < RUN.curseRisk(1) && RUN.curseRisk(1) < RUN.curseRisk(5) &&
-      RUN.curseRisk(99) <= 0.75, [0, 1, 5, 99].map(function (n) { return Math.round(RUN.curseRisk(n) * 100); }).join('/'));
+      RUN.curseRisk(99) <= 0.75, [0, 1, 5, 99].map(function (pulls) { return Math.round(RUN.curseRisk(pulls) * 100); }).join('/'));
     check('Curses stay out of rewards and shops',
       C.DRAWABLE.every(function (key) { return !CARDS[key].curse; }) && C.CURSE_KEYS.length >= 4);
     check('A drawn curse plants itself and never enters the hand', (function () {
@@ -2879,19 +2879,19 @@ export function createSelfTest(ctx) {
       return true;
     })());
     check('Every act carries exactly one Volatile Lab behind a gate', (function () {
-      for (var t = 0; t < 25; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], t % 2 === 0);
+      for (var attempt = 0; attempt < 25; attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
         var vol = [], gates = [];
-        m.forEach(function (row, d) {
-          row.forEach(function (n, i) {
-            if (n.type === 'volatile') vol.push({ d: d, i: i });
-            if (n.dangerous) gates.push(n);
+        map.forEach(function (row, depth) {
+          row.forEach(function (node, i) {
+            if (node.type === 'volatile') vol.push({ d: depth, i: i });
+            if (node.dangerous) gates.push(node);
           });
         });
         if (vol.length !== 1) return false;
         if (!gates.length) return false;
-        var D = vol[0].d, i = vol[0].i;
-        var into = m[D - 1].filter(function (p) { return p.next.indexOf(i) !== -1; });
+        var volDepth = vol[0].d, volIndex = vol[0].i;
+        var into = map[volDepth - 1].filter(function (parent) { return parent.next.indexOf(volIndex) !== -1; });
         /* Exactly one node leads to the lab, and it is dressed as the elite gate
            the design wants. It is deliberately NOT asserted to have exactly one
            exit any more: that was the invariant behind 149 unreachable nodes in
@@ -3321,22 +3321,22 @@ export function createSelfTest(ctx) {
     })());
     check('Riftwalker thrives on damage, then drowns in it', (function () {
       function at(power) {
-        var b = C.emptyBoard();
-        b.bottom.row2[1] = { cardId: 'black_riftwalker', color: 'black', strength: 3, temp: 0 };
+        var board = C.emptyBoard();
+        board.bottom.row2[1] = { cardId: 'black_riftwalker', color: 'black', strength: 3, temp: 0 };
         var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: power }];
-        var v = C.evaluateBoard(b, null, { fissures: fissures }).view['bottom-row2-1'];
-        return Math.max(0, v.base + v.bonus);
+        var view = C.evaluateBoard(board, null, { fissures: fissures }).view['bottom-row2-1'];
+        return Math.max(0, view.base + view.bonus);
       }
       // climbs to a peak at 4, is back to par by 6, and is a liability past that
       return at(1) === 5 && at(4) === 11 && at(4) > at(5) && at(7) < 3 && at(8) === 0;
     })());
     check('Chorus grows with the board\u2019s scars but is capped', (function () {
-      function at(n) {
-        var fs = C.severableLinks('bottom', []).slice(0, n);
-        var b = C.emptyBoard();
-        b.bottom.row3[0] = { cardId: 'black_chorus', color: 'black', strength: 2, temp: 0 };
-        var v = C.evaluateBoard(b, null, { fissures: fs }).view['bottom-row3-0'];
-        return Math.max(0, v.base + v.bonus);
+      function at(power) {
+        var fissures = C.severableLinks('bottom', []).slice(0, power);
+        var board = C.emptyBoard();
+        board.bottom.row3[0] = { cardId: 'black_chorus', color: 'black', strength: 2, temp: 0 };
+        var view = C.evaluateBoard(board, null, { fissures: fissures }).view['bottom-row3-0'];
+        return Math.max(0, view.base + view.bonus);
       }
       return at(0) === 2 && at(3) > at(0) && at(7) <= at(5);
     })());
@@ -3497,7 +3497,7 @@ export function createSelfTest(ctx) {
 
     // --- enemy deck quality is gated by depth ---
     var early = [], late = [];
-    for (var n = 0; n < 40; n++) {
+    for (var attempt = 0; attempt < 40; attempt++) {
       C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { early.push(CARDS[c.id].rarity); });
       C.buildEnemyDeck(ENEMIES.brawler, 10, Math.random).forEach(function (c) { late.push(CARDS[c.id].rarity); });
     }
@@ -3505,7 +3505,7 @@ export function createSelfTest(ctx) {
       'saw ' + early.filter(function (rarity) { return rarity !== 'Common'; }).length + ' non-commons');
     check('Late enemies can field rares', late.some(function (rarity) { return rarity === 'Rare'; }));
     var earlyUp = 0;
-    for (n = 0; n < 40; n++) C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { if (c.up) earlyUp++; });
+    for (attempt = 0; attempt < 40; attempt++) C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { if (c.up) earlyUp++; });
     check('Early enemies bring no upgrades', earlyUp === 0, earlyUp + ' upgraded');
 
     // --- Volatile Fusion can actually start a chain ---
