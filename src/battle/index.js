@@ -858,12 +858,12 @@ function tileInfo(ev, tile) {
 
 /* Keep an open overlay in step with the board underneath it. */
 function renderInfoOverlay(ev) {
-  var s = getBattleState();
+  var state = getBattleState();
   if (els.infoOverlay.hidden) return;
-  if (s.inspectedHazard) {
-    openInfo(s.inspectedHazard.kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(s.inspectedHazard));
-  } else if (s.inspected) {
-    openInfo(sideName(s.inspected.side) + ' · ' + slotName(s.inspected.row, s.inspected.index), tileInfo(ev, s.inspected));
+  if (state.inspectedHazard) {
+    openInfo(state.inspectedHazard.kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(state.inspectedHazard));
+  } else if (state.inspected) {
+    openInfo(sideName(state.inspected.side) + ' · ' + slotName(state.inspected.row, state.inspected.index), tileInfo(ev, state.inspected));
   }
 }
 
@@ -913,23 +913,23 @@ function sizeBoardStage() {
   var enemyRow = document.querySelector('.enemy-hand-row');
   if (!screen || !panel || screen.hidden) return;
   if (enemyRow) enemyRow.style.marginTop = '';
-  var vh = window.innerHeight;
+  var viewportHeight = window.innerHeight;
   var screenTop = screen.getBoundingClientRect().top;
   var panelIndex = Array.prototype.indexOf.call(screen.children, panel);
   var beforeWithinScreen = 0, after = 0;
-  Array.prototype.forEach.call(screen.children, function (child, i) {
+  Array.prototype.forEach.call(screen.children, function (child, childIndex) {
     if (child === panel) return;
-    var cs = getComputedStyle(child);
-    if (cs.display === 'none') return;
+    var childStyle = getComputedStyle(child);
+    if (childStyle.display === 'none') return;
     /* Only things in normal flow take height from the board. An absolutely
        positioned child still reports a real height from getBoundingClientRect,
        so the enemy rules overlay was being counted as chrome: opening a boss
        rule grew its rect, and the next re-measure handed the board a smaller
        target. It shrank on a later render rather than on the tap itself,
        which is why it looked intermittent. */
-    if (cs.position === 'absolute' || cs.position === 'fixed') return;
-    var h = child.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom);
-    if (i < panelIndex) beforeWithinScreen += h; else after += h;
+    if (childStyle.position === 'absolute' || childStyle.position === 'fixed') return;
+    var childOuterHeight = child.getBoundingClientRect().height + parseFloat(childStyle.marginTop) + parseFloat(childStyle.marginBottom);
+    if (childIndex < panelIndex) beforeWithinScreen += childOuterHeight; else after += childOuterHeight;
   });
   var before = screenTop + beforeWithinScreen;
   var baseMargin = 4;                                        // the original breathing room, kept as a floor
@@ -948,12 +948,12 @@ function sizeBoardStage() {
   var symmetric = Math.max(before, after) + baseMargin;
   var topExtra = Math.max(symmetric - before, EYE_GAP);
   var bottomExtra = Math.max(symmetric - after, baseMargin);
-  var target = vh - before - after - topExtra - bottomExtra;
+  var target = viewportHeight - before - after - topExtra - bottomExtra;
   if (target < MIN_CENTERED) {
-    var slackAboveMin = vh - before - after - MIN_CENTERED - baseMargin;
+    var slackAboveMin = viewportHeight - before - after - MIN_CENTERED - baseMargin;
     topExtra = Math.max(0, Math.min(EYE_GAP, slackAboveMin));
     bottomExtra = baseMargin;
-    target = Math.max(60, vh - before - after - topExtra - bottomExtra);
+    target = Math.max(60, viewportHeight - before - after - topExtra - bottomExtra);
   }
   panel.style.height = target.toFixed(1) + 'px';
   /* The gap goes on the enemy hand row, not the board panel — the enemy's
@@ -975,36 +975,36 @@ function sizeBoardStage() {
    narrow phone. Tying it to the board's own height keeps the taper constant
    at roughly 5% wherever the board is drawn. The floor stops a very short
    board from converging so hard the near edge swells into the stage. */
-function setBoardPerspective(boardH) {
+function setBoardPerspective(boardHeight) {
   var stage = document.querySelector('.board-tilt');
-  if (!stage || !boardH) return;
-  var persp = Math.max(620, boardH * 4);
-  stage.style.perspective = persp.toFixed(0) + 'px';
+  if (!stage || !boardHeight) return;
+  var perspective = Math.max(620, boardHeight * 4);
+  stage.style.perspective = perspective.toFixed(0) + 'px';
   /* The pass marker rests on the same table, so it borrows the same
      perspective distance and the same lean. Read from the board's own
      computed transform rather than hard-coded, so the two can never drift. */
   var svg = document.getElementById('board');
   var tilt = 40;
   if (svg) {
-    var m = /rotateX\((-?[\d.]+)deg\)/.exec(getComputedStyle(svg).transform === 'none'
+    var rotateMatch = /rotateX\((-?[\d.]+)deg\)/.exec(getComputedStyle(svg).transform === 'none'
       ? '' : (svg.style.transform || ''));
-    if (m) tilt = parseFloat(m[1]);
+    if (rotateMatch) tilt = parseFloat(rotateMatch[1]);
     else {
-      var css = getComputedStyle(svg).getPropertyValue('transform');
-      if (css && css !== 'none') tilt = 40;      // matrix form: the stylesheet value
+      var transformValue = getComputedStyle(svg).getPropertyValue('transform');
+      if (transformValue && transformValue !== 'none') tilt = 40;      // matrix form: the stylesheet value
     }
   }
   var root = document.documentElement;
-  root.style.setProperty('--pass-persp', persp.toFixed(0) + 'px');
+  root.style.setProperty('--pass-persp', perspective.toFixed(0) + 'px');
   root.style.setProperty('--pass-tilt', tilt.toFixed(1) + 'deg');
   /* Level with the board's near edge, so the marker looks like it is lying on
      the table beside the board rather than floating above the top of it. */
-  var stageRect = document.querySelector('.board-stage');
-  var boardRect = svg && svg.getBoundingClientRect();
-  if (stageRect && boardRect) {
-    var sr = stageRect.getBoundingClientRect();
-    var y = Math.max(6, Math.min(sr.height - 62, boardRect.top - sr.top + boardRect.height * 0.42));
-    root.style.setProperty('--pass-y', y.toFixed(0) + 'px');
+  var stageEl = document.querySelector('.board-stage');
+  var boardBounds = svg && svg.getBoundingClientRect();
+  if (stageEl && boardBounds) {
+    var stageBounds = stageEl.getBoundingClientRect();
+    var passY = Math.max(6, Math.min(stageBounds.height - 62, boardBounds.top - stageBounds.top + boardBounds.height * 0.42));
+    root.style.setProperty('--pass-y', passY.toFixed(0) + 'px');
   }
 }
 
