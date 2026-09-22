@@ -2087,12 +2087,12 @@ var tutorial = { enabled: true, step: 0, list: null, seen: {} };
    is literally the board they are about to play on. Numbered pointers sit on
    the tiles being described and match the captions underneath. */
 function tutorialBoard(spec) {
-  var geo = C.GEO.filter(function (t) { return !spec.half || t.side === spec.half; });
+  var geo = C.GEO.filter(function (tile) { return !spec.half || tile.side === spec.half; });
   var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  geo.forEach(function (t) {
-    t.points.forEach(function (p) {
-      minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-      minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+  geo.forEach(function (tile) {
+    tile.points.forEach(function (point) {
+      minX = Math.min(minX, point[0]); maxX = Math.max(maxX, point[0]);
+      minY = Math.min(minY, point[1]); maxY = Math.max(maxY, point[1]);
     });
   });
   var padX = 130, padTop = (spec.lanes || spec.flows) ? 156 : 56, padBot = 66;
@@ -2104,27 +2104,27 @@ function tutorialBoard(spec) {
   var tiles = '', tokens = '', marks = '', bands = '', laneText = '', flows = '';
 
   if (spec.lanes) {
-    [0, 1, 2, 3].forEach(function (L) {
-      var cx = (L + 0.5) * 200;
+    [0, 1, 2, 3].forEach(function (laneIndex) {
+      var cx = (laneIndex + 0.5) * 200;
       bands += '<rect class="tut-lane" x="' + (cx - 94) + '" y="' + (minY + 6) +
         '" width="188" height="' + ((maxY - minY) - 12) + '" rx="14"/>';
       laneText += '<rect class="tut-lanepill" x="' + (cx - 84) + '" y="' + (headerY - 34) +
         '" width="168" height="58" rx="16"/>' +
         '<text class="tut-laneno" x="' + cx + '" y="' + headerY + '" text-anchor="middle" ' +
-        'dominant-baseline="central">LANE ' + (L + 1) + '</text>';
+        'dominant-baseline="central">LANE ' + (laneIndex + 1) + '</text>';
     });
   }
 
-  geo.forEach(function (t) {
-    tiles += '<polygon class="tut-tile ' + t.row + ' side-' + t.side + '" points="' +
-      t.points.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '"/>';
+  geo.forEach(function (tile) {
+    tiles += '<polygon class="tut-tile ' + tile.row + ' side-' + tile.side + '" points="' +
+      tile.points.map(function (point) { return point[0].toFixed(1) + ',' + point[1].toFixed(1); }).join(' ') + '"/>';
   });
 
-  function centre(u) {
-    var g = C.GEO.filter(function (t) {
-      return t.side === u.side && t.row === u.row && t.index === u.index;
+  function centre(unitSpec) {
+    var match = C.GEO.filter(function (tile) {
+      return tile.side === unitSpec.side && tile.row === unitSpec.row && tile.index === unitSpec.index;
     })[0];
-    return g ? { x: g.cx, y: g.cy } : { x: 0, y: 0 };
+    return match ? { x: match.cx, y: match.cy } : { x: 0, y: 0 };
   }
 
   /* Arrows showing where a unit's strength actually goes. They are drawn over the
@@ -2132,67 +2132,67 @@ function tutorialBoard(spec) {
      chip beneath the lane label, clear of the board. */
   var amounts = '';
   var perLane = {};
-  (spec.flows || []).forEach(function (f) {
-    var p = centre(f.from), lx = (f.lane + 0.5) * 200;
-    var hex = C.COLORS[f.color].hex;
-    var my = (p.y + arrowY) / 2;
-    flows += '<path class="tut-flow" stroke="' + hex + '" d="M' + p.x + ',' + p.y +
-      ' C' + p.x + ',' + my + ' ' + lx + ',' + my + ' ' + lx + ',' + (arrowY + 20) + '"/>';
+  (spec.flows || []).forEach(function (flow) {
+    var pos = centre(flow.from), lx = (flow.lane + 0.5) * 200;
+    var hex = C.COLORS[flow.color].hex;
+    var my = (pos.y + arrowY) / 2;
+    flows += '<path class="tut-flow" stroke="' + hex + '" d="M' + pos.x + ',' + pos.y +
+      ' C' + pos.x + ',' + my + ' ' + lx + ',' + my + ' ' + lx + ',' + (arrowY + 20) + '"/>';
     flows += '<path class="tut-arrow" fill="' + hex + '" d="M' + lx + ',' + arrowY +
       ' l-13,22 l26,0 Z"/>';
-    perLane[f.lane] = { amount: (perLane[f.lane] ? perLane[f.lane].amount + f.amount : f.amount), hex: hex };
+    perLane[flow.lane] = { amount: (perLane[flow.lane] ? perLane[flow.lane].amount + flow.amount : flow.amount), hex: hex };
   });
-  Object.keys(perLane).forEach(function (L) {
-    var lx = (+L + 0.5) * 200, e = perLane[L];
+  Object.keys(perLane).forEach(function (laneKey) {
+    var lx = (+laneKey + 0.5) * 200, laneAmount = perLane[laneKey];
     amounts += '<rect class="tut-amtbox" x="' + (lx - 30) + '" y="' + (amountY - 26) +
-      '" width="60" height="52" rx="15" stroke="' + e.hex + '"/>' +
+      '" width="60" height="52" rx="15" stroke="' + laneAmount.hex + '"/>' +
       '<text class="tut-amt" x="' + lx + '" y="' + amountY + '" text-anchor="middle" ' +
-      'dominant-baseline="central" fill="' + e.hex + '">' + e.amount + '</text>';
+      'dominant-baseline="central" fill="' + laneAmount.hex + '">' + laneAmount.amount + '</text>';
   });
 
-  (spec.units || []).forEach(function (u) {
-    var p = centre(u), ci = C.colorInfo(u.color);
-    tokens += '<circle class="tut-owner ' + (u.side === 'bottom' ? 'you' : 'foe') +
-      (u.faded ? ' faded' : '') + (u.front ? ' front' : '') + '" cx="' + p.x + '" cy="' + p.y + '" r="52"/>' +
-      '<circle class="tut-token' + (u.faded ? ' faded' : '') + '" cx="' + p.x + '" cy="' + p.y +
-      '" r="44" fill="' + ci.hex + '"/>' +
-      '<text class="tut-str' + (u.faded ? ' faded' : '') + '" x="' + p.x + '" y="' + p.y +
-      '" text-anchor="middle" dominant-baseline="central" fill="' + ci.ink + '">' + u.strength + '</text>';
-    if (u.fx) {
+  (spec.units || []).forEach(function (unitSpec) {
+    var pos = centre(unitSpec), colorDef = C.colorInfo(unitSpec.color);
+    tokens += '<circle class="tut-owner ' + (unitSpec.side === 'bottom' ? 'you' : 'foe') +
+      (unitSpec.faded ? ' faded' : '') + (unitSpec.front ? ' front' : '') + '" cx="' + pos.x + '" cy="' + pos.y + '" r="52"/>' +
+      '<circle class="tut-token' + (unitSpec.faded ? ' faded' : '') + '" cx="' + pos.x + '" cy="' + pos.y +
+      '" r="44" fill="' + colorDef.hex + '"/>' +
+      '<text class="tut-str' + (unitSpec.faded ? ' faded' : '') + '" x="' + pos.x + '" y="' + pos.y +
+      '" text-anchor="middle" dominant-baseline="central" fill="' + colorDef.ink + '">' + unitSpec.strength + '</text>';
+    if (unitSpec.fx) {
       // drawn exactly as the live board draws its multiplier badge
-      tokens += '<text class="tut-fx" x="' + p.x + '" y="' + (p.y + (u.side === 'bottom' ? 70 : -70)) +
-        '" text-anchor="middle" dominant-baseline="central">' + u.fx + '</text>';
+      tokens += '<text class="tut-fx" x="' + pos.x + '" y="' + (pos.y + (unitSpec.side === 'bottom' ? 70 : -70)) +
+        '" text-anchor="middle" dominant-baseline="central">' + unitSpec.fx + '</text>';
     }
   });
 
   /* On a live board we cannot know what is where, so pointers pick the nearest
      offset that keeps clear of every token and of the pointers already placed. */
-  var unitPts = (spec.units || []).map(function (u) { return centre(u); });
+  var unitPts = (spec.units || []).map(function (unitSpec) { return centre(unitSpec); });
   var placed = [];
   var CANDIDATES = [[-116, -8], [116, -8], [-116, 64], [116, 64], [0, -122], [0, 122],
                     [-146, 34], [146, 34], [-96, -96], [96, -96], [-96, 96], [96, 96]];
-  function autoOffset(p) {
+  function autoOffset(pos) {
     var best = null;
-    CANDIDATES.forEach(function (c) {
-      var bx = p.x + c[0], by = p.y + c[1], worst = Infinity;
-      unitPts.concat(placed).forEach(function (q) {
-        var d = Math.sqrt((bx - q.x) * (bx - q.x) + (by - q.y) * (by - q.y));
-        if (d < worst) worst = d;
+    CANDIDATES.forEach(function (candidate) {
+      var bx = pos.x + candidate[0], by = pos.y + candidate[1], worst = Infinity;
+      unitPts.concat(placed).forEach(function (otherPos) {
+        var dist = Math.sqrt((bx - otherPos.x) * (bx - otherPos.x) + (by - otherPos.y) * (by - otherPos.y));
+        if (dist < worst) worst = dist;
       });
-      if (!best || worst > best.worst) best = { worst: worst, dx: c[0], dy: c[1] };
+      if (!best || worst > best.worst) best = { worst: worst, dx: candidate[0], dy: candidate[1] };
     });
     return best || { dx: -116, dy: -8 };
   }
 
-  (spec.marks || []).forEach(function (m) {
-    var p = m.at ? centre(m.at) : { x: m.x, y: m.y };
-    var off = (m.dx === undefined && m.dy === undefined) ? autoOffset(p) : { dx: m.dx || 0, dy: m.dy || 0 };
-    var bx = p.x + off.dx, by = p.y + off.dy;
+  (spec.marks || []).forEach(function (mark) {
+    var pos = mark.at ? centre(mark.at) : { x: mark.x, y: mark.y };
+    var off = (mark.dx === undefined && mark.dy === undefined) ? autoOffset(pos) : { dx: mark.dx || 0, dy: mark.dy || 0 };
+    var bx = pos.x + off.dx, by = pos.y + off.dy;
     placed.push({ x: bx, y: by });
-    marks += '<line class="tut-lead" x1="' + p.x + '" y1="' + p.y + '" x2="' + bx + '" y2="' + by + '"/>';
+    marks += '<line class="tut-lead" x1="' + pos.x + '" y1="' + pos.y + '" x2="' + bx + '" y2="' + by + '"/>';
     marks += '<circle class="tut-badge" cx="' + bx + '" cy="' + by + '" r="30"/>' +
       '<text class="tut-badgeno" x="' + bx + '" y="' + by + '" text-anchor="middle" dominant-baseline="central">' +
-      m.n + '</text>';
+      mark.n + '</text>';
   });
 
   return '<svg class="tut-svg" viewBox="' + vb.x + ' ' + vb.y + ' ' + vb.w + ' ' + vb.h +
@@ -2202,30 +2202,30 @@ function tutorialBoard(spec) {
 
 /* Turn a real board plus its evaluation into diagram units, carrying the same
    frontline rings and multiplier badges the live board draws. */
-function liveUnits(board, ev, fadedKeys) {
+function liveUnits(board, evaluation, fadedKeys) {
   var fronts = {}, mult = {};
-  ev.lanes.forEach(function (lane) {
-    ['bottom', 'top'].forEach(function (sd) {
-      if (!lane[sd]) return;
-      var k = sd + '-' + lane[sd].champion.row + '-' + lane[sd].champion.index;
-      fronts[k] = true;
-      mult[k] = Math.max(mult[k] || 1, lane[sd].multiplier);
+  evaluation.lanes.forEach(function (lane) {
+    ['bottom', 'top'].forEach(function (side) {
+      if (!lane[side]) return;
+      var key = side + '-' + lane[side].champion.row + '-' + lane[side].champion.index;
+      fronts[key] = true;
+      mult[key] = Math.max(mult[key] || 1, lane[side].multiplier);
     });
   });
-  var out = [];
-  ['bottom', 'top'].forEach(function (sd) {
-    C.eachUnit(board, sd, function (u, row, i) {
-      var k = sd + '-' + row + '-' + i, v = ev.get(sd, row, i);
-      out.push({ side: sd, row: row, index: i, color: v.color, strength: ev.strengthOf(v),
-                 front: !!fronts[k], fx: (mult[k] > 1 ? '\u00d7' + mult[k] : null),
-                 faded: !!(fadedKeys && fadedKeys.indexOf(k) !== -1) });
+  var units = [];
+  ['bottom', 'top'].forEach(function (side) {
+    C.eachUnit(board, side, function (unit, row, index) {
+      var key = side + '-' + row + '-' + index, tileView = evaluation.get(side, row, index);
+      units.push({ side: side, row: row, index: index, color: tileView.color, strength: evaluation.strengthOf(tileView),
+                 front: !!fronts[key], fx: (mult[key] > 1 ? '\u00d7' + mult[key] : null),
+                 faded: !!(fadedKeys && fadedKeys.indexOf(key) !== -1) });
     });
   });
-  return out;
+  return units;
 }
-function unitName(board, ev, side, row, index) {
-  var v = ev.get(side, row, index);
-  return C.colorInfo(v.color).name + ' ' + ev.strengthOf(v);
+function unitName(board, evaluation, side, row, index) {
+  var tileView = evaluation.get(side, row, index);
+  return C.colorInfo(tileView.color).name + ' ' + evaluation.strengthOf(tileView);
 }
 function rowLabel(row) { return C.ROW_INFO[row].label; }
 
