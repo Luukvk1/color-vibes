@@ -371,30 +371,30 @@ function renderFissures() {
   var state = getBattleState();
   if (!fissureLayer) return;
   var list = (state && state.fissures) || [];
-  var sig = list.map(function (f) {
-    return C.edgeKey(f.side, f.a, f.b) + ':' + f.kind + ':' + C.fissurePower(f);
+  var sig = list.map(function (fissure) {
+    return C.edgeKey(fissure.side, fissure.a, fissure.b) + ':' + fissure.kind + ':' + C.fissurePower(fissure);
   }).join('|');
   if (sig === fissureSig) return;
   fissureSig = sig;
   fissureLayer.innerHTML = '';
-  list.forEach(function (f) {
-    var d = f.kind === 'bridge' ? bridgePoints(f) : (function () {
-      var seam = C.seamOf(f.side, f.a, f.b);
+  list.forEach(function (fissure) {
+    var pathData = fissure.kind === 'bridge' ? bridgePoints(fissure) : (function () {
+      var seam = C.seamOf(fissure.side, fissure.a, fissure.b);
       return seam ? crackPoints(seam) : null;
     })();
-    if (!d) return;
-    var key = C.edgeKey(f.side, f.a, f.b);
-    var power = Math.min(C.FISSURE_MAX_POWER, C.fissurePower(f));
-    var g = document.createElementNS(SVG_NS, 'g');
-    g.setAttribute('class', 'fissure fissure-' + f.kind + ' fissure-p' + power +
+    if (!pathData) return;
+    var key = C.edgeKey(fissure.side, fissure.a, fissure.b);
+    var power = Math.min(C.FISSURE_MAX_POWER, C.fissurePower(fissure));
+    var group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute('class', 'fissure fissure-' + fissure.kind + ' fissure-p' + power +
       (newFissures[key] ? ' fissure-new' : ''));
     ['fissure-glow', 'fissure-halo', 'fissure-core'].forEach(function (cls) {
-      var p = document.createElementNS(SVG_NS, 'path');
-      p.setAttribute('class', cls);
-      p.setAttribute('d', d);
-      g.appendChild(p);
+      var path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', cls);
+      path.setAttribute('d', pathData);
+      group.appendChild(path);
     });
-    fissureLayer.appendChild(g);
+    fissureLayer.appendChild(group);
     delete newFissures[key];
   });
 }
@@ -405,27 +405,27 @@ function renderFissures() {
    player tapped one of their own cards. Skip the rebuild when the count
    hasn't moved; the deck/hand tally text still updates either way. */
 function renderEnemyHand() {
-  var s = getBattleState(), n = s.hands[ENEMY].length;
-  els.enemyDeckCount.textContent = n + ' in hand · ' + s.decks[ENEMY].length + ' in deck';
-  if (n === lastEnemyHandCount) return;
-  lastEnemyHandCount = n;
+  var state = getBattleState(), handCount = state.hands[ENEMY].length;
+  els.enemyDeckCount.textContent = handCount + ' in hand · ' + state.decks[ENEMY].length + ' in deck';
+  if (handCount === lastEnemyHandCount) return;
+  lastEnemyHandCount = handCount;
   var backs = '';
-  for (var i = 0; i < n; i++) backs += '<span class="card-back" style="--i:' + i + '"></span>';
+  for (var i = 0; i < handCount; i++) backs += '<span class="card-back" style="--i:' + i + '"></span>';
   els.enemyHand.innerHTML = backs || '<span class="muted" style="font-size:11.5px">Empty hand</span>';
 }
 
 function renderHand() {
-  var s = getBattleState(), hand = s.hands[PLAYER];
-  var canAct = s.turn === PLAYER && !s.resolving && !s.battleOver && !s.opponentThinking && !s.pending;
-  els.handCount.textContent = hand.length + ' card' + (hand.length === 1 ? '' : 's') + ' · ' + s.decks[PLAYER].length + ' in deck';
+  var state = getBattleState(), hand = state.hands[PLAYER];
+  var canAct = state.turn === PLAYER && !state.resolving && !state.battleOver && !state.opponentThinking && !state.pending;
+  els.handCount.textContent = hand.length + ' card' + (hand.length === 1 ? '' : 's') + ' · ' + state.decks[PLAYER].length + ' in deck';
 
-  var html = hand.map(function (card, i) {
-    var d = CARDS[card.id], c = colorInfo(d.color);
-    var sel = s.selectedCard === i && s.mode === 'place' ? ' selected' : '';
+  var html = hand.map(function (card, index) {
+    var cardDef = CARDS[card.id], colorDef = colorInfo(cardDef.color);
+    var sel = state.selectedCard === index && state.mode === 'place' ? ' selected' : '';
     var dead = '';
     if (canAct) {
-      if (d.type === 'unit' && !legalTiles(s.board, PLAYER, cardStrength(card), C.placeOpts(card.id, s.relics, s.board, PLAYER)).length) dead = ' unplayable';
-      if (d.type === 'hazard' && !freeHazardRows(s.hazards, PLAYER).length) dead = ' unplayable';
+      if (cardDef.type === 'unit' && !legalTiles(state.board, PLAYER, cardStrength(card), C.placeOpts(card.id, state.relics, state.board, PLAYER)).length) dead = ' unplayable';
+      if (cardDef.type === 'hazard' && !freeHazardRows(state.hazards, PLAYER).length) dead = ' unplayable';
       /* A spell's target picking begins the instant the card is tapped —
          there is no board placement step first, unlike a unit — so if the
          very first thing it needs to ask for has no legal answer at all
@@ -438,24 +438,24 @@ function renderHand() {
          a unit's own on-play targets can depend on the tile it is about to
          occupy, which does not exist yet at this point, so checking them
          here would wrongly flag units that are perfectly playable. */
-      if (d.type === 'spell' && d.targets && d.targets.length &&
-          !RUN.legalTargets(s, PLAYER, d.targets[0], [], null).length) dead = ' unplayable';
+      if (cardDef.type === 'spell' && cardDef.targets && cardDef.targets.length &&
+          !RUN.legalTargets(state, PLAYER, cardDef.targets[0], [], null).length) dead = ' unplayable';
     }
-    return '<button class="card ' + d.type + sel + dead + '" data-card="' + i + '"' + (canAct ? '' : ' disabled') +
-      ' style="--card:' + c.hex + ';--card-ink:' + c.ink + '">' +
-      '<span class="card-top">' + (d.type === 'unit' ? cardStrength(card) : d.type === 'hazard' ? 'HAZ' : 'SPL') + '</span>' +
+    return '<button class="card ' + cardDef.type + sel + dead + '" data-card="' + index + '"' + (canAct ? '' : ' disabled') +
+      ' style="--card:' + colorDef.hex + ';--card-ink:' + colorDef.ink + '">' +
+      '<span class="card-top">' + (cardDef.type === 'unit' ? cardStrength(card) : cardDef.type === 'hazard' ? 'HAZ' : 'SPL') + '</span>' +
       '<span class="card-name">' + cardName(card) + '</span>' +
       C.iconRow(card.id) +
-      '<span class="card-blurb">' + d.text + '</span></button>';
+      '<span class="card-blurb">' + cardDef.text + '</span></button>';
   }).join('');
 
   /* Mixing is a card you play, not a button off to one side. */
-  var tokens = s.mixTokens[PLAYER];
-  var canMixNow = canAct && tokens > 0 && RUN.mixOptions(s.board, PLAYER).length > 0;
-  html += '<button class="card mixcard' + (s.mode === 'mix' ? ' selected' : '') +
+  var tokens = state.mixTokens[PLAYER];
+  var canMixNow = canAct && tokens > 0 && RUN.mixOptions(state.board, PLAYER).length > 0;
+  html += '<button class="card mixcard' + (state.mode === 'mix' ? ' selected' : '') +
     (canMixNow ? '' : ' unplayable') + '" data-mix="1"' + (canMixNow ? '' : ' disabled') + '>' +
     '<span class="card-top">' + tokens + '</span>' +
-    '<span class="card-name">' + (s.mode === 'mix' ? 'Cancel mix' : 'Mix') + '</span>' +
+    '<span class="card-name">' + (state.mode === 'mix' ? 'Cancel mix' : 'Mix') + '</span>' +
     C.iconRow('__mix__') +
     '<span class="card-blurb">Fuse two touching friendly units. Colours combine, strengths add plus one.</span></button>';
 
@@ -487,8 +487,8 @@ function renderHand() {
     }
     var card = getBattleState().hands[PLAYER][+btn.getAttribute('data-card')];
     if (!card) return null;
-    var d = CARDS[card.id];
-    return { cardId: card.id, html: C.iconRow(card.id) + '<span>' + d.text + '</span>' };
+    var cardDef = CARDS[card.id];
+    return { cardId: card.id, html: C.iconRow(card.id) + '<span>' + cardDef.text + '</span>' };
   }
   // a re-render must not wipe what the player is currently reading
   var selNow = els.hand.querySelector('.card.selected');
@@ -508,14 +508,14 @@ function renderHand() {
       if (selBtn) peek(peekFor(selBtn));
     });
     btn.addEventListener('click', function () {
-      var st = getBattleState();
+      var state = getBattleState();
       peek(peekFor(btn));
       if (btn.getAttribute('data-mix')) { onMixToggle(); return; }
-      var i = +btn.getAttribute('data-card');
-      st.mode = 'place'; st.mixBase = null;
-      st.selectedCard = st.selectedCard === i ? null : i;
-      var card = st.hands[PLAYER][st.selectedCard];
-      var d = card && CARDS[card.id];
+      var clickedIndex = +btn.getAttribute('data-card');
+      state.mode = 'place'; state.mixBase = null;
+      state.selectedCard = state.selectedCard === clickedIndex ? null : clickedIndex;
+      var card = state.hands[PLAYER][state.selectedCard];
+      var cardDef = card && CARDS[card.id];
       /* A spell has no placement step — tapping it goes straight into
          targeting, unlike a unit, which only starts targeting once it has a
          tile to stand on. So when its first ask has nothing to offer at all
@@ -525,9 +525,9 @@ function renderHand() {
          was never a chance to even read it first, let alone back out.
          Selecting it without resolving matches how an unplayable unit
          already behaves: visible, chosen, inert until something changes. */
-      var canTarget = !d || !d.targets || !d.targets.length ||
-        RUN.legalTargets(st, PLAYER, d.targets[0], [], null).length > 0;
-      if (d && d.type === 'spell' && st.selectedCard !== null && canTarget) beginPlay(PLAYER, st.selectedCard, null);
+      var canTarget = !cardDef || !cardDef.targets || !cardDef.targets.length ||
+        RUN.legalTargets(state, PLAYER, cardDef.targets[0], [], null).length > 0;
+      if (cardDef && cardDef.type === 'spell' && state.selectedCard !== null && canTarget) beginPlay(PLAYER, state.selectedCard, null);
       else render();
     });
   });
@@ -535,14 +535,14 @@ function renderHand() {
 
 function renderLanes(ev) {
   els.lanes.innerHTML = ev.lanes.map(function (lane) {
-    function cell(sd) {
-      var d = lane[sd];
-      if (!d) return '<span class="lane-empty">—</span>';
-      var c = colorInfo(d.color), cd = CARDS[d.champion.unit.cardId];
-      return '<span class="lane-unit" style="--c:' + c.hex + '">' +
-        '<span class="lane-tot"><b>' + d.final + '</b>' + (d.multiplier > 1 ? '<i class="x2">\u00d7' + d.multiplier + '</i>' : '') + '</span>' +
-        '<em>' + c.name + ' · ' + ROW_INFO[d.champion.row].label.replace('Row ', 'R') + '</em>' +
-        '<em class="brk">front ' + d.frontStrength + (d.support ? ' + support ' + d.support : '') + ' = ' + d.strength + '</em></span>';
+    function cell(side) {
+      var laneSide = lane[side];
+      if (!laneSide) return '<span class="lane-empty">—</span>';
+      var colorDef = colorInfo(laneSide.color), championCardDef = CARDS[laneSide.champion.unit.cardId];
+      return '<span class="lane-unit" style="--c:' + colorDef.hex + '">' +
+        '<span class="lane-tot"><b>' + laneSide.final + '</b>' + (laneSide.multiplier > 1 ? '<i class="x2">\u00d7' + laneSide.multiplier + '</i>' : '') + '</span>' +
+        '<em>' + colorDef.name + ' · ' + ROW_INFO[laneSide.champion.row].label.replace('Row ', 'R') + '</em>' +
+        '<em class="brk">front ' + laneSide.frontStrength + (laneSide.support ? ' + support ' + laneSide.support : '') + ' = ' + laneSide.strength + '</em></span>';
     }
     var mid;
     if (lane.bottom && lane.top) {
@@ -565,42 +565,42 @@ var HAZ_GLYPH = {
   scorch: '<path class="hm-icon" d="M-7,-7 L0,1 L7,-7 M-7,2 L0,10 L7,2"/>'
 };
 function rowCentre(side, row) {
-  var ys = [], n = ROW_INFO[row].count;
-  for (var i = 0; i < n; i++) { var g = tileGeo(side, row, i); if (g) ys.push(g.cy); }
+  var ys = [], count = ROW_INFO[row].count;
+  for (var i = 0; i < count; i++) { var geo = tileGeo(side, row, i); if (geo) ys.push(geo.cy); }
   if (!ys.length) return 0;
-  return ys.reduce(function (a, c) { return a + c; }, 0) / ys.length;
+  return ys.reduce(function (sum, cy) { return sum + cy; }, 0) / ys.length;
 }
 function renderHazardMarks() {
-  var s = getBattleState();
+  var state = getBattleState();
   hazLayer.innerHTML = '';
   var markX = VIEWBOX.x - 40;
   ROWS.forEach(function (row) {
-    var kinds = C.hazardsOnRow(s.hazards, row);
+    var kinds = C.hazardsOnRow(state.hazards, row);
     if (!kinds.length) return;
     ['bottom', 'top'].forEach(function (side) {
       var cy = rowCentre(side, row);
       kinds.forEach(function (kind, k) {
-        var owner = s.hazards.bottom[row] === kind ? 'bottom' : 'top';
-        var g = document.createElementNS(SVG_NS, 'g');
-        var sel = s.inspectedHazard && s.inspectedHazard.row === row && s.inspectedHazard.kind === kind;
-        g.setAttribute('class', 'haz-mark ' + kind + (sel ? ' selected' : ''));
-        g.setAttribute('transform', 'translate(' + markX + ',' + (cy + k * 62) + ')');
-        g.setAttribute('tabindex', '0');
-        g.setAttribute('role', 'button');
-        g.setAttribute('aria-label', C.HAZARD_TEXT[kind]);
-        g.innerHTML = '<circle class="hm-disc" r="26"/>' + HAZ_GLYPH[kind];
+        var owner = state.hazards.bottom[row] === kind ? 'bottom' : 'top';
+        var group = document.createElementNS(SVG_NS, 'g');
+        var sel = state.inspectedHazard && state.inspectedHazard.row === row && state.inspectedHazard.kind === kind;
+        group.setAttribute('class', 'haz-mark ' + kind + (sel ? ' selected' : ''));
+        group.setAttribute('transform', 'translate(' + markX + ',' + (cy + k * 62) + ')');
+        group.setAttribute('tabindex', '0');
+        group.setAttribute('role', 'button');
+        group.setAttribute('aria-label', C.HAZARD_TEXT[kind]);
+        group.innerHTML = '<circle class="hm-disc" r="26"/>' + HAZ_GLYPH[kind];
         function open() {
-          var st = getBattleState();
-          st.inspectedHazard = { row: row, kind: kind, owner: owner };
-          st.inspected = null;
+          var innerState = getBattleState();
+          innerState.inspectedHazard = { row: row, kind: kind, owner: owner };
+          innerState.inspected = null;
           render();
-          openInfo(kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(st.inspectedHazard));
+          openInfo(kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(innerState.inspectedHazard));
         }
-        g.addEventListener('click', open);
-        g.addEventListener('keydown', function (e) {
+        group.addEventListener('click', open);
+        group.addEventListener('keydown', function (e) {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
         });
-        hazLayer.appendChild(g);
+        hazLayer.appendChild(group);
       });
     });
   });
