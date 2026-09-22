@@ -1928,12 +1928,12 @@ var SECRET_REASON = {
 function renderVictory() {
   var offers = secretOffers(run);
   var full = whiteUnlocked(run);
-  var roster = ACT_KEYS.map(function (k) {
-    var a = ACTS[k], c = COLORS[a.color];
-    var walked = run.actsCleared.indexOf(k) !== -1;
-    return '<span class="chip" style="background:' + (walked ? c.hex : 'transparent') +
-      ';color:' + (walked ? c.ink : 'var(--ink-3)') +
-      (walked ? '' : ';border:1px dashed var(--line)') + '">' + a.name + '</span>';
+  var roster = ACT_KEYS.map(function (key) {
+    var act = ACTS[key], colorDef = COLORS[act.color];
+    var walked = run.actsCleared.indexOf(key) !== -1;
+    return '<span class="chip" style="background:' + (walked ? colorDef.hex : 'transparent') +
+      ';color:' + (walked ? colorDef.ink : 'var(--ink-3)') +
+      (walked ? '' : ';border:1px dashed var(--line)') + '">' + act.name + '</span>';
   }).join(' ');
 
   var head = full ? 'The wheel is complete' : 'Black is broken';
@@ -1949,19 +1949,19 @@ function renderVictory() {
   /* Every secret road that qualified, not just the first. A run that went
      broad, carried its rot and broke the ground has done three separate hard
      things and is offered all three. */
-  var secretCards = offers.map(function (k) {
-    var a = ACTS[k], c = COLORS[a.color];
-    var art = ACT_ART[k] || {};
+  var secretCards = offers.map(function (key) {
+    var act = ACTS[key], colorDef = COLORS[act.color];
+    var art = ACT_ART[key] || {};
     var bg = art.varName ? 'var(' + art.varName + ')' : 'none';
-    return '<button class="act-pick victory-pick" data-secret="' + k + '" style="--act:' + c.hex +
+    return '<button class="act-pick victory-pick" data-secret="' + key + '" style="--act:' + colorDef.hex +
       ';--act-art:' + bg + ';--act-art-filter:' + (art.filter || 'none') +
       ';--act-art-y:' + Math.round((art.seam || 0.25) * 100) + '%">' +
       '<span class="act-art" aria-hidden="true"></span>' +
       '<span class="act-scrim" aria-hidden="true"></span>' +
       '<span class="act-copy">' +
-        '<span class="act-name">' + a.name + '</span>' +
-        '<span class="act-blurb">' + a.blurb + ' ' + (SECRET_REASON[k] || '') + '</span>' +
-        '<span class="act-boss">Boss \u00b7 ' + ENEMIES[a.boss].name + '</span>' +
+        '<span class="act-name">' + act.name + '</span>' +
+        '<span class="act-blurb">' + act.blurb + ' ' + (SECRET_REASON[key] || '') + '</span>' +
+        '<span class="act-boss">Boss \u00b7 ' + ENEMIES[act.boss].name + '</span>' +
       '</span></button>';
   }).join('');
 
@@ -1985,8 +1985,8 @@ function renderVictory() {
         '</span></button>' +
     '</div>';
 
-  Array.prototype.forEach.call(els.victoryBody.querySelectorAll('[data-secret]'), function (b) {
-    b.addEventListener('click', function () { beginAct(b.getAttribute('data-secret')); });
+  Array.prototype.forEach.call(els.victoryBody.querySelectorAll('[data-secret]'), function (btn) {
+    btn.addEventListener('click', function () { beginAct(btn.getAttribute('data-secret')); });
   });
   document.getElementById('goEndlessBtn').addEventListener('click', function () { goEndless(); });
   document.getElementById('endHereBtn').addEventListener('click', function () { endAsVictory(); });
@@ -2060,20 +2060,20 @@ function beginBattle() {
    that lets you build safely in lanes the enemy has ignored. A unit fronting
    several lanes falls once if any of them was contested. */
 function clearFrontlines(board, hazards, ctx) {
-  var ev = C.evaluateBoard(board, hazards, ctx || {});
+  var evaluation = C.evaluateBoard(board, hazards, ctx || {});
   var fallen = { bottom: [], top: [] };
-  ev.lanes.forEach(function (lane) {
+  evaluation.lanes.forEach(function (lane) {
     if (!lane.bottom || !lane.top) return;      // uncontested — no fight, no losses
-    ['bottom', 'top'].forEach(function (sd) {
-      if (!lane[sd]) return;
-      var ch = lane[sd].champion, key = ch.row + '|' + ch.index;
-      if (fallen[sd].indexOf(key) === -1) fallen[sd].push(key);
+    ['bottom', 'top'].forEach(function (side) {
+      if (!lane[side]) return;
+      var champion = lane[side].champion, key = champion.row + '|' + champion.index;
+      if (fallen[side].indexOf(key) === -1) fallen[side].push(key);
     });
   });
-  ['bottom', 'top'].forEach(function (sd) {
-    fallen[sd].forEach(function (k) {
-      var p = k.split('|');
-      board[sd][p[0]][+p[1]] = null;
+  ['bottom', 'top'].forEach(function (side) {
+    fallen[side].forEach(function (key) {
+      var parts = key.split('|');
+      board[side][parts[0]][+parts[1]] = null;
     });
   });
   return fallen;
