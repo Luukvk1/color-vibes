@@ -113,7 +113,6 @@ export var CARD_ICONS = {
   red_colossus:         [{ i: 'friendly' }, { i: 'minus', v: 2 }],
   black_solitude:       [{ i: 'friendly' }, { i: 'plus', v: 4 }],
   blue_undertow:        [{ i: 'draw' }, { i: 'plus', v: 1 }],
-  cyan_reservoir:       [{ i: 'draw' }, { i: 'stack' }, { i: 'plus', v: 3 }],
   magenta_crescendo:    [{ i: 'mix' }, { i: 'plus', v: 2 }],
   black_hermit:         [{ i: 'x2' }, { i: 'block' }],
   cyan_monolith:        [{ i: 'block' }, { i: 'plus', v: 3 }],
@@ -178,93 +177,93 @@ export var CARD_ICONS = {
   curse_beacon:         [{ i: 'enemy' }, { i: 'plus', v: 2 }],
   __mix__:              [{ i: 'mix' }, { i: 'touch' }]
 };
-export function iconsFor(id) { return CARD_ICONS[id] || []; }
+export function iconsFor(cardId) { return CARD_ICONS[cardId] || []; }
 
 /* ---- what an enemy does, as icons ----
    Derived from the enemy's own `mod` rather than written out by hand, so the
    icons cannot drift from the rules: change the number on a boss and its
    icon changes with it. Each entry carries a plain-language `t` used as the
    tooltip and in the glossary, which keeps one description doing both jobs. */
-export function enemyIcons(key) {
-  var e = ENEMIES[key];
-  if (!e) return [];
-  var m = e.mod || {}, out = [];
-  if (m.colorBonus) {
-    Object.keys(m.colorBonus).forEach(function (c) {
-      out.push({ i: 'plus', v: m.colorBonus[c], colour: c,
-        t: 'Its ' + COLORS[c].name + ' units are ' + m.colorBonus[c] + ' stronger.' });
+export function enemyIcons(enemyKey) {
+  var enemyDef = ENEMIES[enemyKey];
+  if (!enemyDef) return [];
+  var mod = enemyDef.mod || {}, icons = [];
+  if (mod.colorBonus) {
+    Object.keys(mod.colorBonus).forEach(function (colorKey) {
+      icons.push({ i: 'plus', v: mod.colorBonus[colorKey], colour: colorKey,
+        t: 'Its ' + COLORS[colorKey].name + ' units are ' + mod.colorBonus[colorKey] + ' stronger.' });
     });
   }
-  if (m.growth) out.push({ i: 'growth', v: m.growth,
+  if (mod.growth) icons.push({ i: 'growth', v: mod.growth,
     t: 'OVERGROWTH \u2014 every unit of its that survives a round comes back permanently ' +
-       m.growth + ' stronger. Win early; a long fight favours it.' });
-  if (m.supportPenalty) out.push({ i: 'support',
+       mod.growth + ' stronger. Win early; a long fight favours it.' });
+  if (mod.supportPenalty) icons.push({ i: 'support',
     t: 'SCORCHED LINE \u2014 your units behind the front count for half. Play wide, not deep.' });
-  if (m.echoBestLane) out.push({ i: 'echoLane',
+  if (mod.echoBestLane) icons.push({ i: 'echoLane',
     t: 'UNDERTOW \u2014 it takes half the strength of whichever lane you invested in most, ' +
        'for its own frontline there. Spread out.' });
-  if (m.taxDominantColor) out.push({ i: 'tax', v: m.taxDominantColor,
-    t: 'EXPOSURE \u2014 whichever colour you field most loses ' + m.taxDominantColor +
+  if (mod.taxDominantColor) icons.push({ i: 'tax', v: mod.taxDominantColor,
+    t: 'EXPOSURE \u2014 whichever colour you field most loses ' + mod.taxDominantColor +
        ' per unit. An even split is taxed nothing.' });
-  if (m.echoMix) out.push({ i: 'echoMix',
+  if (mod.echoMix) icons.push({ i: 'echoMix',
     t: 'REFRACTION \u2014 every mix you land gives its strongest unit half that value. ' +
        'Mix small, or not at all.' });
-  if (m.wardWeakLanes) out.push({ i: 'ward', v: m.wardWeakLanes,
-    t: 'STILL WATER \u2014 it shields the ' + m.wardWeakLanes +
+  if (mod.wardWeakLanes) icons.push({ i: 'ward', v: mod.wardWeakLanes,
+    t: 'STILL WATER \u2014 it shields the ' + mod.wardWeakLanes +
        ' lanes it is weakest in: your matchup bonus is cancelled there.' });
-  if (m.punishColor) {
-    Object.keys(m.punishColor).forEach(function (c) {
-      out.push({ i: 'minus', v: m.punishColor[c], colour: c,
-        t: 'JUDGEMENT \u2014 your ' + COLORS[c].name + ' units are ' + m.punishColor[c] +
+  if (mod.punishColor) {
+    Object.keys(mod.punishColor).forEach(function (colorKey) {
+      icons.push({ i: 'minus', v: mod.punishColor[colorKey], colour: colorKey,
+        t: 'JUDGEMENT \u2014 your ' + COLORS[colorKey].name + ' units are ' + mod.punishColor[colorKey] +
            ' weaker here. It cannot be beaten with the dark alone.' });
     });
   }
-  if (m.feedsOnCurses) out.push({ i: 'block', v: m.feedsOnCurses,
-    t: 'THE CHOIR \u2014 it is ' + m.feedsOnCurses + ' stronger for every curse in your deck. ' +
+  if (mod.feedsOnCurses) icons.push({ i: 'block', v: mod.feedsOnCurses,
+    t: 'THE CHOIR \u2014 it is ' + mod.feedsOnCurses + ' stronger for every curse in your deck. ' +
        'What you carried here is what it is made of.' });
-  if (m.plantsCurse) out.push({ i: 'hazard',
+  if (mod.plantsCurse) icons.push({ i: 'hazard',
     t: 'It plants a curse on your board at the start of every round.' });
-  if (m.sunderEachRound) out.push({ i: 'destroy', v: m.sunderEachRound,
+  if (mod.sunderEachRound) icons.push({ i: 'destroy', v: mod.sunderEachRound,
     t: 'THE SUNDERING \u2014 the ground breaks further every round, on both halves.' });
-  if (m.drainMultiplier) out.push({ i: 'minus', v: m.drainMultiplier,
-    t: 'Your units bleed into the cracks ' + m.drainMultiplier + ' times as hard here.' });
-  if (m.feedsOnFissures) out.push({ i: 'plus', v: m.feedsOnFissures,
+  if (mod.drainMultiplier) icons.push({ i: 'minus', v: mod.drainMultiplier,
+    t: 'Your units bleed into the cracks ' + mod.drainMultiplier + ' times as hard here.' });
+  if (mod.feedsOnFissures) icons.push({ i: 'plus', v: mod.feedsOnFissures,
     t: 'Its own units feed on the cracks instead of bleeding into them, ' +
-       m.feedsOnFissures + ' per crack.' });
-  if (m.spectrumReward) out.push({ i: 'palette', v: m.spectrumReward,
+       mod.feedsOnFissures + ' per crack.' });
+  if (mod.spectrumReward) icons.push({ i: 'palette', v: mod.spectrumReward,
     t: 'Every colour you field beyond the second strengthens your whole line by ' +
-       m.spectrumReward + '. Breadth is the answer, not bigger units.' });
-  if (m.devourWeakest) out.push({ i: 'devour',
+       mod.spectrumReward + '. Breadth is the answer, not bigger units.' });
+  if (mod.devourWeakest) icons.push({ i: 'devour',
     t: 'It devours your weakest unit at the start of every round. Cheap bodies are food.' });
-  if (m.rotatingColor) out.push({ i: 'rotate', v: m.rotatingColor,
+  if (mod.rotatingColor) icons.push({ i: 'rotate', v: mod.rotatingColor,
     t: 'Each round it becomes a colour at random; its units of that colour are ' +
-       m.rotatingColor + ' stronger.' });
-  if (m.mixTokens && m.mixTokens > 1) out.push({ i: 'mixtoken', v: m.mixTokens,
-    t: 'It mixes ' + m.mixTokens + ' times a round instead of once.' });
-  if (m.punishEffective) out.push({ i: 'front', v: m.punishEffective,
+       mod.rotatingColor + ' stronger.' });
+  if (mod.mixTokens && mod.mixTokens > 1) icons.push({ i: 'mixtoken', v: mod.mixTokens,
+    t: 'It mixes ' + mod.mixTokens + ' times a round instead of once.' });
+  if (mod.punishEffective) icons.push({ i: 'front', v: mod.punishEffective,
     t: 'Every lane where you hold the effective matchup makes its frontline ' +
-       m.punishEffective + ' stronger.' });
-  return out;
+       mod.punishEffective + ' stronger.' });
+  return icons;
 }
 /* The rank mark, shown before the rule icons. */
-export function rankIcon(key) {
-  var e = ENEMIES[key];
-  if (!e || e.kind === 'normal') return null;
-  return e.kind === 'boss'
+export function rankIcon(enemyKey) {
+  var enemyDef = ENEMIES[enemyKey];
+  if (!enemyDef || enemyDef.kind === 'normal') return null;
+  return enemyDef.kind === 'boss'
     ? { i: 'boss', t: 'Act boss \u2014 beat it to end the act and choose your next road.' }
     : { i: 'elite', t: 'Elite \u2014 tougher than a normal fight, and always drops a relic.' };
 }
 /* Rank mark plus rules, as one row. Colour-tinted where the icon refers to a
    specific colour, so a glance tells you which colour is being buffed. */
-export function enemyIconRow(key, cls) {
-  var list = [], rank = rankIcon(key);
-  if (rank) list.push(rank);
-  list = list.concat(enemyIcons(key));
-  if (!list.length) return '';
-  return '<span class="iconrow enemy-icons">' + list.map(function (e) {
-    var style = e.colour ? ' style="color:' + COLORS[e.colour].hex + '"' : '';
-    return '<span class="ic" title="' + String(e.t || '').replace(/"/g, '&quot;') + '"' + style + '>' +
-      glyphSvg(e.i, cls) + (e.v !== undefined ? '<i class="icn">' + e.v + '</i>' : '') + '</span>';
+export function enemyIconRow(enemyKey, cls) {
+  var icons = [], rank = rankIcon(enemyKey);
+  if (rank) icons.push(rank);
+  icons = icons.concat(enemyIcons(enemyKey));
+  if (!icons.length) return '';
+  return '<span class="iconrow enemy-icons">' + icons.map(function (icon) {
+    var style = icon.colour ? ' style="color:' + COLORS[icon.colour].hex + '"' : '';
+    return '<span class="ic" title="' + String(icon.t || '').replace(/"/g, '&quot;') + '"' + style + '>' +
+      glyphSvg(icon.i, cls) + (icon.v !== undefined ? '<i class="icn">' + icon.v + '</i>' : '') + '</span>';
   }).join('') + '</span>';
 }
 export function glyphSvg(name, cls) {
@@ -273,13 +272,13 @@ export function glyphSvg(name, cls) {
 }
 /* A fused card inherits nothing, so it shows a fusion mark instead. */
 export function iconRow(cardId, cls) {
-  var d = CARDS[cardId];
-  var list = iconsFor(cardId);
-  if (!list.length && d && (d.fused || cardId === null)) list = [{ i: 'mix' }];
-  if (!list.length) return '';
-  return '<span class="iconrow">' + list.map(function (e) {
-    return '<span class="ic">' + glyphSvg(e.i, cls) +
-      (e.v !== undefined ? '<i class="icn">' + e.v + '</i>' : '') + '</span>';
+  var cardDef = CARDS[cardId];
+  var icons = iconsFor(cardId);
+  if (!icons.length && cardDef && (cardDef.fused || cardId === null)) icons = [{ i: 'mix' }];
+  if (!icons.length) return '';
+  return '<span class="iconrow">' + icons.map(function (icon) {
+    return '<span class="ic">' + glyphSvg(icon.i, cls) +
+      (icon.v !== undefined ? '<i class="icn">' + icon.v + '</i>' : '') + '</span>';
   }).join('') + '</span>';
 }
 
@@ -288,10 +287,10 @@ export var HAZARD_TEXT = { colorless: 'Colourless Row — no colour in this row'
    rewards, shops, enemy decks and every random roll at once \u2014 DRAWABLE is
    the single source for all of them. The boss reward, and the secret-act
    trophy reward, each reach past it deliberately. */
-export var DRAWABLE = Object.keys(CARDS).filter(function (k) {
-  return !CARDS[k].token && !CARDS[k].curse && !CARDS[k].bossOnly && !CARDS[k].secretOnly;
+export var DRAWABLE = Object.keys(CARDS).filter(function (cardId) {
+  return !CARDS[cardId].token && !CARDS[cardId].curse && !CARDS[cardId].bossOnly && !CARDS[cardId].secretOnly;
 });
-export var BOSS_CARDS = Object.keys(CARDS).filter(function (k) { return CARDS[k].bossOnly; });
+export var BOSS_CARDS = Object.keys(CARDS).filter(function (cardId) { return CARDS[cardId].bossOnly; });
 /* One road, one set of three — never rolled, never shared with the ordinary
    seven. Keyed by act so the reward code can look a road up directly rather
    than filtering the whole card table on every visit. */
@@ -300,13 +299,13 @@ export var SECRET_TROPHIES = {
   rot: ['rot_reliquary', 'rot_plague_herald', 'rot_undying_choir'],
   rift: ['rift_keystone', 'rift_bridgewalker', 'rift_the_widening']
 };
-export var CURSE_KEYS = Object.keys(CARDS).filter(function (k) { return CARDS[k].curse; });
-export function cardsOfRarity(r) { return DRAWABLE.filter(function (k) { return CARDS[k].rarity === r; }); }
+export var CURSE_KEYS = Object.keys(CARDS).filter(function (cardId) { return CARDS[cardId].curse; });
+export function cardsOfRarity(rarity) { return DRAWABLE.filter(function (cardId) { return CARDS[cardId].rarity === rarity; }); }
 
 /* An upgraded card is +1 strength (units) or costs nothing extra (spells). */
 export function cardStrength(entry) {
-  var d = CARDS[entry.id];
-  return d.strength + (entry.up && d.type === 'unit' ? 1 : 0);
+  var cardDef = CARDS[entry.id];
+  return cardDef.strength + (entry.up && cardDef.type === 'unit' ? 1 : 0);
 }
 export function cardName(entry) { return CARDS[entry.id].name + (entry.up ? '+' : ''); }
 
@@ -350,24 +349,24 @@ export var INHERITED_HOOKS = ['passive', 'aura', 'rowAura', 'enemyAura', 'matchu
 /* Data-shaped effects, inherited by merging rather than by composing calls. */
 export var INHERITED_DATA = ['enemyRowAura'];
 
-export function hasAnyHook(d) {
-  if (!d) return false;
-  if (d.onPlay || d.targets) return true;
-  return INHERITED_HOOKS.concat(INHERITED_DATA).some(function (h) { return d[h] !== undefined; });
+export function hasAnyHook(cardDef) {
+  if (!cardDef) return false;
+  if (cardDef.onPlay || cardDef.targets) return true;
+  return INHERITED_HOOKS.concat(INHERITED_DATA).some(function (hook) { return cardDef[hook] !== undefined; });
 }
 /* The effect ids a card brings to a fusion: its own inherited list if it is
    already a fusion, otherwise itself when it actually does something. */
 export function effectSourcesOf(cardId) {
-  var d = CARDS[cardId];
-  if (!d) return [];
-  if (d.effectSources) return d.effectSources.slice();
-  return hasAnyHook(d) ? [cardId] : [];
+  var cardDef = CARDS[cardId];
+  if (!cardDef) return [];
+  if (cardDef.effectSources) return cardDef.effectSources.slice();
+  return hasAnyHook(cardDef) ? [cardId] : [];
 }
 
 /* Compose inherited hooks onto a fused definition: numeric hooks sum, flags
    OR together, onPlay/targets take the first carrier. */
 export function applyInheritedEffects(def, sources) {
-  var defs = sources.map(function (k) { return CARDS[k]; }).filter(Boolean);
+  var sourceDefs = sources.map(function (cardId) { return CARDS[cardId]; }).filter(Boolean);
   /* Three shapes of hook, and mixing them up produces silent nonsense: a
      numeric one wrapped as a function ends up added to a strength as NaN, and
      a boolean flag turned into a function is always truthy. They are listed
@@ -379,31 +378,31 @@ export function applyInheritedEffects(def, sources) {
   var NUMBER_HOOKS = { mixBonus: 1, drawsEachRound: 1, swarmAura: 1,
                         onMixConsumed: 1, onMixConsumedChain: 1 };
   INHERITED_HOOKS.forEach(function (hook) {
-    var carriers = defs.filter(function (d) { return d[hook] !== undefined; });
+    var carriers = sourceDefs.filter(function (sourceDef) { return sourceDef[hook] !== undefined; });
     if (!carriers.length) return;
     if (FLAG_HOOKS[hook]) {
-      def[hook] = carriers.some(function (d) { return d[hook]; });
+      def[hook] = carriers.some(function (sourceDef) { return sourceDef[hook]; });
       return;
     }
     if (NUMBER_HOOKS[hook]) {
-      def[hook] = carriers.reduce(function (n, d) { return n + (d[hook] || 0); }, 0);
+      def[hook] = carriers.reduce(function (sum, sourceDef) { return sum + (sourceDef[hook] || 0); }, 0);
       return;
     }
     def[hook] = function () {
       var args = arguments, total = 0;
-      carriers.forEach(function (d) {
-        if (typeof d[hook] === 'function') total += d[hook].apply(null, args) || 0;
+      carriers.forEach(function (sourceDef) {
+        if (typeof sourceDef[hook] === 'function') total += sourceDef[hook].apply(null, args) || 0;
       });
       return total;
     };
   });
   INHERITED_DATA.forEach(function (hook) {
-    var carriers = defs.filter(function (d) { return d[hook]; });
+    var carriers = sourceDefs.filter(function (sourceDef) { return sourceDef[hook]; });
     if (!carriers.length) return;
     // same row: amounts add. Different rows: the first one wins.
     var first = carriers[0][hook];
-    var total = carriers.reduce(function (n, d) {
-      return d[hook].row === first.row ? n + (d[hook].amount || 0) : n;
+    var total = carriers.reduce(function (sum, sourceDef) {
+      return sourceDef[hook].row === first.row ? sum + (sourceDef[hook].amount || 0) : sum;
     }, 0);
     def[hook] = { row: first.row, amount: total };
   });
@@ -424,10 +423,10 @@ export function applyInheritedEffects(def, sources) {
      resolved picks back apart and call each carrier with its own share. A
      carrier that takes no targets (like the draw) simply gets an empty
      slice, exactly as it would if played alone. */
-  var acting = defs.filter(function (d) { return typeof d.onPlay === 'function'; });
+  var acting = sourceDefs.filter(function (sourceDef) { return typeof sourceDef.onPlay === 'function'; });
   if (acting.length) {
     var mergedTargets = [];
-    var shares = acting.map(function (d) {
+    var shares = acting.map(function (sourceDef) {
       /* A spec's `ref` (e.g. "an empty tile touching the unit from step 0")
          is authored as an index into that CARD's own targets array. Simply
          concatenating arrays leaves those indices pointing at whatever
@@ -437,19 +436,19 @@ export function applyInheritedEffects(def, sources) {
          slots the merge has already used keeps every ref pointing at the
          same pick it meant before the fusion existed. */
       var offset = mergedTargets.length;
-      var own = (d.targets || []).map(function (spec) {
+      var ownTargets = (sourceDef.targets || []).map(function (spec) {
         return spec.ref === undefined ? spec : Object.assign({}, spec, { ref: spec.ref + offset });
       });
-      mergedTargets = mergedTargets.concat(own);
-      return { onPlay: d.onPlay, count: own.length };
+      mergedTargets = mergedTargets.concat(ownTargets);
+      return { onPlay: sourceDef.onPlay, count: ownTargets.length };
     });
     if (mergedTargets.length) def.targets = mergedTargets;
-    def.onPlay = function (g, side, at, t, api) {
-      var picks = t || [], idx = 0, notes = [];
+    def.onPlay = function (battleState, side, at, targets, api) {
+      var picks = targets || [], pickIndex = 0, notes = [];
       shares.forEach(function (share) {
-        var slice = picks.slice(idx, idx + share.count);
-        idx += share.count;
-        var note = share.onPlay(g, side, at, slice, api);
+        var slice = picks.slice(pickIndex, pickIndex + share.count);
+        pickIndex += share.count;
+        var note = share.onPlay(battleState, side, at, slice, api);
         if (note) notes.push(note);
       });
       return notes.join('; ');
@@ -461,29 +460,29 @@ export function applyInheritedEffects(def, sources) {
 /* `forced` replays an exact effect list from a save. Once the cap starts
    biting a fusion is no longer deterministic, so the chosen list has to be
    recorded rather than recomputed on load. */
-export function fuseCards(a, b, forced) {
-  var da = CARDS[a.id], db = CARDS[b.id];
-  var color = mixResultColor(da.color, db.color) || 'red';
-  var bonus = (da.color === 'black' || db.color === 'black') ? 2 : 1;
-  var strength = cardStrength(a) + cardStrength(b) + bonus;
+export function fuseCards(cardEntryA, cardEntryB, forced) {
+  var cardDefA = CARDS[cardEntryA.id], cardDefB = CARDS[cardEntryB.id];
+  var color = mixResultColor(cardDefA.color, cardDefB.color) || 'red';
+  var bonus = (cardDefA.color === 'black' || cardDefB.color === 'black') ? 2 : 1;
+  var strength = cardStrength(cardEntryA) + cardStrength(cardEntryB) + bonus;
   var id = 'fusion_' + (++fusionSeq);
 
   var sources;
   if (forced) sources = forced.slice();
   else {
-    sources = effectSourcesOf(a.id).concat(effectSourcesOf(b.id));
+    sources = effectSourcesOf(cardEntryA.id).concat(effectSourcesOf(cardEntryB.id));
     while (sources.length > FUSED_EFFECT_CAP) {
       sources.splice(Math.floor(Math.random() * sources.length), 1);
     }
   }
 
-  var lines = sources.map(function (k) { return CARDS[k] && CARDS[k].text; }).filter(Boolean);
+  var lines = sources.map(function (cardId) { return CARDS[cardId] && CARDS[cardId].text; }).filter(Boolean);
   var def = {
     name: COLORS[color].name + ' Amalgam', color: color, strength: strength,
     rarity: 'Fused', type: 'unit', cost: 40 + strength * 8, fused: true,
     effectSources: sources.slice(),
     text: lines.length ? lines.join(' ')
-      : 'Fused from ' + da.name + ' and ' + db.name + '. No rules text.'
+      : 'Fused from ' + cardDefA.name + ' and ' + cardDefB.name + '. No rules text.'
   };
   /* Only a fusion that inherited nothing stays silenced. One carrying rules is
      a real card and should be liftable by auras like any other — the silencing
@@ -493,9 +492,9 @@ export function fuseCards(a, b, forced) {
   CARDS[id] = applyInheritedEffects(def, sources);
   return { id: id, up: false, effectSources: sources.slice() };
 }
-export function fusePreview(a, b) {
-  var da = CARDS[a.id], db = CARDS[b.id];
-  var color = mixResultColor(da.color, db.color) || 'red';
-  var bonus = (da.color === 'black' || db.color === 'black') ? 2 : 1;
-  return { color: color, strength: cardStrength(a) + cardStrength(b) + bonus, bonus: bonus };
+export function fusePreview(cardEntryA, cardEntryB) {
+  var cardDefA = CARDS[cardEntryA.id], cardDefB = CARDS[cardEntryB.id];
+  var color = mixResultColor(cardDefA.color, cardDefB.color) || 'red';
+  var bonus = (cardDefA.color === 'black' || cardDefB.color === 'black') ? 2 : 1;
+  return { color: color, strength: cardStrength(cardEntryA) + cardStrength(cardEntryB) + bonus, bonus: bonus };
 }
