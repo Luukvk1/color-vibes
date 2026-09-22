@@ -148,62 +148,62 @@ function fxAdd(node, life) {
   setTimeout(function () { if (node.parentNode) node.parentNode.removeChild(node); }, life);
 }
 function fxBurst(side, row, index, hex) {
-  var g = tileGeo(side, row, index);
-  if (!g) return;
-  var c = document.createElementNS(SVG_NS, 'circle');
-  c.setAttribute('class', 'fx-burst');
-  c.setAttribute('cx', g.cx); c.setAttribute('cy', g.cy); c.setAttribute('r', 46);
-  c.setAttribute('stroke', hex || '#ffffff');
-  fxAdd(c, 900);
+  var geo = tileGeo(side, row, index);
+  if (!geo) return;
+  var circle = document.createElementNS(SVG_NS, 'circle');
+  circle.setAttribute('class', 'fx-burst');
+  circle.setAttribute('cx', geo.cx); circle.setAttribute('cy', geo.cy); circle.setAttribute('r', 46);
+  circle.setAttribute('stroke', hex || '#ffffff');
+  fxAdd(circle, 900);
 }
 /* A ghost of the consumed unit slides into the tile that absorbed it. */
 function fxFly(side, from, to, hex, ink, label) {
-  var a = tileGeo(side, from.row, from.index), z = tileGeo(side, to.row, to.index);
-  if (!a || !z) return;
-  var g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'fx-fly');
-  g.setAttribute('transform', 'translate(0,0)');
-  var c = document.createElementNS(SVG_NS, 'circle');
-  c.setAttribute('cx', a.cx); c.setAttribute('cy', a.cy); c.setAttribute('r', 44);
-  c.setAttribute('fill', hex); c.setAttribute('stroke', '#0d0b09'); c.setAttribute('stroke-width', 3);
-  g.appendChild(c);
-  var t = document.createElementNS(SVG_NS, 'text');
-  t.setAttribute('x', a.cx); t.setAttribute('y', a.cy);
-  t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central');
-  t.setAttribute('fill', ink); t.setAttribute('class', 'fx-fly-text');
-  t.textContent = label;
-  g.appendChild(t);
-  fxAdd(g, 900);
+  var fromGeo = tileGeo(side, from.row, from.index), toGeo = tileGeo(side, to.row, to.index);
+  if (!fromGeo || !toGeo) return;
+  var group = document.createElementNS(SVG_NS, 'g');
+  group.setAttribute('class', 'fx-fly');
+  group.setAttribute('transform', 'translate(0,0)');
+  var circle = document.createElementNS(SVG_NS, 'circle');
+  circle.setAttribute('cx', fromGeo.cx); circle.setAttribute('cy', fromGeo.cy); circle.setAttribute('r', 44);
+  circle.setAttribute('fill', hex); circle.setAttribute('stroke', '#0d0b09'); circle.setAttribute('stroke-width', 3);
+  group.appendChild(circle);
+  var text = document.createElementNS(SVG_NS, 'text');
+  text.setAttribute('x', fromGeo.cx); text.setAttribute('y', fromGeo.cy);
+  text.setAttribute('text-anchor', 'middle'); text.setAttribute('dominant-baseline', 'central');
+  text.setAttribute('fill', ink); text.setAttribute('class', 'fx-fly-text');
+  text.textContent = label;
+  group.appendChild(text);
+  fxAdd(group, 900);
   requestAnimationFrame(function () {
-    g.setAttribute('transform', 'translate(' + (z.cx - a.cx) + ',' + (z.cy - a.cy) + ')');
-    g.classList.add('going');
+    group.setAttribute('transform', 'translate(' + (toGeo.cx - fromGeo.cx) + ',' + (toGeo.cy - fromGeo.cy) + ')');
+    group.classList.add('going');
   });
   setTimeout(function () { fxBurst(side, to.row, to.index, hex); }, 430);
 }
 /* A hazard washes across its row on both halves — it hits both. */
 function fxHazard(row, kind) {
-  ['bottom', 'top'].forEach(function (sd) {
-    for (var i = 0; i < ROW_INFO[row].count; i++) {
-      var g = tileGeo(sd, row, i);
-      if (!g) continue;
+  ['bottom', 'top'].forEach(function (side) {
+    for (var index = 0; index < ROW_INFO[row].count; index++) {
+      var geo = tileGeo(side, row, index);
+      if (!geo) continue;
       var poly = document.createElementNS(SVG_NS, 'polygon');
       poly.setAttribute('class', 'fx-haz ' + kind);
-      poly.setAttribute('points', g.points.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '));
-      poly.style.animationDelay = (i * 70) + 'ms';
+      poly.setAttribute('points', geo.points.map(function (point) { return point[0].toFixed(1) + ',' + point[1].toFixed(1); }).join(' '));
+      poly.style.animationDelay = (index * 70) + 'ms';
       fxAdd(poly, 1400);
     }
   });
 }
 /* Curses resolve inside the draw, so the player is told what just happened. */
 function flushCurses() {
-  var s = getBattleState();
-  if (!s || !s.curseFired || !s.curseFired.length) return;
-  s.curseFired.forEach(function (c) {
-    var who = c.side === PLAYER ? 'You drew' : s.enemy.name + ' drew';
-    addLog(who + ' a curse — ' + c.name + (c.note ? ': ' + c.note : '') + '.');
-    if (c.side === PLAYER) announce('Curse drawn — ' + c.name, 'curse');
+  var state = getBattleState();
+  if (!state || !state.curseFired || !state.curseFired.length) return;
+  state.curseFired.forEach(function (curse) {
+    var who = curse.side === PLAYER ? 'You drew' : state.enemy.name + ' drew';
+    addLog(who + ' a curse — ' + curse.name + (curse.note ? ': ' + curse.note : '') + '.');
+    if (curse.side === PLAYER) announce('Curse drawn — ' + curse.name, 'curse');
   });
-  s.curseFired.length = 0;
+  state.curseFired.length = 0;
   render();
 }
 
@@ -220,17 +220,17 @@ function announce(text, tone) {
 }
 
 function pendingSpec() {
-  var s = getBattleState();
-  if (!s.pending) return null;
-  var list = s.pending.kind === 'wild'
+  var state = getBattleState();
+  if (!state.pending) return null;
+  var list = state.pending.kind === 'wild'
     ? [{ kind: 'friendlyUnit', prompt: 'Pick a unit to repaint' }, { kind: 'color', prompt: 'Pick its new colour' }]
-    : CARDS[s.pending.card.id].targets;
-  return list ? list[s.pending.picks.length] : null;
+    : CARDS[state.pending.card.id].targets;
+  return list ? list[state.pending.picks.length] : null;
 }
 function currentTargetOptions() {
-  var s = getBattleState(), spec = pendingSpec();
+  var state = getBattleState(), spec = pendingSpec();
   if (!spec) return [];
-  return RUN.legalTargets(s, s.pending.side, spec, s.pending.picks, s.pending.tile);
+  return RUN.legalTargets(state, state.pending.side, spec, state.pending.picks, state.pending.tile);
 }
 
 function renderTiles(ev) {
