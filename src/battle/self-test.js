@@ -1055,11 +1055,11 @@ export function createSelfTest(ctx) {
         var run = RUN.getRun();
         run.act = key;
         RUN.rollReward({ type: 'boss', depth: 12 });
-        var rw = RUN.getRun().reward;
-        if (!rw.trophy || rw.cards.length !== 3) { ok = false; return; }
-        if (!rw.cards.every(function (c) { return CARDS[c.id].bossOnly; })) ok = false;
-        if (!rw.cards.some(function (c) { return CARDS[c.id].color === RUN.ACTS[key].color; })) ok = false;
-        var ids = rw.cards.map(function (c) { return c.id; });
+        var reward = RUN.getRun().reward;
+        if (!reward.trophy || reward.cards.length !== 3) { ok = false; return; }
+        if (!reward.cards.every(function (c) { return CARDS[c.id].bossOnly; })) ok = false;
+        if (!reward.cards.some(function (c) { return CARDS[c.id].color === RUN.ACTS[key].color; })) ok = false;
+        var ids = reward.cards.map(function (c) { return c.id; });
         if (ids.length !== ids.filter(function (v, i) { return ids.indexOf(v) === i; }).length) ok = false;
       });
       RUN.setRun(saved);
@@ -1071,9 +1071,9 @@ export function createSelfTest(ctx) {
       var clean = true;
       for (var i = 0; i < 40; i++) {
         RUN.rollReward({ type: i % 2 ? 'battle' : 'elite', depth: 6 });
-        var rw = RUN.getRun().reward;
-        if (rw.trophy) clean = false;
-        if (rw.cards.some(function (c) { return CARDS[c.id].bossOnly; })) clean = false;
+        var reward = RUN.getRun().reward;
+        if (reward.trophy) clean = false;
+        if (reward.cards.some(function (c) { return CARDS[c.id].bossOnly; })) clean = false;
       }
       RUN.setRun(saved);
       return clean;
@@ -1477,9 +1477,9 @@ export function createSelfTest(ctx) {
         var run = RUN.getRun();
         run.act = RUN.ACT_KEYS[i % 3]; run.deck = RUN.startingDeck();
         RUN.rollReward({ type: 'boss', depth: 12 });
-        var rw = RUN.getRun().reward;
-        if (rw.cards.length !== 3) alwaysThree = false;
-        if (rw.cards.some(function (c) { return CARDS[c.id].color === 'black'; })) everBlack = true;
+        var reward = RUN.getRun().reward;
+        if (reward.cards.length !== 3) alwaysThree = false;
+        if (reward.cards.some(function (c) { return CARDS[c.id].color === 'black'; })) everBlack = true;
       }
       // and once Black is genuinely held, the Star becomes reachable
       RUN.setRun(RUN.newRun());
@@ -1975,8 +1975,8 @@ export function createSelfTest(ctx) {
       RUN.setRun(RUN.newRun());
       RUN.getRun().relics = [];
       RUN.rollReward({ type: 'elite', depth: 6 });
-      var rw = RUN.getRun().reward;
-      var ok = rw.cards.length > 0 && !!rw.relic;
+      var reward = RUN.getRun().reward;
+      var ok = reward.cards.length > 0 && !!reward.relic;
       RUN.setRun(saved);
       return ok;
     })());
