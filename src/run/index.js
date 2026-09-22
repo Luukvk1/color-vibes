@@ -1148,10 +1148,10 @@ function carveVolatileBranch(rows, act) {
 
 function startingDeck() {
   // GDD §23 starting deck, expressed in the current card pool
-  var d = [];
+  var deck = [];
   ['red_brute', 'red_brute', 'red_scout', 'blue_scout', 'blue_current', 'blue_controller',
-   'green_seed', 'green_gardener', 'green_colony', 'colorless_row'].forEach(function (id) { d.push({ id: id, up: false }); });
-  return d;
+   'green_seed', 'green_gardener', 'green_colony', 'colorless_row'].forEach(function (cardId) { deck.push({ id: cardId, up: false }); });
+  return deck;
 }
 
 function newRun() {
@@ -1160,8 +1160,8 @@ function newRun() {
   /* The first act is rolled, not chosen. You start holding all three
      primaries, so there is nothing to decide yet — the choosing begins once
      the deck you have built starts opening and closing roads. */
-  var built = C.PRIMARY_COLORS.filter(function (k) { return !!ACTS[k]; });
-  var first = built[Math.floor(rnd() * built.length)] || ACT_KEYS[0];
+  var builtActs = C.PRIMARY_COLORS.filter(function (colorKey) { return !!ACTS[colorKey]; });
+  var first = builtActs[Math.floor(rnd() * builtActs.length)] || ACT_KEYS[0];
   return {
     act: first, actsCleared: [], actOffer: null, minted: [], endless: false,
     map: buildMap(first, true), depth: 0, col: null, available: [0],
@@ -1198,8 +1198,8 @@ function loadCodex() {
   try {
     var raw = window.localStorage.getItem(CODEX_KEY);
     if (!raw) return;
-    var d = JSON.parse(raw);
-    if (d && d.cards && d.foes) codex = d;
+    var loaded = JSON.parse(raw);
+    if (loaded && loaded.cards && loaded.foes) codex = loaded;
   } catch (e) { /* no storage, no codex — the game still plays */ }
 }
 function saveCodex() {
@@ -1207,8 +1207,8 @@ function saveCodex() {
 }
 function discoverCard(id) {
   if (!id || codex.cards[id]) return;
-  var d = CARDS[id];
-  if (!d || d.fused || d.reforged) return;   // minted cards are not codex entries
+  var cardDef = CARDS[id];
+  if (!cardDef || cardDef.fused || cardDef.reforged) return;   // minted cards are not codex entries
   codex.cards[id] = 1; saveCodex();
 }
 function discoverFoe(key) {
@@ -1255,16 +1255,16 @@ function loadRun() {
   try {
     var data = JSON.parse(raw);
     if (!data || data.v !== 1 || !data.run) return null;
-    var r = data.run;
-    if (!r.map || !r.map.length || !Array.isArray(r.deck) || !ACTS[r.act]) return null;
-    replayMints(r.minted);
+    var loadedRun = data.run;
+    if (!loadedRun.map || !loadedRun.map.length || !Array.isArray(loadedRun.deck) || !ACTS[loadedRun.act]) return null;
+    replayMints(loadedRun.minted);
     // every card the deck points at must actually exist after the replay
-    var ok = r.deck.every(function (e) { return !!CARDS[e.id]; });
+    var ok = loadedRun.deck.every(function (entry) { return !!CARDS[entry.id]; });
     if (!ok) return null;
-    r.actsCleared = r.actsCleared || [];
-    r.minted = r.minted || [];
-    if (r.screen === 'battle') r.screen = 'map';   // battles are never resumed
-    return r;
+    loadedRun.actsCleared = loadedRun.actsCleared || [];
+    loadedRun.minted = loadedRun.minted || [];
+    if (loadedRun.screen === 'battle') loadedRun.screen = 'map';   // battles are never resumed
+    return loadedRun;
   } catch (e) { return null; }
 }
 
@@ -1276,40 +1276,40 @@ function loadRun() {
 var glossaryTab = 'cards';
 
 function glCardEntry(id) {
-  var d = CARDS[id], known = !!codex.cards[id];
-  var col = d.color ? COLORS[d.color] : { hex: '#6f6a60', ink: '#12100d' };
+  var cardDef = CARDS[id], known = !!codex.cards[id];
+  var col = cardDef.color ? COLORS[cardDef.color] : { hex: '#6f6a60', ink: '#12100d' };
   var swatch = '<span class="gl-swatch" style="background:' + col.hex + ';color:' + col.ink + '">' +
-    (known ? (d.type === 'unit' ? d.strength : '\u2726') : '?') + '</span>';
+    (known ? (cardDef.type === 'unit' ? cardDef.strength : '\u2726') : '?') + '</span>';
   if (!known) {
     return '<div class="gl-entry gl-locked">' + swatch +
       '<div class="gl-main"><span class="gl-name">Not yet met</span>' +
-      '<span class="gl-meta">' + d.rarity + '</span>' +
+      '<span class="gl-meta">' + cardDef.rarity + '</span>' +
       '<div class="gl-text">Find it on the road and it will be recorded here.</div></div></div>';
   }
   return '<div class="gl-entry">' + swatch +
-    '<div class="gl-main"><span class="gl-name">' + d.name + '</span>' +
-    '<span class="gl-meta">' + d.rarity + (d.bossOnly ? ' \u00b7 boss drop' : '') + '</span>' +
-    '<div class="gl-text">' + (d.text || 'No special rule \u2014 just a body.') + '</div>' +
+    '<div class="gl-main"><span class="gl-name">' + cardDef.name + '</span>' +
+    '<span class="gl-meta">' + cardDef.rarity + (cardDef.bossOnly ? ' \u00b7 boss drop' : '') + '</span>' +
+    '<div class="gl-text">' + (cardDef.text || 'No special rule \u2014 just a body.') + '</div>' +
     C.iconRow(id) + '</div></div>';
 }
 
 function glFoeEntry(key) {
-  var e = ENEMIES[key], known = !!codex.foes[key];
-  var lead = e.colors && e.colors[0] ? COLORS[e.colors[0]] : { hex: '#6f6a60', ink: '#12100d' };
-  var mark = e.kind === 'boss' ? '\u2726' : e.kind === 'elite' ? '\u2605' : '\u25cf';
+  var enemyDef = ENEMIES[key], known = !!codex.foes[key];
+  var lead = enemyDef.colors && enemyDef.colors[0] ? COLORS[enemyDef.colors[0]] : { hex: '#6f6a60', ink: '#12100d' };
+  var mark = enemyDef.kind === 'boss' ? '\u2726' : enemyDef.kind === 'elite' ? '\u2605' : '\u25cf';
   var swatch = '<span class="gl-swatch" style="background:' + lead.hex + ';color:' + lead.ink + '">' +
     (known ? mark : '?') + '</span>';
   if (!known) {
     return '<div class="gl-entry gl-locked">' + swatch +
       '<div class="gl-main"><span class="gl-name">Not yet met</span>' +
-      '<span class="gl-meta">' + e.kind + '</span>' +
+      '<span class="gl-meta">' + enemyDef.kind + '</span>' +
       '<div class="gl-text">Something on a road you have not walked.</div></div></div>';
   }
   var rules = C.enemyIcons(key);
   return '<div class="gl-entry">' + swatch +
-    '<div class="gl-main"><span class="gl-name">' + e.name + '</span>' +
-    '<span class="gl-meta">' + e.kind + '</span>' +
-    '<div class="gl-text">' + e.behaviour + '</div>' +
+    '<div class="gl-main"><span class="gl-name">' + enemyDef.name + '</span>' +
+    '<span class="gl-meta">' + enemyDef.kind + '</span>' +
+    '<div class="gl-text">' + enemyDef.behaviour + '</div>' +
     (rules.length ? C.enemyIconRow(key) : '') + '</div></div>';
 }
 
