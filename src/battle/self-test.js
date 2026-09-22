@@ -93,10 +93,10 @@ export function createSelfTest(ctx) {
     check('Devouring permanently removes the meal from the run deck', (function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = ['green_gardener', 'red_brute', 'black_devourer', 'blue_scout', 'yellow_spark']
+      var run = RUN.getRun();
+      run.deck = ['green_gardener', 'red_brute', 'black_devourer', 'blue_scout', 'yellow_spark']
         .map(function (id) { return { id: id, up: false }; });
-      r.map = RUN.buildMap('green', true); r.depth = 0; r.available = [0];
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
       ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
@@ -122,10 +122,10 @@ export function createSelfTest(ctx) {
          plausible. */
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = ['green_gardener', 'red_brute', 'black_devourer', 'blue_scout', 'yellow_spark']
+      var run = RUN.getRun();
+      run.deck = ['green_gardener', 'red_brute', 'black_devourer', 'blue_scout', 'yellow_spark']
         .map(function (id) { return { id: id, up: false }; });
-      r.map = RUN.buildMap('green', true); r.depth = 0; r.available = [0];
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
       ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
@@ -148,9 +148,9 @@ export function createSelfTest(ctx) {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = ['green_gardener', 'red_brute', 'black_devourer'].map(function (id) { return { id: id, up: false }; });
-      r.map = RUN.buildMap('green', true); r.depth = 0; r.available = [0];
+      var run = RUN.getRun();
+      run.deck = ['green_gardener', 'red_brute', 'black_devourer'].map(function (id) { return { id: id, up: false }; });
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
       ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) s.board[PLAYER][row][i] = null; });
@@ -177,8 +177,8 @@ export function createSelfTest(ctx) {
     check('Catalyst on an empty board is marked unplayable, not auto-resolved', (function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.map = RUN.buildMap('green', true); r.depth = 0; r.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
       ROWS.forEach(function (row) { for (var i = 0; i < ROW_INFO[row].count; i++) {
@@ -201,8 +201,8 @@ export function createSelfTest(ctx) {
     check('Catalyst with units present still begins targeting normally', (function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.map = RUN.buildMap('green', true); r.depth = 0; r.available = [0];
+      var run = RUN.getRun();
+      run.map = RUN.buildMap('green', true); run.depth = 0; run.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
       s.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 2, temp: 0 };
@@ -234,8 +234,8 @@ export function createSelfTest(ctx) {
          throwing — turning the mix result into a string that looked fine until
          the next subtraction (any hazard, any damage) turned it into NaN. */
       var battleState2 = fresh();
-      var f = C.fuseCards({ id: 'black_voidling', up: false }, { id: 'red_scout', up: false });
-      battleState2.board[PLAYER].row1[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
+      var fused = C.fuseCards({ id: 'black_voidling', up: false }, { id: 'red_scout', up: false });
+      battleState2.board[PLAYER].row1[0] = { cardId: fused.id, color: CARDS[fused.id].color, strength: CARDS[fused.id].strength, temp: 0 };
       put(battleState2, 'bottom', 'row2', 0, 'red_brute', 2);
       var out = RUN.applyMix(battleState2, PLAYER, { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
       var afterDamage = Math.max(1, battleState2.board[PLAYER].row1[0].strength - 2);
@@ -597,8 +597,8 @@ export function createSelfTest(ctx) {
 
     // --- a fusion must execute every effect its text describes ---
     check('Fusing two onPlay effects keeps both, not just the first', (function () {
-      var f = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
-      var cardDef = CARDS[f.id];
+      var fused = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
+      var cardDef = CARDS[fused.id];
       /* The old composition kept exactly one "acting" carrier and threw the
          rest away, while the fused text — built independently — already
          listed every source's line. So a fusion could describe an effect in
@@ -610,18 +610,18 @@ export function createSelfTest(ctx) {
     check('Both halves of a fused onPlay actually execute', (function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 9);
-      var f = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
+      var fused = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
       battleState2.decks = { bottom: [C.makeCard('red_brute')], top: [] };
       var deckBefore = battleState2.decks.bottom.length;
       var api = RUN.buildApi(battleState2, PLAYER, []);
-      CARDS[f.id].onPlay(battleState2, PLAYER, { row: 'row2', index: 0 }, [], api);
+      CARDS[fused.id].onPlay(battleState2, PLAYER, { row: 'row2', index: 0 }, [], api);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return battleState2.decks.bottom.length < deckBefore &&                          // the draw ran
              ev.strengthOf(ev.view['top-row1-0']) < 9;                       // the damage ran
     })());
     check('A fusion of two targeted effects prompts for, and uses, both targets', (function () {
-      var f = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
-      var specs = CARDS[f.id].targets;
+      var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
+      var specs = CARDS[fused.id].targets;
       // 1 (curse) + 2 (unit, empty-tile) = 3 prompts, not one card's worth
       return specs && specs.length === 3;
     })());
@@ -630,25 +630,25 @@ export function createSelfTest(ctx) {
          MY step 0". Concatenating raw target arrays leaves that index pointing
          at whichever carrier happened to land in that slot globally — put a
          one-target card ahead of it and step 0 becomes someone else's pick. */
-      var f = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
-      var specs = CARDS[f.id].targets;
+      var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
+      var specs = CARDS[fused.id].targets;
       return specs[0].ref === undefined && specs[1].ref === undefined && specs[2].ref === 1;
     })());
     check('A three-way merged pick resolves both effects on the right targets', (function () {
       var battleState2 = fresh();
-      var f = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
-      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color, strength: CARDS[f.id].strength, temp: 0 };
+      var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
+      battleState2.board[PLAYER].row2[0] = { cardId: fused.id, color: CARDS[fused.id].color, strength: CARDS[fused.id].strength, temp: 0 };
       put(battleState2, 'bottom', 'row1', 0, 'curse_husk', 1); battleState2.board[PLAYER].row1[0].color = null;
       put(battleState2, 'bottom', 'row1', 2, 'red_scout', 3);
       var at = { row: 'row2', index: 0 };
-      var specs = CARDS[f.id].targets;
+      var specs = CARDS[fused.id].targets;
       var p0 = RUN.legalTargets(battleState2, PLAYER, specs[0], [], at)[0];
       var p1 = RUN.legalTargets(battleState2, PLAYER, specs[1], [p0], at).filter(function (o) {
         return o.row === 'row1' && o.index === 2;
       })[0];
       var p2 = RUN.legalTargets(battleState2, PLAYER, specs[2], [p0, p1], at)[0];
       if (!p0 || !p1 || !p2) return false;
-      CARDS[f.id].onPlay(battleState2, PLAYER, at, [p0, p1, p2], RUN.buildApi(battleState2, PLAYER, []));
+      CARDS[fused.id].onPlay(battleState2, PLAYER, at, [p0, p1, p2], RUN.buildApi(battleState2, PLAYER, []));
       var curseGone = !battleState2.board[PLAYER].row1[0];
       var unitMoved = !battleState2.board[PLAYER].row1[2] && !!battleState2.board[PLAYER][p2.row][p2.index];
       return curseGone && unitMoved;
@@ -707,10 +707,10 @@ export function createSelfTest(ctx) {
       });
     })());
     check('Difficulty carries across acts instead of resetting', (function () {
-      var r = { actsCleared: [] };
-      var actOneEnd = RUN.powerAt(r, 12);
-      r.actsCleared = ['green'];
-      var actTwoStart = RUN.powerAt(r, 0);
+      var run = { actsCleared: [] };
+      var actOneEnd = RUN.powerAt(run, 12);
+      run.actsCleared = ['green'];
+      var actTwoStart = RUN.powerAt(run, 0);
       // an act-two opener must not be softer than an act-one finale
       return actTwoStart > actOneEnd - 1 &&
              RUN.depthBonusFor(actTwoStart) >= RUN.depthBonusFor(6) &&
@@ -718,28 +718,28 @@ export function createSelfTest(ctx) {
     })());
     check('The first act is always a primary that is actually built', (function () {
       for (var t = 0; t < 30; t++) {
-        var r = RUN.newRun();
-        if (!RUN.ACTS[r.act]) return false;
-        if (C.PRIMARY_COLORS.indexOf(RUN.ACTS[r.act].color) === -1) return false;
-        if (r.actsCleared.length !== 0) return false;
+        var run = RUN.newRun();
+        if (!RUN.ACTS[run.act]) return false;
+        if (C.PRIMARY_COLORS.indexOf(RUN.ACTS[run.act].color) === -1) return false;
+        if (run.actsCleared.length !== 0) return false;
       }
       return true;
     })());
     check('A cleared act is never offered again', (function () {
-      var r = RUN.newRun();
-      r.actsCleared = RUN.ACT_KEYS.slice();
-      return RUN.eligibleActs(r).length === 0;
+      var run = RUN.newRun();
+      run.actsCleared = RUN.ACT_KEYS.slice();
+      return RUN.eligibleActs(run).length === 0;
     })());
     check('Secondary acts stay shut until their colour is made', (function () {
-      var r = RUN.newRun();
-      r.deck = RUN.startingDeck();
-      r.actsCleared = ['green'];
-      var open = RUN.eligibleActs(r);
+      var run = RUN.newRun();
+      run.deck = RUN.startingDeck();
+      run.actsCleared = ['green'];
+      var open = RUN.eligibleActs(run);
       if (open.indexOf('yellow') !== -1 || open.indexOf('magenta') !== -1) return false;
       if (open.indexOf('red') === -1 || open.indexOf('blue') === -1) return false;
-      r.deck.push({ id: 'yellow_spark', up: false });
-      r.deck.push({ id: 'yellow_banner', up: false });
-      return RUN.eligibleActs(r).indexOf('yellow') !== -1;
+      run.deck.push({ id: 'yellow_spark', up: false });
+      run.deck.push({ id: 'yellow_banner', up: false });
+      return RUN.eligibleActs(run).indexOf('yellow') !== -1;
     })());
 
     // --- save / load ---
@@ -747,17 +747,17 @@ export function createSelfTest(ctx) {
       var saved = RUN.getRun();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
+      var run = RUN.getRun();
       // mint the three things only the Lab can make, stacked on each other
-      r.deck[0] = RUN.liftStrength(r.deck[0], 2);
-      r.deck[1] = RUN.recolourCard(r.deck[1], 'magenta');
-      var fused = RUN.fuseInDeck(r.deck[2], r.deck[3]);
-      r.deck.splice(3, 1); r.deck.splice(2, 1); r.deck.push(fused);
-      r.deck[0] = RUN.liftStrength(r.deck[0], 1);       // a lift built on a lift
-      r.gold = 137; r.actsCleared = ['green']; r.act = 'red';
-      var wantIds = r.deck.map(function (e) { return e.id; });
-      var wantStr = r.deck.map(function (e) { return CARDS[e.id].strength; });
-      var wantCol = r.deck.map(function (e) { return CARDS[e.id].color; });
+      run.deck[0] = RUN.liftStrength(run.deck[0], 2);
+      run.deck[1] = RUN.recolourCard(run.deck[1], 'magenta');
+      var fused = RUN.fuseInDeck(run.deck[2], run.deck[3]);
+      run.deck.splice(3, 1); run.deck.splice(2, 1); run.deck.push(fused);
+      run.deck[0] = RUN.liftStrength(run.deck[0], 1);       // a lift built on a lift
+      run.gold = 137; run.actsCleared = ['green']; run.act = 'red';
+      var wantIds = run.deck.map(function (e) { return e.id; });
+      var wantStr = run.deck.map(function (e) { return CARDS[e.id].strength; });
+      var wantCol = run.deck.map(function (e) { return CARDS[e.id].color; });
       RUN.saveRun();
 
       // wipe every minted definition, as a page reload would
@@ -792,13 +792,13 @@ export function createSelfTest(ctx) {
     check('Reinforcing a fusion keeps everything it inherited', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var f = RUN.fuseInDeck({ id: 'red_scout', up: false }, { id: 'blue_scout', up: false });
-      var lifted = RUN.liftStrength(f, 2);
+      var fused = RUN.fuseInDeck({ id: 'red_scout', up: false }, { id: 'blue_scout', up: false });
+      var lifted = RUN.liftStrength(fused, 2);
       /* The old field-list copy dropped flags; Object.assign keeps them, and now
          there is an inherited effect list riding along that must survive too. */
       var ok = CARDS[lifted.id].fused === true &&
-               CARDS[lifted.id].strength === CARDS[f.id].strength + 2 &&
-               (CARDS[lifted.id].effectSources || []).length === (CARDS[f.id].effectSources || []).length;
+               CARDS[lifted.id].strength === CARDS[fused.id].strength + 2 &&
+               (CARDS[lifted.id].effectSources || []).length === (CARDS[fused.id].effectSources || []).length;
       RUN.setRun(saved);
       return ok;
     })());
@@ -867,7 +867,7 @@ export function createSelfTest(ctx) {
       var seen = {};
       return RUN.ACT_KEYS.every(function (k) {
         var mod = ENEMIES[RUN.ACTS[k].boss].mod || {};
-        var mine = RULES.filter(function (r) { return mod[r]; });
+        var mine = RULES.filter(function (rule) { return mod[rule]; });
         if (mine.length !== 1) return false;           // exactly one signature rule
         if (seen[mine[0]]) return false;               // and nobody else's
         seen[mine[0]] = 1;
@@ -887,9 +887,9 @@ export function createSelfTest(ctx) {
     check('Skipping a card pays, and pays more the deeper you are', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.depth = 0; var early = RUN.skipValue();
-      r.depth = 12; r.actsCleared = ['green', 'red'];
+      var run = RUN.getRun();
+      run.depth = 0; var early = RUN.skipValue();
+      run.depth = 12; run.actsCleared = ['green', 'red'];
       var late = RUN.skipValue();
       RUN.setRun(saved);
       return early > 0 && late > early;
@@ -922,12 +922,12 @@ export function createSelfTest(ctx) {
     check('The volatile bench can never mint Black', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
       var pal = RUN.recolourPalette();
       if (pal.indexOf('black') !== -1) { RUN.setRun(saved); return false; }
       // even a deck already holding Black must not unlock Black as a roll target
-      r.deck.push({ id: 'black_voidling', up: false });
+      run.deck.push({ id: 'black_voidling', up: false });
       var pal2 = RUN.recolourPalette();
       RUN.setRun(saved);
       return pal2.indexOf('black') === -1;
@@ -935,9 +935,9 @@ export function createSelfTest(ctx) {
     check('A recolour can only reach a colour the deck could already make', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
+      var run = RUN.getRun();
       // Red and Green only: Yellow is reachable, Cyan and Magenta are not
-      r.deck = [{ id: 'red_brute', up: false }, { id: 'green_seed', up: false }];
+      run.deck = [{ id: 'red_brute', up: false }, { id: 'green_seed', up: false }];
       var pal = RUN.recolourPalette();
       var ok = pal.indexOf('yellow') !== -1 &&
                pal.indexOf('cyan') === -1 && pal.indexOf('magenta') === -1;
@@ -957,22 +957,22 @@ export function createSelfTest(ctx) {
     check('A chosen cut removes exactly what the player picked', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      while (r.deck.length < 9) r.deck.push({ id: 'red_brute', up: false });
-      r.deck[3] = { id: 'yellow_spark', up: false };
-      var before = r.deck.length;
-      r.deck.splice(3, 1);                       // what the picker does
-      var ok = r.deck.length === before - 1 &&
-               !r.deck.some(function (e) { return e.id === 'yellow_spark'; });
+      var run = RUN.getRun();
+      while (run.deck.length < 9) run.deck.push({ id: 'red_brute', up: false });
+      run.deck[3] = { id: 'yellow_spark', up: false };
+      var before = run.deck.length;
+      run.deck.splice(3, 1);                       // what the picker does
+      var ok = run.deck.length === before - 1 &&
+               !run.deck.some(function (e) { return e.id === 'yellow_spark'; });
       RUN.setRun(saved);
       return ok;
     })());
     check('The Sieve strains curses and leaves the rest of the deck alone', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      var clean = r.deck.length;
-      C.CURSE_KEYS.forEach(function (k) { r.deck.push({ id: k, up: false }); });
+      var run = RUN.getRun();
+      var clean = run.deck.length;
+      C.CURSE_KEYS.forEach(function (k) { run.deck.push({ id: k, up: false }); });
       var sieve = RUN.EVENTS.filter(function (e) { return e.title === 'The Sieve'; })[0];
       sieve.options[0].run();
       var ok = RUN.getRun().deck.length === clean &&
@@ -1052,8 +1052,8 @@ export function createSelfTest(ctx) {
       var ok = true;
       RUN.ACT_KEYS.forEach(function (k) {
         RUN.setRun(RUN.newRun());
-        var r = RUN.getRun();
-        r.act = k;
+        var run = RUN.getRun();
+        run.act = k;
         RUN.rollReward({ type: 'boss', depth: 12 });
         var rw = RUN.getRun().reward;
         if (!rw.trophy || rw.cards.length !== 3) { ok = false; return; }
@@ -1089,11 +1089,11 @@ export function createSelfTest(ctx) {
     check('Every enemy rule has an icon and words to go with it', (function () {
       return Object.keys(ENEMIES).every(function (k) {
         var mod = ENEMIES[k].mod || {}, icons = C.enemyIcons(k);
-        var ruleKeys = Object.keys(mod).filter(function (r) { return r !== 'depthBonus'; });
+        var ruleKeys = Object.keys(mod).filter(function (rule) { return rule !== 'depthBonus'; });
         // every rule on the enemy must surface as at least one icon
         if (ruleKeys.length && !icons.length) return false;
-        return icons.every(function (i) {
-          return C.GLYPHS[i.i] && typeof i.t === 'string' && i.t.length > 12;
+        return icons.every(function (icon) {
+          return C.GLYPHS[icon.i] && typeof icon.t === 'string' && icon.t.length > 12;
         });
       });
     })());
@@ -1109,7 +1109,7 @@ export function createSelfTest(ctx) {
                     echoMix: 1, wardWeakLanes: 1, devourWeakest: 1 };
       return RUN.ACT_KEYS.every(function (k) {
         var key = RUN.ACTS[k].boss, mod = ENEMIES[key].mod || {};
-        var sig = Object.keys(mod).filter(function (r) { return RULES[r]; });
+        var sig = Object.keys(mod).filter(function (rule) { return RULES[rule]; });
         var icons = C.enemyIcons(key);
         // the rule icons must outnumber the plain colour-bonus ones
         return sig.length === 1 && icons.length > Object.keys(mod.colorBonus || {}).length;
@@ -1135,9 +1135,9 @@ export function createSelfTest(ctx) {
     check('Cards minted in the Lab are not codex entries', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var f = RUN.fuseInDeck({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
-      RUN.discoverCard(f.id);
-      var ok = !RUN.codex.cards[f.id];      // a one-off Amalgam is not a discovery
+      var fused = RUN.fuseInDeck({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
+      RUN.discoverCard(fused.id);
+      var ok = !RUN.codex.cards[fused.id];      // a one-off Amalgam is not a discovery
       RUN.setRun(saved);
       return ok;
     })());
@@ -1220,13 +1220,13 @@ export function createSelfTest(ctx) {
     check('Fissure cards stay out of the pool until a fissure exists', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      C.COLOR_KEYS.forEach(function (c) { r.deck.push({ id: 'black_voidling', up: false }); });
-      r.deck.push({ id: 'cyan_shield', up: false });   // gives the pool cyan and black
-      r.fissures = [];
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      C.COLOR_KEYS.forEach(function (c) { run.deck.push({ id: 'black_voidling', up: false }); });
+      run.deck.push({ id: 'cyan_shield', up: false });   // gives the pool cyan and black
+      run.fissures = [];
       var dry = RUN.NEEDS_FISSURES.every(function (k) { return !RUN.situationalOk(k); });
-      r.fissures = [{ side: PLAYER, a: { row: 'row1', index: 0 }, b: { row: 'row1', index: 1 } }];
+      run.fissures = [{ side: PLAYER, a: { row: 'row1', index: 0 }, b: { row: 'row1', index: 1 } }];
       var wet = RUN.NEEDS_FISSURES.every(function (k) { return RUN.situationalOk(k); });
       var pool = RUN.offerableCards();
       RUN.setRun(saved);
@@ -1235,9 +1235,9 @@ export function createSelfTest(ctx) {
     check('A blank card is never the offer', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      r.fissures = []; r.depth = 0; r.actsCleared = [];
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      run.fissures = []; run.depth = 0; run.actsCleared = [];
       var pool = RUN.offerableCards();
       var blanks = pool.filter(function (k) { return RUN.NEEDS_FISSURES.indexOf(k) !== -1; });
       RUN.setRun(saved);
@@ -1345,15 +1345,15 @@ export function createSelfTest(ctx) {
       put(far, 'bottom', 'row2', 0, 'black_gravebloom', 2);
       put(far, 'bottom', 'row1', 3, 'curse_husk', C.CARDS.curse_husk.strength);
       far.board[PLAYER].row1[3].color = null;
-      var f = C.evaluateBoard(far.board, far.hazards, {});
-      var fv = f.strengthOf(f.view['bottom-row2-0']);
+      var farEval = C.evaluateBoard(far.board, far.hazards, {});
+      var fv = farEval.strengthOf(farEval.view['bottom-row2-0']);
 
       var near = fresh();
       put(near, 'bottom', 'row2', 0, 'black_gravebloom', 2);
       put(near, 'bottom', 'row1', 0, 'curse_husk', C.CARDS.curse_husk.strength);
       near.board[PLAYER].row1[0].color = null;
-      var n = C.evaluateBoard(near.board, near.hazards, {});
-      var nv = n.strengthOf(n.view['bottom-row2-0']);
+      var nearEval = C.evaluateBoard(near.board, near.hazards, {});
+      var nv = nearEval.strengthOf(nearEval.view['bottom-row2-0']);
 
       // owning a curse is not enough; it has to be placed against it
       return a === 2 && fv === 2 && nv === 6;
@@ -1361,12 +1361,12 @@ export function createSelfTest(ctx) {
     check('Curse cards stay hidden until the run is actually cursed', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      C.COLOR_KEYS.forEach(function () { r.deck.push({ id: 'black_voidling', up: false }); });
-      r.deck.push({ id: 'cyan_shield', up: false });
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      C.COLOR_KEYS.forEach(function () { run.deck.push({ id: 'black_voidling', up: false }); });
+      run.deck.push({ id: 'cyan_shield', up: false });
       var dry = RUN.NEEDS_CURSES.every(function (k) { return !RUN.situationalOk(k); });
-      r.deck.push({ id: C.CURSE_KEYS[0], up: false });
+      run.deck.push({ id: C.CURSE_KEYS[0], up: false });
       var cursed = RUN.NEEDS_CURSES.every(function (k) { return RUN.situationalOk(k); });
       RUN.setRun(saved);
       return dry && cursed;
@@ -1454,12 +1454,12 @@ export function createSelfTest(ctx) {
       var clean = true;
       for (var i = 0; i < 40; i++) {
         RUN.setRun(RUN.newRun());
-        var r = RUN.getRun();
-        r.act = 'red'; r.deck = RUN.startingDeck();    // primaries only
+        var run = RUN.getRun();
+        run.act = 'red'; run.deck = RUN.startingDeck();    // primaries only
         RUN.rollReward({ type: 'boss', depth: 12 });
         RUN.getRun().reward.cards.forEach(function (c) {
           var col = CARDS[c.id].color;
-          if (col && !C.actUnlocked(col, r.deck)) clean = false;
+          if (col && !C.actUnlocked(col, run.deck)) clean = false;
         });
       }
       RUN.setRun(saved);
@@ -1474,8 +1474,8 @@ export function createSelfTest(ctx) {
       var everBlack = false, alwaysThree = true;
       for (var i = 0; i < 60; i++) {
         RUN.setRun(RUN.newRun());
-        var r = RUN.getRun();
-        r.act = RUN.ACT_KEYS[i % 3]; r.deck = RUN.startingDeck();
+        var run = RUN.getRun();
+        run.act = RUN.ACT_KEYS[i % 3]; run.deck = RUN.startingDeck();
         RUN.rollReward({ type: 'boss', depth: 12 });
         var rw = RUN.getRun().reward;
         if (rw.cards.length !== 3) alwaysThree = false;
@@ -1630,27 +1630,27 @@ export function createSelfTest(ctx) {
       var el = document.getElementById('passPuck');
       if (!el) return false;
       showPassPuck(false);
-      var s = S();
-      if (!s) return el.hidden;
-      var saved = { turn: s.turn, finalTurn: s.finalTurn, pending: s.pending,
-                    sel: s.selectedCard, wins: s.wins };
+      var state = S();
+      if (!state) return el.hidden;
+      var saved = { turn: state.turn, finalTurn: state.finalTurn, pending: state.pending,
+                    sel: state.selectedCard, wins: state.wins };
       showPassPuck(true);
       var shows = !el.hidden;
       showPassPuck(false);
       var clears = el.hidden;
-      s.turn = saved.turn; s.finalTurn = saved.finalTurn; s.pending = saved.pending;
-      s.selectedCard = saved.sel; s.wins = saved.wins;
+      state.turn = saved.turn; state.finalTurn = saved.finalTurn; state.pending = saved.pending;
+      state.selectedCard = saved.sel; state.wins = saved.wins;
       return shows && clears;
     })());
     check('The pass marker never sits on a tile', (function () {
       var el = document.getElementById('passPuck');
       if (!el || els.screen_battle.hidden) return true;
       showPassPuck(true);
-      var r = el.getBoundingClientRect();
+      var puckRect = el.getBoundingClientRect();
       var clash = false;
-      Object.keys(tileEls).forEach(function (k) {
-        var t = tileEls[k].shape.getBoundingClientRect();
-        if (!(r.right < t.left || r.left > t.right || r.bottom < t.top || r.top > t.bottom)) clash = true;
+      Object.keys(tileEls).forEach(function (key) {
+        var tileRect = tileEls[key].shape.getBoundingClientRect();
+        if (!(puckRect.right < tileRect.left || puckRect.left > tileRect.right || puckRect.bottom < tileRect.top || puckRect.top > tileRect.bottom)) clash = true;
       });
       showPassPuck(false);
       // it is a note about the turn, not a piece in play
@@ -1659,8 +1659,8 @@ export function createSelfTest(ctx) {
     check('The fork gives away nothing about roads you have not opened', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.act = 'green'; r.actsCleared = ['green']; r.actOffer = ['red', 'blue'];
+      var run = RUN.getRun();
+      run.act = 'green'; run.actsCleared = ['green']; run.actOffer = ['red', 'blue'];
       RUN.show('act');
       var txt = (els.actBody.textContent || '').toLowerCase();
       var leaks = ['needs', 'you hold', 'still shut', 'cards —', 'requirement'];
@@ -1691,13 +1691,13 @@ export function createSelfTest(ctx) {
       var savedOmens = RUN.codex.omens;
       RUN.codex.omens = {};
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
       RUN.noteActOmens();
       var primariesOnly = ['red', 'green', 'blue'].every(function (k) { return RUN.codex.omens[k]; }) &&
                           !RUN.codex.omens.yellow;
-      r.deck.push({ id: 'yellow_spark', up: false });
-      r.deck.push({ id: 'yellow_banner', up: false });
+      run.deck.push({ id: 'yellow_spark', up: false });
+      run.deck.push({ id: 'yellow_banner', up: false });
       RUN.noteActOmens();
       var yellowNoted = !!RUN.codex.omens.yellow;
       RUN.codex.omens = savedOmens;
@@ -1759,13 +1759,13 @@ export function createSelfTest(ctx) {
       var clean = true;
       for (var t = 0; t < 40 && clean; t++) {
         RUN.setRun(RUN.newRun());
-        var r = RUN.getRun();
-        r.deck = [{ id: 'yellow_spark', up: false }, { id: 'yellow_banner', up: false },
+        var run = RUN.getRun();
+        run.deck = [{ id: 'yellow_spark', up: false }, { id: 'yellow_banner', up: false },
                   { id: 'blue_scout', up: false }, { id: 'blue_current', up: false },
                   { id: 'red_brute', up: false }, { id: 'green_seed', up: false },
                   { id: 'cyan_shield', up: false }];
-        var before = C.colourCounts(r.deck);
-        r.lab = { kind: 'volatile', picks: [], presses: 0, results: [], done: false, curses: 0 };
+        var before = C.colourCounts(run.deck);
+        run.lab = { kind: 'volatile', picks: [], presses: 0, results: [], done: false, curses: 0 };
         RUN.applyVolatile('fuse');
         var after = C.colourCounts(RUN.getRun().deck);
         if (after.black > before.black) {
@@ -1782,10 +1782,10 @@ export function createSelfTest(ctx) {
     check('Relics are no longer capped', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
+      var run = RUN.getRun();
       var keys = Object.keys(C.RELICS);
-      keys.forEach(function (k) { r.relics.push(k); });
-      var count = r.relics.length;
+      keys.forEach(function (k) { run.relics.push(k); });
+      var count = run.relics.length;
       RUN.rollReward({ type: 'battle', depth: 6 });     // must not throw or refuse
       var ok = C.RELIC_LIMIT === Infinity && count === keys.length;
       RUN.setRun(saved);
@@ -1794,8 +1794,8 @@ export function createSelfTest(ctx) {
     check('Each act option is dressed in its own room', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.act = 'green'; r.actsCleared = ['green']; r.actOffer = ['red', 'blue'];
+      var run = RUN.getRun();
+      run.act = 'green'; run.actsCleared = ['green']; run.actOffer = ['red', 'blue'];
       RUN.show('act');
       var picks = els.actBody.querySelectorAll('.act-pick');
       var ok = picks.length === 2;
@@ -1840,27 +1840,27 @@ export function createSelfTest(ctx) {
     check('The lives HUD reflects the actual count, not always the max', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.lives = 1;
+      var run = RUN.getRun();
+      run.lives = 1;
       RUN.renderRunBar();
       var lit = document.getElementById('runLives').querySelectorAll('.life:not(.lost)').length;
       var lost = document.getElementById('runLives').querySelectorAll('.life.lost').length;
       RUN.setRun(saved);
       RUN.renderRunBar();
-      return lit === 1 && lost === r.maxLives - 1;
+      return lit === 1 && lost === run.maxLives - 1;
     })());
 
     // --- the victory screen: conquering every road, and going endless ---
     check('Beating the last unconquered act shows the victory screen, not gameover', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = RUN.ACT_KEYS.slice(0, RUN.ACT_KEYS.length - 1);
+      var run = RUN.getRun();
+      run.actsCleared = RUN.ACT_KEYS.slice(0, RUN.ACT_KEYS.length - 1);
       var lastAct = RUN.ACT_KEYS[RUN.ACT_KEYS.length - 1];
-      r.act = lastAct; r.deck = RUN.startingDeck();
+      run.act = lastAct; run.deck = RUN.startingDeck();
       ['yellow_spark', 'yellow_banner', 'cyan_shield', 'magenta_spark', 'magenta_chain']
-        .forEach(function (id) { r.deck.push({ id: id, up: false }); });
-      var wasConquered = RUN.allActsConquered(r);
+        .forEach(function (id) { run.deck.push({ id: id, up: false }); });
+      var wasConquered = RUN.allActsConquered(run);
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = !wasConquered && after.screen === 'victory' && RUN.allActsConquered(after);
@@ -1870,11 +1870,11 @@ export function createSelfTest(ctx) {
     check('A narrow completion — not every act was ever reachable — still ends at gameover', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
+      var run = RUN.getRun();
       // only the three primaries were ever unlocked; nothing built a secondary
-      r.actsCleared = C.PRIMARY_COLORS.slice(0, 2);
-      r.act = C.PRIMARY_COLORS[2];
-      r.deck = RUN.startingDeck();
+      run.actsCleared = C.PRIMARY_COLORS.slice(0, 2);
+      run.act = C.PRIMARY_COLORS[2];
+      run.deck = RUN.startingDeck();
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = after.screen === 'gameover' && !RUN.allActsConquered(after);
@@ -1884,8 +1884,8 @@ export function createSelfTest(ctx) {
     check('"End the run here" stops the run and marks it a true conquest', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      RUN.ACT_KEYS.forEach(function (k) { r.actsCleared.push(k); });
+      var run = RUN.getRun();
+      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
       RUN.endAsVictory();
       var after = RUN.getRun();
       var ok = after.screen === 'gameover' && !after.endless && RUN.allActsConquered(after);
@@ -1895,10 +1895,10 @@ export function createSelfTest(ctx) {
     check('"Go endless" reopens every road, including ones already cleared', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      RUN.ACT_KEYS.forEach(function (k) { r.actsCleared.push(k); });
-      var beforeCount = RUN.eligibleActs(r).length;    // zero: everything is "behind" it
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      var beforeCount = RUN.eligibleActs(run).length;    // zero: everything is "behind" it
       RUN.goEndless();
       var after = RUN.getRun();
       var afterCount = RUN.eligibleActs(after).length;
@@ -1909,9 +1909,9 @@ export function createSelfTest(ctx) {
     check('Clearing a second act in endless mode never re-shows the victory screen', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      RUN.ACT_KEYS.forEach(function (k) { r.actsCleared.push(k); });
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
       RUN.goEndless();
       var open = RUN.getRun().actOffer;
       RUN.beginAct(open[0]);
@@ -1925,22 +1925,22 @@ export function createSelfTest(ctx) {
       return ok;
     })());
     check('Endless power keeps climbing loop after loop', (function () {
-      var r = { actsCleared: [] };
-      RUN.ACT_KEYS.forEach(function (k) { r.actsCleared.push(k); });   // one full lap
-      var afterLap1 = RUN.powerAt(r, 0);
-      r.actsCleared.push(RUN.ACT_KEYS[0]);                              // one more clear, endless
-      var afterLap2 = RUN.powerAt(r, 0);
+      var run = { actsCleared: [] };
+      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });   // one full lap
+      var afterLap1 = RUN.powerAt(run, 0);
+      run.actsCleared.push(RUN.ACT_KEYS[0]);                              // one more clear, endless
+      var afterLap2 = RUN.powerAt(run, 0);
       return afterLap2 > afterLap1;
     })());
     check('No literal escape sequences leak into victory or gameover text', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = RUN.ACT_KEYS.slice(0, RUN.ACT_KEYS.length - 1);
-      r.act = RUN.ACT_KEYS[RUN.ACT_KEYS.length - 1];
-      r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.actsCleared = RUN.ACT_KEYS.slice(0, RUN.ACT_KEYS.length - 1);
+      run.act = RUN.ACT_KEYS[RUN.ACT_KEYS.length - 1];
+      run.deck = RUN.startingDeck();
       ['yellow_spark', 'yellow_banner', 'cyan_shield', 'magenta_spark', 'magenta_chain']
-        .forEach(function (id) { r.deck.push({ id: id, up: false }); });
+        .forEach(function (id) { run.deck.push({ id: id, up: false }); });
       RUN.finishAct();
       /* A double-escaped \\u2014 in source becomes the six literal characters
          "\u2014" on screen instead of an em dash. This is exactly the class of
@@ -1956,13 +1956,13 @@ export function createSelfTest(ctx) {
     check('Only elites and bosses drop relics, and they always do', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
+      var run = RUN.getRun();
       var ordinary = 0, ranked = 0;
       for (var i = 0; i < 40; i++) {
-        r.relics = [];
+        run.relics = [];
         RUN.rollReward({ type: 'battle', depth: 6 });
         if (RUN.getRun().reward.relic) ordinary++;
-        r.relics = [];
+        run.relics = [];
         RUN.rollReward({ type: i % 2 ? 'elite' : 'boss', depth: 6 });
         if (RUN.getRun().reward.relic) ranked++;
       }
@@ -1988,29 +1988,29 @@ export function createSelfTest(ctx) {
 
     // --- a fusion keeps what its parents were ---
     check('A fusion inherits what its parents were, instead of erasing it', (function () {
-      var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-      var cardDef = CARDS[f.id];
+      var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
+      var cardDef = CARDS[fused.id];
       return cardDef.effectSources.length === 2 &&
              cardDef.effectSources.indexOf('red_scout') !== -1 &&
              cardDef.effectSources.indexOf('green_gardener') !== -1 &&
              !cardDef.silenced && !!cardDef.passive && !!cardDef.aura;
     })());
     check('An inherited aura actually fires on the board', (function () {
-      var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
+      var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
       var battleState2 = fresh();
-      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: CARDS[f.id].color,
-        strength: CARDS[f.id].strength, temp: 0 };
+      battleState2.board[PLAYER].row2[0] = { cardId: fused.id, color: CARDS[fused.id].color,
+        strength: CARDS[fused.id].strength, temp: 0 };
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       // the Gardener's +1 to touching units came along with the fusion
       return ev.strengthOf(ev.view['bottom-row1-0']) === 3;
     })());
     check('A fusion chain never carries more than three rules', (function () {
-      var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
+      var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
       ['yellow_banner', 'green_titan', 'red_scout', 'cyan_shield'].forEach(function (k) {
-        f = C.fuseCards(f, { id: k, up: false });
+        fused = C.fuseCards(fused, { id: k, up: false });
       });
-      return CARDS[f.id].effectSources.length === C.FUSED_EFFECT_CAP;
+      return CARDS[fused.id].effectSources.length === C.FUSED_EFFECT_CAP;
     })());
     check('Past the cap, a rule is genuinely lost rather than merged away', (function () {
       /* Which rule goes is random, and the incoming one is as droppable as any
@@ -2019,11 +2019,11 @@ export function createSelfTest(ctx) {
          particular effect: still exactly three, all of them drawn from the two
          parents, and something that was there before is now gone. */
       for (var t = 0; t < 25; t++) {
-        var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-        f = C.fuseCards(f, { id: 'yellow_banner', up: false });
-        var beforeSet = CARDS[f.id].effectSources.slice();
+        var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
+        fused = C.fuseCards(fused, { id: 'yellow_banner', up: false });
+        var beforeSet = CARDS[fused.id].effectSources.slice();
         var union = beforeSet.concat(['green_titan']);
-        var fused = C.fuseCards(f, { id: 'green_titan', up: false });
+        fused = C.fuseCards(fused, { id: 'green_titan', up: false });
         var afterSet = CARDS[fused.id].effectSources;
         if (afterSet.length !== C.FUSED_EFFECT_CAP) return false;
         if (!afterSet.every(function (k) { return union.indexOf(k) !== -1; })) return false;
@@ -2035,12 +2035,12 @@ export function createSelfTest(ctx) {
       var saved = RUN.getRun();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      var f = RUN.fuseInDeck({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-      f = RUN.fuseInDeck(f, { id: 'yellow_banner', up: false });
-      f = RUN.fuseInDeck(f, { id: 'green_titan', up: false });   // forces a random drop
-      r.deck.push(f);
-      var wantId = f.id, wantEff = CARDS[f.id].effectSources.slice();
+      var run = RUN.getRun();
+      var fused = RUN.fuseInDeck({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
+      fused = RUN.fuseInDeck(fused, { id: 'yellow_banner', up: false });
+      fused = RUN.fuseInDeck(fused, { id: 'green_titan', up: false });   // forces a random drop
+      run.deck.push(fused);
+      var wantId = fused.id, wantEff = CARDS[fused.id].effectSources.slice();
       RUN.saveRun();
       delete CARDS[wantId];                       // as a page reload would
       var back = RUN.loadRun();
@@ -2090,9 +2090,9 @@ export function createSelfTest(ctx) {
     check('Beating Black ends the game even with roads left unwalked', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = ['green', 'red'];        // most of the wheel never touched
-      r.act = 'black'; r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.actsCleared = ['green', 'red'];        // most of the wheel never touched
+      run.act = 'black'; run.deck = RUN.startingDeck();
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = after.screen === 'victory' && !RUN.whiteUnlocked(after);
@@ -2102,9 +2102,9 @@ export function createSelfTest(ctx) {
     check('White opens only when every road was already behind you', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = RUN.ACT_KEYS.filter(function (k) { return k !== 'black'; });
-      r.act = 'black'; r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.actsCleared = RUN.ACT_KEYS.filter(function (k) { return k !== 'black'; });
+      run.act = 'black'; run.deck = RUN.startingDeck();
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = after.screen === 'victory' && RUN.whiteUnlocked(after);
@@ -2117,20 +2117,20 @@ export function createSelfTest(ctx) {
       if (C.COLOR_KEYS.indexOf('white') !== -1) return false;   // never mixable
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck();
-      r.endless = true;
-      RUN.ACT_KEYS.forEach(function (k) { r.actsCleared.push(k); });
-      var offered = RUN.eligibleActs(r).indexOf('white') !== -1;
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck();
+      run.endless = true;
+      RUN.ACT_KEYS.forEach(function (k) { run.actsCleared.push(k); });
+      var offered = RUN.eligibleActs(run).indexOf('white') !== -1;
       RUN.setRun(saved);
       return !offered;
     })());
     check('Beating White ends the run outright', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = RUN.ACT_KEYS.slice();
-      r.act = 'white'; r.deck = RUN.startingDeck();
+      var run = RUN.getRun();
+      run.actsCleared = RUN.ACT_KEYS.slice();
+      run.act = 'white'; run.deck = RUN.startingDeck();
       RUN.finishAct();
       var after = RUN.getRun();
       var ok = after.screen === 'gameover' && after.actsCleared.indexOf('white') !== -1;
@@ -2181,10 +2181,10 @@ export function createSelfTest(ctx) {
       var battleState2 = fresh();
       var at = link.a;
       function drainOn(cardId) {
-        var g3 = fresh();
-        g3.board[PLAYER][at.row][at.index] = { cardId: cardId, color: CARDS[cardId].color,
+        var battleState3 = fresh();
+        battleState3.board[PLAYER][at.row][at.index] = { cardId: cardId, color: CARDS[cardId].color,
           strength: CARDS[cardId].strength, temp: 0 };
-        var ev = C.evaluateBoard(g3.board, g3.hazards, { fissures: [link] });
+        var ev = C.evaluateBoard(battleState3.board, battleState3.hazards, { fissures: [link] });
         return ev.strengthOf(ev.view['bottom-' + at.row + '-' + at.index]) - CARDS[cardId].strength;
       }
       return drainOn('green_colony') < 0 && drainOn('green_thicket') === 0;
@@ -2234,32 +2234,32 @@ export function createSelfTest(ctx) {
     check('Rot and Rift open on what the run did, not what it covered', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck = RUN.startingDeck(); r.fissures = [];
-      var noneYet = !RUN.rotUnlocked(r) && !RUN.riftUnlocked(r);
-      for (var i = 0; i < RUN.ROT_THRESHOLD; i++) r.deck.push({ id: C.CURSE_KEYS[0], up: false });
-      var rotOpen = RUN.rotUnlocked(r);
+      var run = RUN.getRun();
+      run.deck = RUN.startingDeck(); run.fissures = [];
+      var noneYet = !RUN.rotUnlocked(run) && !RUN.riftUnlocked(run);
+      for (var i = 0; i < RUN.ROT_THRESHOLD; i++) run.deck.push({ id: C.CURSE_KEYS[0], up: false });
+      var rotOpen = RUN.rotUnlocked(run);
       for (var j = 0; j < RUN.RIFT_THRESHOLD; j++) {
-        r.fissures.push({ kind: 'sever', side: PLAYER, a: { row: 'row1', index: j },
+        run.fissures.push({ kind: 'sever', side: PLAYER, a: { row: 'row1', index: j },
                           b: { row: 'row2', index: 0 }, power: 1 });
       }
-      var riftOpen = RUN.riftUnlocked(r);
+      var riftOpen = RUN.riftUnlocked(run);
       RUN.setRun(saved);
       return noneYet && rotOpen && riftOpen;
     })());
     check('A run that did all three hard things is offered all three roads', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.actsCleared = RUN.ACT_KEYS.slice();          // the whole wheel
-      r.deck = RUN.startingDeck();
-      for (var i = 0; i < RUN.ROT_THRESHOLD; i++) r.deck.push({ id: C.CURSE_KEYS[0], up: false });
-      r.fissures = [];
+      var run = RUN.getRun();
+      run.actsCleared = RUN.ACT_KEYS.slice();          // the whole wheel
+      run.deck = RUN.startingDeck();
+      for (var i = 0; i < RUN.ROT_THRESHOLD; i++) run.deck.push({ id: C.CURSE_KEYS[0], up: false });
+      run.fissures = [];
       for (var j = 0; j < RUN.RIFT_THRESHOLD; j++) {
-        r.fissures.push({ kind: 'sever', side: PLAYER, a: { row: 'row1', index: j },
+        run.fissures.push({ kind: 'sever', side: PLAYER, a: { row: 'row1', index: j },
                           b: { row: 'row2', index: 0 }, power: 1 });
       }
-      var offers = RUN.secretOffers(r);
+      var offers = RUN.secretOffers(run);
       RUN.setRun(saved);
       // three separate hard things, three separate doors — not a choice of one
       return offers.length === 3 &&
@@ -2283,12 +2283,12 @@ export function createSelfTest(ctx) {
     check('The rift road breaks the enemy\\u2019s ground too', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.fissures = [];
+      var run = RUN.getRun();
+      run.fissures = [];
       RUN.beginAct('rift');
-      var f = RUN.getRun().fissures;
-      var mine = f.filter(function (x) { return x.side === PLAYER; }).length;
-      var theirs = f.filter(function (x) { return x.side === ENEMY; }).length;
+      var fissures = RUN.getRun().fissures;
+      var mine = fissures.filter(function (x) { return x.side === PLAYER; }).length;
+      var theirs = fissures.filter(function (x) { return x.side === ENEMY; }).length;
       RUN.setRun(saved);
       // a shared condition, not a one-sided punishment
       return mine > 0 && theirs > 0;
@@ -2365,11 +2365,11 @@ export function createSelfTest(ctx) {
       /* swarmAura is a number and warded is a flag; the generic composer would
          have wrapped both as functions, making the aura NaN when added to a
          strength. Explicit hook shapes are what stop that. */
-      var f = C.fuseCards({ id: 'green_broodmother', up: false }, { id: 'green_thicket', up: false });
-      var cardDef = CARDS[f.id];
+      var fused = C.fuseCards({ id: 'green_broodmother', up: false }, { id: 'green_thicket', up: false });
+      var cardDef = CARDS[fused.id];
       if (typeof cardDef.swarmAura !== 'number' || cardDef.warded !== true) return false;
       var battleState2 = fresh();
-      battleState2.board[PLAYER].row2[0] = { cardId: f.id, color: cardDef.color, strength: cardDef.strength, temp: 0 };
+      battleState2.board[PLAYER].row2[0] = { cardId: fused.id, color: cardDef.color, strength: cardDef.strength, temp: 0 };
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var lifted = ev.strengthOf(ev.view['bottom-row1-0']);
@@ -2574,15 +2574,15 @@ export function createSelfTest(ctx) {
     check('An uncontested lane spares its frontline', (function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 3, 'red_brute', 3);        // nothing opposite it
-      var f = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
-      return battleState2.board.bottom.row1[3] !== null && f.bottom.length === 0;
+      var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return battleState2.board.bottom.row1[3] !== null && fallen.bottom.length === 0;
     })());
     check('A unit fronting several lanes falls once if any was contested', (function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row3', 0, 'green_titan', 6);      // fronts lanes 1-3 alone
       put(battleState2, 'top', 'row1', 0, 'blue_scout', 2);          // contests lane 1 only
-      var f = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
-      return f.bottom.length === 1 && battleState2.board.bottom.row3[0] === null;
+      var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
+      return fallen.bottom.length === 1 && battleState2.board.bottom.row3[0] === null;
     })());
     check('Support steps up to the line next round', (function () {
       var battleState2 = fresh();
@@ -2977,17 +2977,17 @@ export function createSelfTest(ctx) {
       r2.map = RUN.buildMap('green', true); r2.depth = 0; r2.available = [0];
       RUN.enterNode(0);
       var s = RUN.getState();
-      var f = C.fuseCards({ id: 'blue_current', up: false }, { id: 'black_reclaimer', up: false });
-      f = C.fuseCards(f, { id: 'magenta_lancer', up: false });
-      s.hands.bottom[0] = { id: f.id, up: false, uid: -1 };
+      var fused = C.fuseCards({ id: 'blue_current', up: false }, { id: 'black_reclaimer', up: false });
+      fused = C.fuseCards(fused, { id: 'magenta_lancer', up: false });
+      s.hands.bottom[0] = { id: fused.id, up: false, uid: -1 };
       render();
       var card = document.querySelector('.hand .card:not(.mixcard)');
       card.dispatchEvent(new Event('mouseenter'));
       var peek = document.getElementById('cardPeek');
-      var gotId = peek.dataset.cardId === f.id;
+      var gotId = peek.dataset.cardId === fused.id;
       peek.click();
       var overlay = document.getElementById('cardDetailOverlay');
-      var fullTextShown = document.getElementById('cardDetailBody').textContent.indexOf(CARDS[f.id].text) !== -1;
+      var fullTextShown = document.getElementById('cardDetailBody').textContent.indexOf(CARDS[fused.id].text) !== -1;
       var opened = !overlay.hidden;
       overlay.hidden = true;
       RUN.setRun(saved); RUN.show('map');
@@ -3166,8 +3166,8 @@ export function createSelfTest(ctx) {
     /* ---- Rewind and fissures ---- */
     check('Sever cuts one seam, on one side only', (function () {
       // the seam between Row 2 #1 and Row 1 #2
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var sv = C.boardTopo(f);
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var sv = C.boardTopo(fissures);
       return C.lanesOfFor('bottom', 'row2', 1, sv).join() === '1' &&
              C.lanesOfFor('top', 'row2', 1, sv).join() === '1,2' &&
              C.lanesOfFor('bottom', 'row2', 0, sv).join() === '0,1' &&
@@ -3176,8 +3176,8 @@ export function createSelfTest(ctx) {
              C.adjacentTilesFor('top', 'row2', 1, sv).length === C.adjacentTiles('row2', 1).length;
     })());
     check('A crack blocks adjacency in both directions', (function () {
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var sv = C.boardTopo(f);
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var sv = C.boardTopo(fissures);
       var up = C.adjacentTilesFor('bottom', 'row1', 2, sv)
         .some(function (t) { return t.row === 'row2' && t.index === 1; });
       var down = C.adjacentTilesFor('bottom', 'row2', 1, sv)
@@ -3186,33 +3186,33 @@ export function createSelfTest(ctx) {
     })());
     check('A Row 3 tile keeps the lanes its intact neighbour still offers', (function () {
       // cut row3#0 from row2#0: it should keep only what row2#1 reaches
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row2', index: 0 } }];
-      var sv = C.boardTopo(f);
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row2', index: 0 } }];
+      var sv = C.boardTopo(fissures);
       return C.lanesOfFor('bottom', 'row3', 0, sv).join() === '1,2' &&
              C.lanesOfFor('bottom', 'row3', 0, null).join() === '0,1,2';
     })());
     check('A severed link never strands a tile', (function () {
-      var fs = [], guard = 0;
+      var fissures = [], guard = 0;
       while (guard++ < 40) {
-        var av = C.severableLinks('bottom', fs);
-        if (!av.length) break;
-        fs.push(av[0]);
+        var available = C.severableLinks('bottom', fissures);
+        if (!available.length) break;
+        fissures.push(available[0]);
       }
       if (guard >= 40) return false;                 // must saturate, not loop
-      var sv = C.boardTopo(fs), okAll = true;
-      C.ROWS.forEach(function (r) {
-        for (var i = 0; i < C.ROW_INFO[r].count; i++) {
-          if (!C.lanesOfFor('bottom', r, i, sv).length) okAll = false;
+      var topology = C.boardTopo(fissures), okAll = true;
+      C.ROWS.forEach(function (row) {
+        for (var i = 0; i < C.ROW_INFO[row].count; i++) {
+          if (!C.lanesOfFor('bottom', row, i, topology).length) okAll = false;
         }
       });
-      return okAll && fs.length > 0;
+      return okAll && fissures.length > 0;
     })());
     check('A severed lane loses the share, it is not rerouted', (function () {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
       var e0 = C.evaluateBoard(b, null, { fissures: [] });
-      var e1 = C.evaluateBoard(b, null, { fissures: f });
+      var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       return e0.shares['bottom-row2-1'][1] === 3 && e0.shares['bottom-row2-1'][2] === 3 &&
              e1.shares['bottom-row2-1'][2] === undefined && !e1.lanes[2].bottom;
     })());
@@ -3220,9 +3220,9 @@ export function createSelfTest(ctx) {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       b.bottom.row1[2] = { cardId: null, color: 'red', strength: 5, temp: 0 };
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
       var e0 = C.evaluateBoard(b, null, { fissures: [] });
-      var e1 = C.evaluateBoard(b, null, { fissures: f });
+      var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       var drainAmount = C.FISSURE_DRAIN;
       return e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - drainAmount &&
              e1.view['bottom-row1-2'].bonus === e0.view['bottom-row1-2'].bonus - drainAmount;
@@ -3230,9 +3230,9 @@ export function createSelfTest(ctx) {
     check('A heavy drain empties a unit rather than making it negative', (function () {
       var b = C.emptyBoard();
       b.bottom.row1[1] = { cardId: null, color: 'red', strength: 1, temp: 0 };
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 1 } },
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 1 } },
                { kind: 'sever', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row1', index: 1 } }];
-      var e = C.evaluateBoard(b, null, { fissures: f });
+      var e = C.evaluateBoard(b, null, { fissures: fissures });
       var v = e.view['bottom-row1-1'];
       return Math.max(0, v.base + v.bonus) === 0 && e.totals.bottom >= 0;
     })());
@@ -3241,9 +3241,9 @@ export function createSelfTest(ctx) {
       put(battleState2, 'bottom', 'row1', 2, 'red_brute', 3);
       put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
       var whole = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, []);
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var cracked = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, f);
-      var opts = RUN.mixOptions(battleState2.board, 'bottom', f);
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var cracked = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, fissures);
+      var opts = RUN.mixOptions(battleState2.board, 'bottom', fissures);
       return whole.ok && !cracked.ok && cracked.reason.indexOf('fissure') !== -1 && opts.length === 0;
     })());
     check('An aura does not cross a fissure', (function () {
@@ -3253,8 +3253,8 @@ export function createSelfTest(ctx) {
       b.bottom.row2[1] = { cardId: aura, color: C.CARDS[aura].color, strength: C.CARDS[aura].strength || 3, temp: 0 };
       b.bottom.row1[2] = { cardId: null, color: 'red', strength: 4, temp: 0 };
       var e0 = C.evaluateBoard(b, null, { fissures: [] });
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
-      var e1 = C.evaluateBoard(b, null, { fissures: f });
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
+      var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       // the neighbour keeps only the drain, never the aura
       return e1.view['bottom-row1-2'].bonus < e0.view['bottom-row1-2'].bonus;
     })());
@@ -3296,7 +3296,7 @@ export function createSelfTest(ctx) {
       for (var i = 0; i < 60; i++) RUN.addInstability(RUN.REWIND.THRESHOLD * 2, PLAYER, C.emptyBoard());
       var noRoom = C.severableLinks(PLAYER, r2.fissures).length === 0 &&
                    C.bridgeableLinks(PLAYER, r2.fissures).length === 0;
-      var allMaxed = r2.fissures.every(function (f) { return C.fissurePower(f) === C.FISSURE_MAX_POWER; });
+      var allMaxed = r2.fissures.every(function (fissure) { return C.fissurePower(fissure) === C.FISSURE_MAX_POWER; });
       var noTileStranded = true, topo = C.boardTopo(r2.fissures);
       C.ROWS.forEach(function (row) {
         for (var i = 0; i < C.ROW_INFO[row].count; i++)
@@ -3323,8 +3323,8 @@ export function createSelfTest(ctx) {
       function at(power) {
         var b = C.emptyBoard();
         b.bottom.row2[1] = { cardId: 'black_riftwalker', color: 'black', strength: 3, temp: 0 };
-        var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: power }];
-        var v = C.evaluateBoard(b, null, { fissures: f }).view['bottom-row2-1'];
+        var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: power }];
+        var v = C.evaluateBoard(b, null, { fissures: fissures }).view['bottom-row2-1'];
         return Math.max(0, v.base + v.bonus);
       }
       // climbs to a peak at 4, is back to par by 6, and is a liability past that
@@ -3342,21 +3342,21 @@ export function createSelfTest(ctx) {
     })());
     check('Cyan quiets damage for the round without healing it', (function () {
       var battleState2 = fresh();
-      var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: 2 }];
-      battleState2.fissures = f;
+      var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: 2 }];
+      battleState2.fissures = fissures;
       put(battleState2, 'bottom', 'row2', 1, 'red_brute', 8);
       var loud = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       var api = RUN.buildApi ? null : null;
       // play the Mender onto the damaged tile through the real resolver
-      var g3 = RUN.simGame(battleState2);
-      g3.fissures = f;
-      RUN.resolveCard(g3, 'bottom', { id: 'cyan_mender' }, { row: 'row1', index: 2 }, []);
-      var quiet = C.evaluateBoard(g3.board, g3.hazards, RUN.evalCtx(g3));
-      var reachesAgain = C.lanesOfFor('bottom', 'row2', 1, C.boardTopo(RUN.evalCtx(g3).fissures)).length === 2;
+      var battleState3 = RUN.simGame(battleState2);
+      battleState3.fissures = fissures;
+      RUN.resolveCard(battleState3, 'bottom', { id: 'cyan_mender' }, { row: 'row1', index: 2 }, []);
+      var quiet = C.evaluateBoard(battleState3.board, battleState3.hazards, RUN.evalCtx(battleState3));
+      var reachesAgain = C.lanesOfFor('bottom', 'row2', 1, C.boardTopo(RUN.evalCtx(battleState3).fissures)).length === 2;
       // the scar itself is untouched: it is still on the run's list
       return quiet.view['bottom-row2-1'].bonus > loud.view['bottom-row2-1'].bonus &&
-             reachesAgain && f.length === 1 && g3.quieted &&
-             Object.keys(g3.quieted).length === 1;
+             reachesAgain && fissures.length === 1 && battleState3.quieted &&
+             Object.keys(battleState3.quieted).length === 1;
     })());
     check('A bridge joins two tiles that only meet at a corner', (function () {
       var pairs = C.bridgePairs();
@@ -3368,8 +3368,8 @@ export function createSelfTest(ctx) {
       return pairs.length === 8 && everyPairIsNew && !!corner;
     })());
     check('A bridge carries adjacency both ways', (function () {
-      var f = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
-      var tp = C.boardTopo(f);
+      var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
+      var tp = C.boardTopo(fissures);
       var fwd = C.adjacentTilesFor('bottom', 'row2', 0, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
       var back = C.adjacentTilesFor('bottom', 'row2', 1, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 0 }); });
       var enemyUntouched = !C.adjacentTilesFor('top', 'row2', 0, tp).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
@@ -3377,13 +3377,13 @@ export function createSelfTest(ctx) {
     })());
     check('A forward bridge grants a lane, paid for by thinner shares', (function () {
       // row3#0 meets row1#1 only at a corner; bridging reaches lane 1 directly
-      var f = [{ kind: 'bridge', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row1', index: 1 }, power: 1 }];
+      var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row1', index: 1 }, power: 1 }];
       var b = C.emptyBoard();
       b.bottom.row3[0] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       var whole = C.evaluateBoard(b, null, { fissures: [] });
-      var bridged = C.evaluateBoard(b, null, { fissures: f });
+      var bridged = C.evaluateBoard(b, null, { fissures: fissures });
       var lanesWhole = C.lanesOfFor('bottom', 'row3', 0, null).length;
-      var lanesBridged = C.lanesOfFor('bottom', 'row3', 0, C.boardTopo(f)).length;
+      var lanesBridged = C.lanesOfFor('bottom', 'row3', 0, C.boardTopo(fissures)).length;
       var shareWhole = whole.shares['bottom-row3-0'][0];
       var shareBridged = bridged.shares['bottom-row3-0'][0];
       return lanesBridged === lanesWhole && shareBridged <= shareWhole;
@@ -3392,9 +3392,9 @@ export function createSelfTest(ctx) {
       var b = C.emptyBoard();
       b.bottom.row2[0] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
-      var f = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
+      var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
       var e0 = C.evaluateBoard(b, null, { fissures: [] });
-      var e1 = C.evaluateBoard(b, null, { fissures: f });
+      var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       return e1.view['bottom-row2-0'].bonus === e0.view['bottom-row2-0'].bonus - C.FISSURE_DRAIN &&
              e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - C.FISSURE_DRAIN;
     })());
@@ -3402,8 +3402,8 @@ export function createSelfTest(ctx) {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 9, temp: 0 };
       function drainAt(power) {
-        var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: power }];
-        var e = C.evaluateBoard(b, null, { fissures: f });
+        var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: power }];
+        var e = C.evaluateBoard(b, null, { fissures: fissures });
         return e.view['bottom-row2-1'].bonus;
       }
       return drainAt(1) - drainAt(3) === 2 * C.FISSURE_DRAIN &&
@@ -3501,9 +3501,9 @@ export function createSelfTest(ctx) {
       C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { early.push(CARDS[c.id].rarity); });
       C.buildEnemyDeck(ENEMIES.brawler, 10, Math.random).forEach(function (c) { late.push(CARDS[c.id].rarity); });
     }
-    check('Early enemies field commons only', early.every(function (r) { return r === 'Common'; }),
-      'saw ' + early.filter(function (r) { return r !== 'Common'; }).length + ' non-commons');
-    check('Late enemies can field rares', late.some(function (r) { return r === 'Rare'; }));
+    check('Early enemies field commons only', early.every(function (rarity) { return rarity === 'Common'; }),
+      'saw ' + early.filter(function (rarity) { return rarity !== 'Common'; }).length + ' non-commons');
+    check('Late enemies can field rares', late.some(function (rarity) { return rarity === 'Rare'; }));
     var earlyUp = 0;
     for (n = 0; n < 40; n++) C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { if (c.up) earlyUp++; });
     check('Early enemies bring no upgrades', earlyUp === 0, earlyUp + ' upgraded');
