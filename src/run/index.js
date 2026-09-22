@@ -1583,100 +1583,100 @@ var MAP_ICONS = {
    No text, no clutter — a red/green/yellow ring reads as "bring counters for
    these" at a glance, and the seven-colour ring marks the boss instantly. */
 function colorRing(colors) {
-  var r = 24, gap = colors.length > 1 ? 0.16 : 0, out = '';
-  colors.forEach(function (c, i) {
-    var a0 = -Math.PI / 2 + (i / colors.length) * Math.PI * 2 + gap / 2;
-    var a1 = -Math.PI / 2 + ((i + 1) / colors.length) * Math.PI * 2 - gap / 2;
-    var large = (a1 - a0) > Math.PI ? 1 : 0;
+  var radius = 24, gap = colors.length > 1 ? 0.16 : 0, svg = '';
+  colors.forEach(function (colorKey, index) {
+    var startAngle = -Math.PI / 2 + (index / colors.length) * Math.PI * 2 + gap / 2;
+    var endAngle = -Math.PI / 2 + ((index + 1) / colors.length) * Math.PI * 2 - gap / 2;
+    var largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
     if (colors.length === 1) {
-      out += '<circle class="mn-ring" r="' + r + '" fill="none" stroke="' + COLORS[c].hex + '"/>';
+      svg += '<circle class="mn-ring" r="' + radius + '" fill="none" stroke="' + COLORS[colorKey].hex + '"/>';
       return;
     }
-    out += '<path class="mn-ring" fill="none" stroke="' + COLORS[c].hex + '" d="M' +
-      (Math.cos(a0) * r).toFixed(2) + ',' + (Math.sin(a0) * r).toFixed(2) +
-      ' A' + r + ',' + r + ' 0 ' + large + ' 1 ' +
-      (Math.cos(a1) * r).toFixed(2) + ',' + (Math.sin(a1) * r).toFixed(2) + '"/>';
+    svg += '<path class="mn-ring" fill="none" stroke="' + COLORS[colorKey].hex + '" d="M' +
+      (Math.cos(startAngle) * radius).toFixed(2) + ',' + (Math.sin(startAngle) * radius).toFixed(2) +
+      ' A' + radius + ',' + radius + ' 0 ' + largeArc + ' 1 ' +
+      (Math.cos(endAngle) * radius).toFixed(2) + ',' + (Math.sin(endAngle) * radius).toFixed(2) + '"/>';
   });
-  return out;
+  return svg;
 }
 
 var MAP_LABEL = { battle: 'Battle', elite: 'Elite', shop: 'Shop', lab: 'Colour Lab', event: 'Event', boss: 'Boss', volatile: 'Volatile Lab' };
 
 function renderMap() {
   var open = currentNodes();
-  var W = 320, rowH = 74, pad = 34;
-  var H = run.map.length * rowH + pad;
+  var mapWidth = 320, rowHeight = 74, padding = 34;
+  var mapHeight = run.map.length * rowHeight + padding;
   /* x comes from the node's grid column, not its index in the row, so a node
      keeps the same horizontal position whatever else that row contains. */
-  function nodeX(depth, idx) {
-    var node = run.map[depth][idx];
-    return pad + (node.col + 0.5) * (W - pad * 2) / MAP_COLS;
+  function nodeX(depth, colIndex) {
+    var node = run.map[depth][colIndex];
+    return padding + (node.col + 0.5) * (mapWidth - padding * 2) / MAP_COLS;
   }
-  function nodeY(depth) { return pad / 2 + depth * rowH + 26; }
+  function nodeY(depth) { return padding / 2 + depth * rowHeight + 26; }
 
   var edges = '', nodes = '';
-  run.map.forEach(function (row, d) {
-    if (d >= run.map.length - 1) return;
-    row.forEach(function (n, i) {
-      n.next.forEach(function (j) {
-        var x1 = nodeX(d, i), y1 = nodeY(d) + 20, x2 = nodeX(d + 1, j), y2 = nodeY(d + 1) - 20;
-        var my = (y1 + y2) / 2;
-        var taken = (run.history[d] === i && run.history[d + 1] === j);
-        var live = (d === run.depth && open.indexOf(i) !== -1) ||
-                   (d === run.depth - 1 && run.history[d] === i);
+  run.map.forEach(function (row, depth) {
+    if (depth >= run.map.length - 1) return;
+    row.forEach(function (node, index) {
+      node.next.forEach(function (nextIndex) {
+        var x1 = nodeX(depth, index), y1 = nodeY(depth) + 20, x2 = nodeX(depth + 1, nextIndex), y2 = nodeY(depth + 1) - 20;
+        var midY = (y1 + y2) / 2;
+        var taken = (run.history[depth] === index && run.history[depth + 1] === nextIndex);
+        var live = (depth === run.depth && open.indexOf(index) !== -1) ||
+                   (depth === run.depth - 1 && run.history[depth] === index);
         var cls = 'map-edge' + (taken ? ' taken' : live ? ' live' : '');
         edges += '<path class="' + cls + '" d="M' + x1 + ',' + y1 +
-          ' C' + x1 + ',' + my + ' ' + x2 + ',' + my + ' ' + x2 + ',' + y2 + '"/>';
+          ' C' + x1 + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2 + '"/>';
       });
     });
   });
 
-  run.map.forEach(function (row, d) {
-    row.forEach(function (n, i) {
-      var x = nodeX(d, i), y = nodeY(d);
-      var reachable = (d === run.depth && open.indexOf(i) !== -1);
-      var past = d < run.depth, taken = past && run.history[d] === i;
-      var cls = 'map-node t-' + n.type + (reachable ? ' open' : '') + (past ? ' past' : '') + (taken ? ' taken' : '');
-      var enemy = n.enemy ? ENEMIES[n.enemy] : null;
-      var title = n.hidden ? 'Unknown — something is waiting on this road'
-        : MAP_LABEL[n.type] + (enemy ? ' — ' + enemy.name + ' · ' +
-          enemy.colors.map(function (c) { return COLORS[c].name; }).join(', ') : '');
-      nodes += '<g class="' + cls + (n.hidden ? ' hidden-node' : '') + (n.dangerous ? ' danger' : '') +
+  run.map.forEach(function (row, depth) {
+    row.forEach(function (node, index) {
+      var x = nodeX(depth, index), y = nodeY(depth);
+      var reachable = (depth === run.depth && open.indexOf(index) !== -1);
+      var past = depth < run.depth, taken = past && run.history[depth] === index;
+      var cls = 'map-node t-' + node.type + (reachable ? ' open' : '') + (past ? ' past' : '') + (taken ? ' taken' : '');
+      var enemy = node.enemy ? ENEMIES[node.enemy] : null;
+      var title = node.hidden ? 'Unknown — something is waiting on this road'
+        : MAP_LABEL[node.type] + (enemy ? ' — ' + enemy.name + ' · ' +
+          enemy.colors.map(function (colorKey) { return COLORS[colorKey].name; }).join(', ') : '');
+      nodes += '<g class="' + cls + (node.hidden ? ' hidden-node' : '') + (node.dangerous ? ' danger' : '') +
         '" transform="translate(' + x + ',' + y + ')"' +
-        (reachable ? ' data-col="' + i + '" tabindex="0" role="button"' : '') +
+        (reachable ? ' data-col="' + index + '" tabindex="0" role="button"' : '') +
         ' aria-label="' + title + '"><title>' + title + '</title>' +
-        (enemy && !n.hidden ? colorRing(enemy.colors) : '') +
+        (enemy && !node.hidden ? colorRing(enemy.colors) : '') +
         '<circle class="mn-disc" r="19"/>' +
-        '<g class="mn-icon">' + MAP_ICONS[n.hidden ? 'unknown' : n.type] + '</g>' +
+        '<g class="mn-icon">' + MAP_ICONS[node.hidden ? 'unknown' : node.type] + '</g>' +
         (reachable ? '<circle class="mn-halo" r="25" fill="none"/>' : '') +
         '</g>';
     });
   });
 
   els.mapBody.innerHTML =
-    '<svg class="map-svg" viewBox="0 0 ' + W + ' ' + H + '" ' +
+    '<svg class="map-svg" viewBox="0 0 ' + mapWidth + ' ' + mapHeight + '" ' +
     'xmlns="http://www.w3.org/2000/svg">' + edges + nodes + '</svg>';
 
-  Array.prototype.forEach.call(els.mapBody.querySelectorAll('.map-node.open'), function (g) {
-    function go() { enterNode(+g.getAttribute('data-col')); }
-    g.addEventListener('click', go);
-    g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  Array.prototype.forEach.call(els.mapBody.querySelectorAll('.map-node.open'), function (nodeEl) {
+    function go() { enterNode(+nodeEl.getAttribute('data-col')); }
+    nodeEl.addEventListener('click', go);
+    nodeEl.addEventListener('keydown', function (event) { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); go(); } });
   });
 
   // keep the live row in view
   if (els.mapScroll) {
     var svgEl = els.mapBody.querySelector('.map-svg');
-    var drawn = svgEl ? svgEl.getBoundingClientRect().height : H;
-    var top = nodeY(run.depth) / H * drawn;
+    var drawn = svgEl ? svgEl.getBoundingClientRect().height : mapHeight;
+    var top = nodeY(run.depth) / mapHeight * drawn;
     els.mapScroll.scrollTop = Math.max(0, top - els.mapScroll.clientHeight * 0.45);
   }
 }
 
 function renderMapLegend() {
   if (els.mapLegend.dataset.built) return;
-  els.mapLegend.innerHTML = ['battle', 'elite', 'boss', 'shop', 'lab', 'volatile', 'event', 'unknown'].map(function (t) {
-    return '<span class="legend-item t-' + t + '"><svg viewBox="-16 -16 32 32" class="legend-ic">' +
-      '<g class="mn-icon">' + MAP_ICONS[t] + '</g></svg>' + (MAP_LABEL[t] || 'Unknown') + '</span>';
+  els.mapLegend.innerHTML = ['battle', 'elite', 'boss', 'shop', 'lab', 'volatile', 'event', 'unknown'].map(function (type) {
+    return '<span class="legend-item t-' + type + '"><svg viewBox="-16 -16 32 32" class="legend-ic">' +
+      '<g class="mn-icon">' + MAP_ICONS[type] + '</g></svg>' + (MAP_LABEL[type] || 'Unknown') + '</span>';
   }).join('');
   els.mapLegend.dataset.built = '1';
 }
