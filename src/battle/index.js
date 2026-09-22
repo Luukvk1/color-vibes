@@ -234,40 +234,40 @@ function currentTargetOptions() {
 }
 
 function renderTiles(ev) {
-  var s = getBattleState();
-  var locked = s.resolving || s.battleOver || s.opponentThinking;
-  var canAct = !locked && s.turn === PLAYER;
-  var card = s.selectedCard !== null ? s.hands[PLAYER][s.selectedCard] : null;
-  var d = card ? CARDS[card.id] : null;
+  var state = getBattleState();
+  var locked = state.resolving || state.battleOver || state.opponentThinking;
+  var canAct = !locked && state.turn === PLAYER;
+  var card = state.selectedCard !== null ? state.hands[PLAYER][state.selectedCard] : null;
+  var selectedCardDef = card ? CARDS[card.id] : null;
   var opts = currentTargetOptions(), spec = pendingSpec();
 
   var fronts = {};
   ev.lanes.forEach(function (lane) {
-    ['bottom', 'top'].forEach(function (sd) {
-      if (!lane[sd]) return;
-      var k = tileKey(sd, lane[sd].champion.row, lane[sd].champion.index);
-      fronts[k] = fronts[k] || { mult: 1 };
-      fronts[k].mult = Math.max(fronts[k].mult, lane[sd].multiplier);
+    ['bottom', 'top'].forEach(function (side) {
+      if (!lane[side]) return;
+      var key = tileKey(side, lane[side].champion.row, lane[side].champion.index);
+      fronts[key] = fronts[key] || { mult: 1 };
+      fronts[key].mult = Math.max(fronts[key].mult, lane[side].multiplier);
     });
   });
 
-  GEO.forEach(function (t) {
-    var el = tileEls[tileKey(t.side, t.row, t.index)];
-    var unit = unitAt(s.board, t.side, t.row, t.index);
-    var v = ev.get(t.side, t.row, t.index);
+  GEO.forEach(function (tile) {
+    var el = tileEls[tileKey(tile.side, tile.row, tile.index)];
+    var unit = unitAt(state.board, tile.side, tile.row, tile.index);
+    var view = ev.get(tile.side, tile.row, tile.index);
     var placeable = false, mixable = false, targetable = false;
 
-    if (s.pending && spec) {
-      if (spec.kind === 'hazard') targetable = opts.some(function (o) { return o.side === t.side && o.row === t.row; });
-      else targetable = t.side === s.pending.side && opts.some(function (o) { return o.row === t.row && o.index === t.index; });
-    } else if (canAct && t.side === PLAYER) {
-      if (s.mode === 'place' && d) {
-        if (d.type === 'unit') placeable = !unit && canPlace(s.board, t.side, t.row, t.index, cardStrength(card), C.placeOpts(card.id, s.relics, s.board, t.side)).ok;
-        else if (d.type === 'hazard') placeable = !s.hazards[PLAYER][t.row];
-      } else if (s.mode === 'mix' && unit) {
-        if (!s.mixBase) mixable = C.adjacentTilesFor(PLAYER, t.row, t.index, C.boardTopo(s.fissures))
-          .some(function (n) { return !!unitAt(s.board, PLAYER, n.row, n.index); });
-        else mixable = RUN.canMix(s.board, PLAYER, s.mixBase, { row: t.row, index: t.index }).ok;
+    if (state.pending && spec) {
+      if (spec.kind === 'hazard') targetable = opts.some(function (option) { return option.side === tile.side && option.row === tile.row; });
+      else targetable = tile.side === state.pending.side && opts.some(function (option) { return option.row === tile.row && option.index === tile.index; });
+    } else if (canAct && tile.side === PLAYER) {
+      if (state.mode === 'place' && selectedCardDef) {
+        if (selectedCardDef.type === 'unit') placeable = !unit && canPlace(state.board, tile.side, tile.row, tile.index, cardStrength(card), C.placeOpts(card.id, state.relics, state.board, tile.side)).ok;
+        else if (selectedCardDef.type === 'hazard') placeable = !state.hazards[PLAYER][tile.row];
+      } else if (state.mode === 'mix' && unit) {
+        if (!state.mixBase) mixable = C.adjacentTilesFor(PLAYER, tile.row, tile.index, C.boardTopo(state.fissures))
+          .some(function (neighbor) { return !!unitAt(state.board, PLAYER, neighbor.row, neighbor.index); });
+        else mixable = RUN.canMix(state.board, PLAYER, state.mixBase, { row: tile.row, index: tile.index }).ok;
       }
     }
 
@@ -275,41 +275,41 @@ function renderTiles(ev) {
     el.g.classList.toggle('mixable', mixable);
     el.g.classList.toggle('targetable', targetable);
     el.g.classList.toggle('occupied', !!unit);
-    el.g.classList.toggle('hazard-colorless', rowHasHazard(s.hazards, t.row, 'colorless'));
-    el.g.classList.toggle('hazard-scorch', rowHasHazard(s.hazards, t.row, 'scorch'));
-    var fk = fronts[tileKey(t.side, t.row, t.index)];
-    el.g.classList.toggle('frontline', !!fk);
-    el.g.classList.toggle('mix-base', !!(s.mixBase && t.side === PLAYER && s.mixBase.row === t.row && s.mixBase.index === t.index));
+    el.g.classList.toggle('hazard-colorless', rowHasHazard(state.hazards, tile.row, 'colorless'));
+    el.g.classList.toggle('hazard-scorch', rowHasHazard(state.hazards, tile.row, 'scorch'));
+    var frontInfo = fronts[tileKey(tile.side, tile.row, tile.index)];
+    el.g.classList.toggle('frontline', !!frontInfo);
+    el.g.classList.toggle('mix-base', !!(state.mixBase && tile.side === PLAYER && state.mixBase.row === tile.row && state.mixBase.index === tile.index));
 
-    if (unit && v) {
-      var ci = colorInfo(v.color);
-      el.token.setAttribute('fill', ci.hex);
+    if (unit && view) {
+      var colorDef = colorInfo(view.color);
+      el.token.setAttribute('fill', colorDef.hex);
       // the side wall is the same colour in shadow, so the puck reads as one solid piece
-      el.side.setAttribute('fill', shadeHex(ci.hex, -0.45));
-      el.tokenText.setAttribute('fill', ci.ink);
-      el.tokenText.textContent = ev.strengthOf(v);
-      el.g.classList.toggle('colorless', !!v.colorless);
-      el.fx.textContent = (fk && fk.mult > 1) ? '\u00d7' + fk.mult : '';
-      var cd = CARDS[unit.cardId];
-      el.g.setAttribute('aria-label', sideName(t.side) + ' ' + slotName(t.row, t.index) + ', ' +
-        (cd ? cd.name : 'mixed unit') + ', ' + ci.name + ' strength ' + ev.strengthOf(v));
+      el.side.setAttribute('fill', shadeHex(colorDef.hex, -0.45));
+      el.tokenText.setAttribute('fill', colorDef.ink);
+      el.tokenText.textContent = ev.strengthOf(view);
+      el.g.classList.toggle('colorless', !!view.colorless);
+      el.fx.textContent = (frontInfo && frontInfo.mult > 1) ? '\u00d7' + frontInfo.mult : '';
+      var unitCardDef = CARDS[unit.cardId];
+      el.g.setAttribute('aria-label', sideName(tile.side) + ' ' + slotName(tile.row, tile.index) + ', ' +
+        (unitCardDef ? unitCardDef.name : 'mixed unit') + ', ' + colorDef.name + ' strength ' + ev.strengthOf(view));
     } else {
       el.fx.textContent = '';
-      el.g.setAttribute('aria-label', sideName(t.side) + ' ' + slotName(t.row, t.index) + ', empty, minimum ' + ROW_INFO[t.row].min);
+      el.g.setAttribute('aria-label', sideName(tile.side) + ' ' + slotName(tile.row, tile.index) + ', empty, minimum ' + ROW_INFO[tile.row].min);
     }
-    var ins = s.inspected;
-    el.g.classList.toggle('inspected', !!(ins && ins.side === t.side && ins.row === t.row && ins.index === t.index));
-    el.g.classList.toggle('just-placed', !!(s.lastPlaced && s.lastPlaced.side === t.side && s.lastPlaced.row === t.row && s.lastPlaced.index === t.index));
+    var inspected = state.inspected;
+    el.g.classList.toggle('inspected', !!(inspected && inspected.side === tile.side && inspected.row === tile.row && inspected.index === tile.index));
+    el.g.classList.toggle('just-placed', !!(state.lastPlaced && state.lastPlaced.side === tile.side && state.lastPlaced.row === tile.row && state.lastPlaced.index === tile.index));
   });
 
   linesGroup.innerHTML = '';
   ev.lanes.forEach(function (lane) {
     if (!lane.bottom || !lane.top) return;
-    var a = tileEls[tileKey('bottom', lane.bottom.champion.row, lane.bottom.champion.index)];
-    var b = tileEls[tileKey('top', lane.top.champion.row, lane.top.champion.index)];
+    var bottomEl = tileEls[tileKey('bottom', lane.bottom.champion.row, lane.bottom.champion.index)];
+    var topEl = tileEls[tileKey('top', lane.top.champion.row, lane.top.champion.index)];
     var line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', a.geo.cx); line.setAttribute('y1', a.geo.cy);
-    line.setAttribute('x2', b.geo.cx); line.setAttribute('y2', b.geo.cy);
+    line.setAttribute('x1', bottomEl.geo.cx); line.setAttribute('y1', bottomEl.geo.cy);
+    line.setAttribute('x2', topEl.geo.cx); line.setAttribute('y2', topEl.geo.cy);
     var cls = 'lane-line';
     if (lane.bottom.effective && lane.top.effective) cls += ' both';
     else if (lane.bottom.effective) cls += ' you-win';
@@ -351,26 +351,26 @@ function crackPoints(seam) {
 /* A bridge runs corner to corner between its two tiles: out from one
    centroid, through the corner they share, and into the other. Bowing it
    through the shared corner keeps it clear of the tokens at either end. */
-function bridgePoints(f) {
-  var A = tileGeo(f.side, f.a.row, f.a.index), B = tileGeo(f.side, f.b.row, f.b.index);
-  if (!A || !B) return null;
-  var corner = C.sharedCorner(f.side, f.a, f.b);
-  var mx = corner ? corner[0] : (A.cx + B.cx) / 2;
-  var my = corner ? corner[1] : (A.cy + B.cy) / 2;
-  function toward(p, tx, ty, dist) {
-    var dx = tx - p.cx, dy = ty - p.cy, l = Math.sqrt(dx * dx + dy * dy) || 1;
-    return [p.cx + dx / l * dist, p.cy + dy / l * dist];
+function bridgePoints(fissure) {
+  var tileA = tileGeo(fissure.side, fissure.a.row, fissure.a.index), tileB = tileGeo(fissure.side, fissure.b.row, fissure.b.index);
+  if (!tileA || !tileB) return null;
+  var corner = C.sharedCorner(fissure.side, fissure.a, fissure.b);
+  var mx = corner ? corner[0] : (tileA.cx + tileB.cx) / 2;
+  var my = corner ? corner[1] : (tileA.cy + tileB.cy) / 2;
+  function toward(point, tx, ty, dist) {
+    var dx = tx - point.cx, dy = ty - point.cy, l = Math.sqrt(dx * dx + dy * dy) || 1;
+    return [point.cx + dx / l * dist, point.cy + dy / l * dist];
   }
-  var s0 = toward(A, mx, my, 46), s1 = toward(B, mx, my, 46);
-  return 'M' + s0[0].toFixed(1) + ',' + s0[1].toFixed(1) +
+  var startPoint = toward(tileA, mx, my, 46), endPoint = toward(tileB, mx, my, 46);
+  return 'M' + startPoint[0].toFixed(1) + ',' + startPoint[1].toFixed(1) +
          ' Q' + mx.toFixed(1) + ',' + my.toFixed(1) +
-         ' ' + s1[0].toFixed(1) + ',' + s1[1].toFixed(1);
+         ' ' + endPoint[0].toFixed(1) + ',' + endPoint[1].toFixed(1);
 }
 
 function renderFissures() {
-  var s = getBattleState();
+  var state = getBattleState();
   if (!fissureLayer) return;
-  var list = (s && s.fissures) || [];
+  var list = (state && state.fissures) || [];
   var sig = list.map(function (f) {
     return C.edgeKey(f.side, f.a, f.b) + ':' + f.kind + ':' + C.fissurePower(f);
   }).join('|');
