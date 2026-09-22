@@ -1014,11 +1014,11 @@ function setBoardPerspective(boardHeight) {
    down at the cards it is about to play. A theme with a different composition
    needs its own fraction or the eyes drift off the mark. */
 var BG_IMG_W = 840, BG_IMG_H = 1297, BG_SEAM_FRAC = 0.186;
-function setBackgroundMetrics(m) {
-  if (!m) return;
-  BG_IMG_W = m.w; BG_IMG_H = m.h; BG_SEAM_FRAC = m.seam;
+function setBackgroundMetrics(metrics) {
+  if (!metrics) return;
+  BG_IMG_W = metrics.w; BG_IMG_H = metrics.h; BG_SEAM_FRAC = metrics.seam;
   _bgAlign.top = _bgAlign.height = _bgAlign.enemyTop = null;   // force a re-align
-  setDrawnEyes(!!m.drawEyes, m.eyeStyle);
+  setDrawnEyes(!!metrics.drawEyes, metrics.eyeStyle);
   alignRoomBackground();
 }
 var _bgAlign = { top: null, height: null, enemyTop: null, vw: null, vh: null };
@@ -1029,13 +1029,13 @@ function alignRoomBackground() {
   if (!boardEl) return;
   var rect = boardEl.getBoundingClientRect();
   if (!rect.height) return;
-  var vw = window.innerWidth, vh = window.innerHeight;
+  var viewportWidth = window.innerWidth, viewportHeight = window.innerHeight;
   var enemyRowTop = enemyRowEl ? enemyRowEl.getBoundingClientRect().top : rect.top;
   if (_bgAlign.top === rect.top && _bgAlign.height === rect.height &&
       _bgAlign.enemyTop === enemyRowTop &&
-      _bgAlign.vw === vw && _bgAlign.vh === vh) return;      // nothing moved
+      _bgAlign.vw === viewportWidth && _bgAlign.vh === viewportHeight) return;      // nothing moved
   _bgAlign.top = rect.top; _bgAlign.height = rect.height; _bgAlign.enemyTop = enemyRowTop;
-  _bgAlign.vw = vw; _bgAlign.vh = vh;
+  _bgAlign.vw = viewportWidth; _bgAlign.vh = viewportHeight;
 
   var art = document.querySelector('.room-art');
   if (!art) return;
@@ -1052,12 +1052,12 @@ function alignRoomBackground() {
      with nowhere left to move it. Setting the scale explicitly guarantees at
      least 32% extra vertical room on every device, so there is always enough
      slack for the seam to reach the target point. */
-  var minScale = (vh * 1.32) / BG_IMG_H;
-  var scale = Math.max(vw / BG_IMG_W, minScale);
+  var minScale = (viewportHeight * 1.32) / BG_IMG_H;
+  var scale = Math.max(viewportWidth / BG_IMG_W, minScale);
   var scaledW = BG_IMG_W * scale, scaledH = BG_IMG_H * scale;
-  var denom = vh - scaledH;
-  var posY = Math.abs(denom) < 0.5 ? 50
-    : 100 * (targetY - BG_SEAM_FRAC * scaledH) / denom;
+  var heightGap = viewportHeight - scaledH;
+  var posY = Math.abs(heightGap) < 0.5 ? 50
+    : 100 * (targetY - BG_SEAM_FRAC * scaledH) / heightGap;
   posY = Math.max(-40, Math.min(140, posY));                // guard pathological sizes
   art.style.backgroundSize = scaledW.toFixed(1) + 'px ' + scaledH.toFixed(1) + 'px';
   art.style.backgroundPosition = '50% ' + posY.toFixed(2) + '%';
@@ -1072,7 +1072,7 @@ function alignRoomBackground() {
      assuming the target was met. */
   var eyes = document.getElementById('roomEyes');
   if (eyes && !eyes.hidden) {
-    var actualTop = (denom === 0) ? 0 : (posY / 100) * denom;
+    var actualTop = (heightGap === 0) ? 0 : (posY / 100) * heightGap;
     var seamY = actualTop + BG_SEAM_FRAC * scaledH;
     eyes.style.top = seamY.toFixed(1) + 'px';
     // the eyes are part of the painting, so they scale with it
@@ -1088,8 +1088,8 @@ function setDrawnEyes(on, style) {
   /* Each secret road watches differently. The style is a class on the layer
      rather than separate markup, so the aligner keeps placing one element and
      the variants are pure CSS. */
-  ['choir', 'sundered', 'unblinking'].forEach(function (k) {
-    eyes.classList.toggle('eyes-' + k, on && style === k);
+  ['choir', 'sundered', 'unblinking'].forEach(function (styleKey) {
+    eyes.classList.toggle('eyes-' + styleKey, on && style === styleKey);
   });
   if (on) {
     _bgAlign.top = _bgAlign.height = _bgAlign.enemyTop = null;   // force a re-place
@@ -1098,9 +1098,9 @@ function setDrawnEyes(on, style) {
 }
 
 function render() {
-  var s = getBattleState();
-  if (!s) return;
-  var ev = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
+  var state = getBattleState();
+  if (!state) return;
+  var ev = evaluateBoard(state.board, state.hazards, RUN.evalCtx(state));
   renderTiles(ev); renderStatus(); renderControls(ev); renderHand();
   renderLanes(ev); renderHazardMarks(); renderFissures(); renderInfoOverlay(ev); renderEnemyHand();
   sizeBoardStage();
@@ -1116,20 +1116,20 @@ function render() {
 
 /* Is there a mix available that would actually buy an effective matchup? That
    is the moment mixing — and effectiveness — are worth explaining. */
-function findTeachingMix(s, ev) {
-  if (s.mixTokens[PLAYER] < 1) return null;
-  var opts = RUN.mixOptions(s.board, PLAYER), best = null;
+function findTeachingMix(state, ev) {
+  if (state.mixTokens[PLAYER] < 1) return null;
+  var opts = RUN.mixOptions(state.board, PLAYER), best = null;
   for (var i = 0; i < opts.length && !best; i++) {
-    var o = opts[i];
-    var g = RUN.simGame(s);
-    RUN.applyMix(g, PLAYER, o.base, o.other, 0, false);
-    var e2 = C.evaluateBoard(g.board, g.hazards, RUN.evalCtx(g));
-    e2.lanes.forEach(function (lane, L) {
+    var opt = opts[i];
+    var simGame = RUN.simGame(state);
+    RUN.applyMix(simGame, PLAYER, opt.base, opt.other, 0, false);
+    var simEval = C.evaluateBoard(simGame.board, simGame.hazards, RUN.evalCtx(simGame));
+    simEval.lanes.forEach(function (lane, laneIndex) {
       if (best || !lane.bottom || !lane.top || !lane.bottom.effective) return;
-      var ch = lane.bottom.champion;
-      if (ch.row !== o.base.row || ch.index !== o.base.index) return;
-      if (ev.lanes[L].bottom && ev.lanes[L].bottom.effective) return;   // already effective
-      best = { base: o.base, other: o.other, strength: e2.strengthOf(ch),
+      var champion = lane.bottom.champion;
+      if (champion.row !== opt.base.row || champion.index !== opt.base.index) return;
+      if (ev.lanes[laneIndex].bottom && ev.lanes[laneIndex].bottom.effective) return;   // already effective
+      best = { base: opt.base, other: opt.other, strength: simEval.strengthOf(champion),
                foe: { row: lane.top.champion.row, index: lane.top.champion.index },
                foeColor: lane.top.color };
     });
@@ -1137,50 +1137,50 @@ function findTeachingMix(s, ev) {
   return best;
 }
 
-function playerCanAct(s) {
-  if (RUN.mixOptions(s.board, PLAYER).length && s.mixTokens[PLAYER] > 0) return true;
-  return s.hands[PLAYER].some(function (card) {
-    var d = CARDS[card.id];
-    if (d.type === 'unit') return legalTiles(s.board, PLAYER, cardStrength(card), C.placeOpts(card.id, s.relics, s.board, PLAYER)).length > 0;
-    if (d.type === 'hazard') return freeHazardRows(s.hazards, PLAYER).length > 0;
+function playerCanAct(state) {
+  if (RUN.mixOptions(state.board, PLAYER).length && state.mixTokens[PLAYER] > 0) return true;
+  return state.hands[PLAYER].some(function (card) {
+    var cardDef = CARDS[card.id];
+    if (cardDef.type === 'unit') return legalTiles(state.board, PLAYER, cardStrength(card), C.placeOpts(card.id, state.relics, state.board, PLAYER)).length > 0;
+    if (cardDef.type === 'hazard') return freeHazardRows(state.hazards, PLAYER).length > 0;
     return true;
   });
 }
 
 function teachNow(ev) {
-  var s = getBattleState();
-  if (!s || s.resolving || s.battleOver || s.pending) return false;
+  var state = getBattleState();
+  if (!state || state.resolving || state.battleOver || state.pending) return false;
   if (RUN.tutorialOpen()) return false;
-  ev = ev || evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
-  var ctx = { board: s.board, hazards: s.hazards, ev: ev };
+  ev = ev || evaluateBoard(state.board, state.hazards, RUN.evalCtx(state));
+  var ctx = { board: state.board, hazards: state.hazards, ev: ev };
 
   /* Before anything else: on the player's very first turn, say what a turn is. */
-  if (s.turn === PLAYER && !s.opponentThinking && RUN.inFirstBattle() && RUN.shouldTeach('play')) {
+  if (state.turn === PLAYER && !state.opponentThinking && RUN.inFirstBattle() && RUN.shouldTeach('play')) {
     var mine = 0;
-    eachUnit(s.board, PLAYER, function () { mine++; });
+    eachUnit(state.board, PLAYER, function () { mine++; });
     if (!mine && RUN.teach('play', ctx)) return true;
   }
 
   // lane lessons, keyed off the row the player just committed to
-  if (s.lastPlaced && s.lastPlaced.side === PLAYER) {
-    var key = 'lanes_' + s.lastPlaced.row;
+  if (state.lastPlaced && state.lastPlaced.side === PLAYER) {
+    var key = 'lanes_' + state.lastPlaced.row;
     if (RUN.shouldTeach(key) &&
-        RUN.teach(key, { board: s.board, hazards: s.hazards, ev: ev, tile: s.lastPlaced })) return true;
+        RUN.teach(key, { board: state.board, hazards: state.hazards, ev: ev, tile: state.lastPlaced })) return true;
   }
-  if (s.turn !== PLAYER || s.opponentThinking) return false;
+  if (state.turn !== PLAYER || state.opponentThinking) return false;
 
   if (RUN.shouldTeach('mixing')) {
-    var opt = findTeachingMix(s, ev);
-    if (opt && RUN.teach('mixing', { board: s.board, hazards: s.hazards, ev: ev, opt: opt })) return true;
+    var opt = findTeachingMix(state, ev);
+    if (opt && RUN.teach('mixing', { board: state.board, hazards: state.hazards, ev: ev, opt: opt })) return true;
   }
-  if (RUN.shouldTeach('frontline') && ev.lanes.some(function (l) { return l.bottom && l.top; })) {
+  if (RUN.shouldTeach('frontline') && ev.lanes.some(function (lane) { return lane.bottom && lane.top; })) {
     if (RUN.teach('frontline', ctx)) return true;
   }
   if (RUN.shouldTeach('rewind') && canRewind()) {
     if (RUN.teach('rewind', ctx)) return true;
   }
   if (RUN.shouldTeach('passing')) {
-    var stuck = !playerCanAct(s);
+    var stuck = !playerCanAct(state);
     var commanding = (ev.totals.bottom - ev.totals.top) >= 12 && ev.totals.bottom > 0;
     if (stuck || commanding) {
       ctx.reason = stuck ? 'stuck' : 'ahead';
@@ -1194,11 +1194,11 @@ function teachNow(ev) {
    TURN FLOW
    =================================================================== */
 function resetChain(side) {
-  var s = getBattleState();
-  s.chains = s.chains || { bottom: 0, top: 0 };
-  s.chains[side] = 0;
-  s.mixChain = 0;
-  s.cascadeDepth = 0;
+  var state = getBattleState();
+  state.chains = state.chains || { bottom: 0, top: 0 };
+  state.chains[side] = 0;
+  state.mixChain = 0;
+  state.cascadeDepth = 0;
 }
 
 /* ===================================================================
@@ -1208,95 +1208,95 @@ function resetChain(side) {
    restoring it genuinely rewinds both halves — there is no draw to re-roll
    and no enemy answer to fish for.
    =================================================================== */
-function cloneCard(c) { return { id: c.id, up: !!c.up, deckIndex: c.deckIndex }; }
+function cloneCard(card) { return { id: card.id, up: !!card.up, deckIndex: card.deckIndex }; }
 
-function snapshotForRewind(s) {
+function snapshotForRewind(state) {
   return {
-    board: C.cloneBoard(s.board), hazards: C.cloneHazards(s.hazards),
-    hands: { bottom: s.hands.bottom.map(cloneCard), top: s.hands.top.map(cloneCard) },
-    decks: { bottom: s.decks.bottom.map(cloneCard), top: s.decks.top.map(cloneCard) },
-    handCount: { bottom: s.hands.bottom.length, top: s.hands.top.length },
-    mixTokens: { bottom: s.mixTokens.bottom, top: s.mixTokens.top },
-    chains: { bottom: (s.chains && s.chains.bottom) || 0, top: (s.chains && s.chains.top) || 0 },
-    mixChain: s.mixChain || 0,
-    mixesThisRound: s.mixesThisRound || 0,
-    freeMixesThisRound: s.freeMixesThisRound || 0,
-    echoUsedThisRound: !!s.echoUsedThisRound,
-    wildPaletteUsed: !!s.wildPaletteUsed,
-    quieted: s.quieted ? Object.assign({}, s.quieted) : null,
-    bestChain: s.bestChain || 0,
-    turn: s.turn, finalTurn: !!s.finalTurn, round: s.round,
-    spectrumColor: s.spectrumColor,
+    board: C.cloneBoard(state.board), hazards: C.cloneHazards(state.hazards),
+    hands: { bottom: state.hands.bottom.map(cloneCard), top: state.hands.top.map(cloneCard) },
+    decks: { bottom: state.decks.bottom.map(cloneCard), top: state.decks.top.map(cloneCard) },
+    handCount: { bottom: state.hands.bottom.length, top: state.hands.top.length },
+    mixTokens: { bottom: state.mixTokens.bottom, top: state.mixTokens.top },
+    chains: { bottom: (state.chains && state.chains.bottom) || 0, top: (state.chains && state.chains.top) || 0 },
+    mixChain: state.mixChain || 0,
+    mixesThisRound: state.mixesThisRound || 0,
+    freeMixesThisRound: state.freeMixesThisRound || 0,
+    echoUsedThisRound: !!state.echoUsedThisRound,
+    wildPaletteUsed: !!state.wildPaletteUsed,
+    quieted: state.quieted ? Object.assign({}, state.quieted) : null,
+    bestChain: state.bestChain || 0,
+    turn: state.turn, finalTurn: !!state.finalTurn, round: state.round,
+    spectrumColor: state.spectrumColor,
     logLen: RUN.log.length
   };
 }
 
 /* Only the player's own turns are rewindable, and only the most recent one. */
 function markRewindPoint(side) {
-  var s = getBattleState();
-  if (!s || side !== PLAYER || s.rewindUsedThisRound) return;
-  s.rewindSnap = snapshotForRewind(s);
+  var state = getBattleState();
+  if (!state || side !== PLAYER || state.rewindUsedThisRound) return;
+  state.rewindSnap = snapshotForRewind(state);
 }
 
-function restoreRewind(s, snap) {
-  s.board = snap.board; s.hazards = snap.hazards;
-  s.hands = { bottom: snap.hands.bottom.map(cloneCard), top: snap.hands.top.map(cloneCard) };
-  s.decks = { bottom: snap.decks.bottom.map(cloneCard), top: snap.decks.top.map(cloneCard) };
-  s.mixTokens = { bottom: snap.mixTokens.bottom, top: snap.mixTokens.top };
-  s.chains = { bottom: snap.chains.bottom, top: snap.chains.top };
-  s.mixChain = snap.mixChain;
-  s.mixesThisRound = snap.mixesThisRound;
-  s.freeMixesThisRound = snap.freeMixesThisRound;
-  s.echoUsedThisRound = snap.echoUsedThisRound;
-  s.wildPaletteUsed = snap.wildPaletteUsed;
-  s.quieted = snap.quieted ? Object.assign({}, snap.quieted) : null;
-  s.bestChain = snap.bestChain;
-  s.turn = snap.turn; s.finalTurn = snap.finalTurn;
-  s.spectrumColor = snap.spectrumColor;
-  s.cascadeDepth = 0;
-  s.pending = null; s.selectedCard = null; s.mixBase = null; s.mode = 'place';
-  s.lastPlaced = null; s.inspected = null; s.curseFired = null;
+function restoreRewind(state, snap) {
+  state.board = snap.board; state.hazards = snap.hazards;
+  state.hands = { bottom: snap.hands.bottom.map(cloneCard), top: snap.hands.top.map(cloneCard) };
+  state.decks = { bottom: snap.decks.bottom.map(cloneCard), top: snap.decks.top.map(cloneCard) };
+  state.mixTokens = { bottom: snap.mixTokens.bottom, top: snap.mixTokens.top };
+  state.chains = { bottom: snap.chains.bottom, top: snap.chains.top };
+  state.mixChain = snap.mixChain;
+  state.mixesThisRound = snap.mixesThisRound;
+  state.freeMixesThisRound = snap.freeMixesThisRound;
+  state.echoUsedThisRound = snap.echoUsedThisRound;
+  state.wildPaletteUsed = snap.wildPaletteUsed;
+  state.quieted = snap.quieted ? Object.assign({}, snap.quieted) : null;
+  state.bestChain = snap.bestChain;
+  state.turn = snap.turn; state.finalTurn = snap.finalTurn;
+  state.spectrumColor = snap.spectrumColor;
+  state.cascadeDepth = 0;
+  state.pending = null; state.selectedCard = null; state.mixBase = null; state.mode = 'place';
+  state.lastPlaced = null; state.inspected = null; state.curseFired = null;
   while (RUN.log.length > snap.logLen) RUN.log.shift();
 }
 
 function canRewind() {
-  var s = getBattleState();
-  if (!s) return false;
-  return !!s.rewindSnap && !s.rewindUsedThisRound && s.turn === PLAYER &&
-    !s.resolving && !s.battleOver && !s.opponentThinking && !s.pending;
+  var state = getBattleState();
+  if (!state) return false;
+  return !!state.rewindSnap && !state.rewindUsedThisRound && state.turn === PLAYER &&
+    !state.resolving && !state.battleOver && !state.opponentThinking && !state.pending;
 }
 
 function onRewind() {
   if (!canRewind()) return;
-  var s = getBattleState(), r = getActiveRun(), snap = s.rewindSnap;
-  var evAfter = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
+  var state = getBattleState(), run = getActiveRun(), snap = state.rewindSnap;
+  var evAfter = evaluateBoard(state.board, state.hazards, RUN.evalCtx(state));
   var evBefore = evaluateBoard(snap.board, snap.hazards, {
-    relics: s.relics, enemyMod: s.enemyMod, chains: snap.chains,
-    mixChain: snap.mixChain, spectrumColor: snap.spectrumColor, fissures: s.fissures
+    relics: state.relics, enemyMod: state.enemyMod, chains: snap.chains,
+    mixChain: snap.mixChain, spectrumColor: snap.spectrumColor, fissures: state.fissures
   });
-  var impact = RUN.rewindImpact(snap, s, evBefore, evAfter);
-  var chunk = RUN.rewindChunk(r, impact);
+  var impact = RUN.rewindImpact(snap, state, evBefore, evAfter);
+  var chunk = RUN.rewindChunk(run, impact);
 
-  restoreRewind(s, snap);
-  s.rewindSnap = null;
-  s.rewindUsedThisRound = true;
-  r.rewindsUsed = (r.rewindsUsed || 0) + 1;
+  restoreRewind(state, snap);
+  state.rewindSnap = null;
+  state.rewindUsedThisRound = true;
+  run.rewindsUsed = (run.rewindsUsed || 0) + 1;
 
   addLog('You rewound the exchange.');
   announce('Rewound', 'you');
 
   /* The debt is settled after the restore, so a fissure born now applies to
      the board the player just took back. */
-  var events = RUN.addInstability(chunk, PLAYER, s.board);
+  var events = RUN.addInstability(chunk, PLAYER, state.board);
   var headline = '';
-  events.forEach(function (e) {
-    var f = e.born || e.grew;
-    newFissures[C.edgeKey(f.side, f.a, f.b)] = 1;
-    var pair = slotName(f.a.row, f.a.index) + ' and ' + slotName(f.b.row, f.b.index);
-    if (e.grew) {
+  events.forEach(function (event) {
+    var fissure = event.born || event.grew;
+    newFissures[C.edgeKey(fissure.side, fissure.a, fissure.b)] = 1;
+    var pair = slotName(fissure.a.row, fissure.a.index) + ' and ' + slotName(fissure.b.row, fissure.b.index);
+    if (event.grew) {
       addLog('A fissure widens \u2014 ' + pair + ' pull harder at what stands on them.');
       headline = headline || 'The board strains';
-    } else if (f.kind === 'bridge') {
+    } else if (fissure.kind === 'bridge') {
       addLog('The board folds \u2014 ' + pair + ' now touch, though they never should.');
       headline = 'The board folds';
     } else {
@@ -1309,9 +1309,9 @@ function onRewind() {
 }
 
 function beginPlay(side, cardIndex, tile) {
-  var s = getBattleState(), card = s.hands[side][cardIndex], d = CARDS[card.id];
-  s.pending = { side: side, card: card, cardIndex: cardIndex, tile: tile, picks: [] };
-  if (d.targets && d.targets.length) {
+  var state = getBattleState(), card = state.hands[side][cardIndex], cardDef = CARDS[card.id];
+  state.pending = { side: side, card: card, cardIndex: cardIndex, tile: tile, picks: [] };
+  if (cardDef.targets && cardDef.targets.length) {
     if (!currentTargetOptions().length) { finishPlay(); return; }
     render(); return;
   }
@@ -1319,151 +1319,151 @@ function beginPlay(side, cardIndex, tile) {
 }
 
 function beginWild() {
-  var s = getBattleState();
-  if (s.wildPaletteUsed || s.turn !== PLAYER) return;
-  s.pending = { side: PLAYER, kind: 'wild', picks: [] };
-  if (!currentTargetOptions().length) { s.pending = null; render(); return; }
+  var state = getBattleState();
+  if (state.wildPaletteUsed || state.turn !== PLAYER) return;
+  state.pending = { side: PLAYER, kind: 'wild', picks: [] };
+  if (!currentTargetOptions().length) { state.pending = null; render(); return; }
   render();
 }
 
 function advanceTarget(pick) {
-  var s = getBattleState();
-  if (!s.pending) return;
-  s.pending.picks.push(pick);
-  var total = s.pending.kind === 'wild' ? 2 : CARDS[s.pending.card.id].targets.length;
-  if (s.pending.picks.length >= total) { finishPlay(); return; }
+  var state = getBattleState();
+  if (!state.pending) return;
+  state.pending.picks.push(pick);
+  var total = state.pending.kind === 'wild' ? 2 : CARDS[state.pending.card.id].targets.length;
+  if (state.pending.picks.length >= total) { finishPlay(); return; }
   if (!currentTargetOptions().length) { finishPlay(); return; }
   render();
 }
 
 function finishPlay() {
   showPassPuck(false);
-  var s = getBattleState(), p = s.pending;
-  if (!p) return;
+  var state = getBattleState(), pendingAction = state.pending;
+  if (!pendingAction) return;
 
-  if (p.kind === 'wild') {
-    if (p.picks.length >= 2) {
-      RUN.buildApi(s, PLAYER, []).recolor(PLAYER, p.picks[0], p.picks[1].color);
-      s.wildPaletteUsed = true;
-      addLog('Wild Palette repainted ' + slotName(p.picks[0].row, p.picks[0].index) + ' ' + COLORS[p.picks[1].color].name + '. Free action.');
+  if (pendingAction.kind === 'wild') {
+    if (pendingAction.picks.length >= 2) {
+      RUN.buildApi(state, PLAYER, []).recolor(PLAYER, pendingAction.picks[0], pendingAction.picks[1].color);
+      state.wildPaletteUsed = true;
+      addLog('Wild Palette repainted ' + slotName(pendingAction.picks[0].row, pendingAction.picks[0].index) + ' ' + COLORS[pendingAction.picks[1].color].name + '. Free action.');
     }
-    s.pending = null;
+    state.pending = null;
     render();          // Wild Palette costs neither turn nor token
     return;
   }
 
-  var card = p.card, d = CARDS[card.id], side = p.side;
+  var card = pendingAction.card, cardDef = CARDS[card.id], side = pendingAction.side;
   markRewindPoint(side);
   resetChain(side);
-  s.hands[side].splice(p.cardIndex, 1);
-  var notes = RUN.resolveCard(s, side, card, p.tile, p.picks);
-  s.pending = null; s.selectedCard = null;
-  if (p.tile) { s.lastPlaced = { side: side, row: p.tile.row, index: p.tile.index }; s.inspected = { side: side, row: p.tile.row, index: p.tile.index }; }
-  if (d.type === 'hazard' && p.tile) fxHazard(p.tile.row, d.hazardKind);
-  else if (d.type === 'unit' && p.tile) fxBurst(side, p.tile.row, p.tile.index, colorInfo(d.color).hex);
+  state.hands[side].splice(pendingAction.cardIndex, 1);
+  var notes = RUN.resolveCard(state, side, card, pendingAction.tile, pendingAction.picks);
+  state.pending = null; state.selectedCard = null;
+  if (pendingAction.tile) { state.lastPlaced = { side: side, row: pendingAction.tile.row, index: pendingAction.tile.index }; state.inspected = { side: side, row: pendingAction.tile.row, index: pendingAction.tile.index }; }
+  if (cardDef.type === 'hazard' && pendingAction.tile) fxHazard(pendingAction.tile.row, cardDef.hazardKind);
+  else if (cardDef.type === 'unit' && pendingAction.tile) fxBurst(side, pendingAction.tile.row, pendingAction.tile.index, colorInfo(cardDef.color).hex);
   /* Quick Study fires on the first unit of the round only, so it rewards
      committing a body early rather than sitting on a full hand. */
-  if (side === PLAYER && d.type === 'unit' && hasRelic(s.relics, 'quick_study') && !s.quickStudyUsed) {
-    s.quickStudyUsed = true;
-    if (RUN.drawInto(s, PLAYER, 1)) notes.push('Quick Study drew a card');
+  if (side === PLAYER && cardDef.type === 'unit' && hasRelic(state.relics, 'quick_study') && !state.quickStudyUsed) {
+    state.quickStudyUsed = true;
+    if (RUN.drawInto(state, PLAYER, 1)) notes.push('Quick Study drew a card');
   }
-  if (s.chains[PLAYER] > s.bestChain) s.bestChain = s.chains[PLAYER];
-  addLog(sideName(side) + ' played ' + cardName(card) + (p.tile && d.type !== 'hazard' ? ' \u2192 ' + slotName(p.tile.row, p.tile.index) : '') +
+  if (state.chains[PLAYER] > state.bestChain) state.bestChain = state.chains[PLAYER];
+  addLog(sideName(side) + ' played ' + cardName(card) + (pendingAction.tile && cardDef.type !== 'hazard' ? ' \u2192 ' + slotName(pendingAction.tile.row, pendingAction.tile.index) : '') +
     (notes.length ? ' — ' + notes.join('; ') : '') + '.');
   endTurn(side);
 }
 
-function cancelPending() { var s = getBattleState(); if (!s.pending) return; s.pending = null; s.selectedCard = null; render(); }
+function cancelPending() { var state = getBattleState(); if (!state.pending) return; state.pending = null; state.selectedCard = null; render(); }
 
 function performMix(side, base, other) {
   if (side === PLAYER) showPassPuck(false);
-  var s = getBattleState();
-  var a = unitAt(s.board, side, base.row, base.index), b = unitAt(s.board, side, other.row, other.index);
-  var before = colorInfo(a.color).name + ' ' + a.strength + ' + ' + colorInfo(b.color).name + ' ' + b.strength;
+  var state = getBattleState();
+  var unitA = unitAt(state.board, side, base.row, base.index), unitB = unitAt(state.board, side, other.row, other.index);
+  var before = colorInfo(unitA.color).name + ' ' + unitA.strength + ' + ' + colorInfo(unitB.color).name + ' ' + unitB.strength;
   markRewindPoint(side);
   resetChain(side);
   var notes = [];
-  var donor = colorInfo(b.color);
-  fxFly(side, other, base, donor.hex, donor.ink, b.strength + (b.temp || 0));
-  var res = RUN.doMixCascade(s, side, base, other, 0, false, notes);
-  s.mixTokens[side]--;
-  s.mode = 'place'; s.mixBase = null;
-  s.lastPlaced = { side: side, row: base.row, index: base.index };
-  s.inspected = { side: side, row: base.row, index: base.index };
-  if (s.chains[PLAYER] > s.bestChain) s.bestChain = s.chains[PLAYER];
-  addLog(sideName(side) + ' mixed ' + before + ' \u2192 ' + colorInfo(res.color).name + ' ' + res.strength +
-    ' (+' + res.bonus + ', chain ' + s.chains[side] + ')' + (notes.length > 1 ? ' — ' + notes.slice(1).join('; ') : '') + '.');
+  var donor = colorInfo(unitB.color);
+  fxFly(side, other, base, donor.hex, donor.ink, unitB.strength + (unitB.temp || 0));
+  var mixResult = RUN.doMixCascade(state, side, base, other, 0, false, notes);
+  state.mixTokens[side]--;
+  state.mode = 'place'; state.mixBase = null;
+  state.lastPlaced = { side: side, row: base.row, index: base.index };
+  state.inspected = { side: side, row: base.row, index: base.index };
+  if (state.chains[PLAYER] > state.bestChain) state.bestChain = state.chains[PLAYER];
+  addLog(sideName(side) + ' mixed ' + before + ' \u2192 ' + colorInfo(mixResult.color).name + ' ' + mixResult.strength +
+    ' (+' + mixResult.bonus + ', chain ' + state.chains[side] + ')' + (notes.length > 1 ? ' — ' + notes.slice(1).join('; ') : '') + '.');
   /* BOSS RULE — echoMix (The Riven Prism). Every mix the player lands is
      answered: its own strongest unit takes a share of what you just made. The
      bigger the fusion the bigger the reply, so the boss turns the game's
      central mechanic into a decision rather than a free action. Small mixes
      and mixless rounds both become real lines of play. */
-  if (side === PLAYER && s.enemyMod && s.enemyMod.echoMix) {
+  if (side === PLAYER && state.enemyMod && state.enemyMod.echoMix) {
     var strongest = null;
-    eachUnit(s.board, ENEMY, function (u, row, index) {
-      if (!strongest || u.strength > strongest.u.strength) strongest = { u: u, row: row, index: index };
+    eachUnit(state.board, ENEMY, function (enemyUnit, row, index) {
+      if (!strongest || enemyUnit.strength > strongest.unit.strength) strongest = { unit: enemyUnit, row: row, index: index };
     });
     if (strongest) {
-      var gain = Math.max(1, Math.floor(res.strength * s.enemyMod.echoMix));
-      strongest.u.strength += gain;
-      fxBurst(ENEMY, strongest.row, strongest.index, colorInfo(strongest.u.color).hex);
-      addLog(s.enemy.name + ' echoes the mix — its strongest unit gains ' + gain + '.');
+      var gain = Math.max(1, Math.floor(mixResult.strength * state.enemyMod.echoMix));
+      strongest.unit.strength += gain;
+      fxBurst(ENEMY, strongest.row, strongest.index, colorInfo(strongest.unit.color).hex);
+      addLog(state.enemy.name + ' echoes the mix — its strongest unit gains ' + gain + '.');
     }
   }
   endTurn(side);
 }
 
 function onTileActivate(side, row, index) {
-  var s = getBattleState();
-  if (!s) return;
-  var locked = s.resolving || s.battleOver || s.opponentThinking;
-  var unit = unitAt(s.board, side, row, index);
+  var state = getBattleState();
+  if (!state) return;
+  var locked = state.resolving || state.battleOver || state.opponentThinking;
+  var unit = unitAt(state.board, side, row, index);
 
-  if (s.pending) {
+  if (state.pending) {
     var opts = currentTargetOptions(), spec = pendingSpec();
     if (spec && spec.kind === 'hazard') {
-      var h = opts.filter(function (o) { return o.side === side && o.row === row; })[0];
-      if (h) { advanceTarget(h); return; }
+      var hazardTarget = opts.filter(function (opt) { return opt.side === side && opt.row === row; })[0];
+      if (hazardTarget) { advanceTarget(hazardTarget); return; }
     } else {
-      var m = opts.filter(function (o) { return o.row === row && o.index === index; })[0];
-      if (m && side === s.pending.side) { advanceTarget(m); return; }
+      var tileTarget = opts.filter(function (opt) { return opt.row === row && opt.index === index; })[0];
+      if (tileTarget && side === state.pending.side) { advanceTarget(tileTarget); return; }
     }
     flash(null); return;
   }
 
-  if (!locked && s.turn === PLAYER && side === PLAYER) {
-    if (s.mode === 'mix') {
+  if (!locked && state.turn === PLAYER && side === PLAYER) {
+    if (state.mode === 'mix') {
       if (!unit) flash(null);
-      else if (!s.mixBase) { s.mixBase = { row: row, index: index }; render(); return; }
-      else if (s.mixBase.row === row && s.mixBase.index === index) { s.mixBase = null; render(); return; }
+      else if (!state.mixBase) { state.mixBase = { row: row, index: index }; render(); return; }
+      else if (state.mixBase.row === row && state.mixBase.index === index) { state.mixBase = null; render(); return; }
       else {
-        var chk = RUN.canMix(s.board, PLAYER, s.mixBase, { row: row, index: index });
-        if (chk.ok) { performMix(PLAYER, s.mixBase, { row: row, index: index }); return; }
-        addLog('Mix blocked — ' + chk.reason); flash(null);
+        var mixCheck = RUN.canMix(state.board, PLAYER, state.mixBase, { row: row, index: index });
+        if (mixCheck.ok) { performMix(PLAYER, state.mixBase, { row: row, index: index }); return; }
+        addLog('Mix blocked — ' + mixCheck.reason); flash(null);
       }
-    } else if (s.selectedCard !== null) {
-      var card = s.hands[PLAYER][s.selectedCard], d = CARDS[card.id];
-      if (d.type === 'hazard') {
-        if (!s.hazards[PLAYER][row]) { beginPlay(PLAYER, s.selectedCard, { row: row, index: index }); return; }
+    } else if (state.selectedCard !== null) {
+      var card = state.hands[PLAYER][state.selectedCard], cardDef = CARDS[card.id];
+      if (cardDef.type === 'hazard') {
+        if (!state.hazards[PLAYER][row]) { beginPlay(PLAYER, state.selectedCard, { row: row, index: index }); return; }
         flash(null);
-      } else if (d.type === 'unit' && !unit) {
-        var ok = canPlace(s.board, side, row, index, cardStrength(card), C.placeOpts(card.id, side === PLAYER ? s.relics : [], s.board, side));
-        if (ok.ok) { beginPlay(PLAYER, s.selectedCard, { row: row, index: index }); return; }
-        addLog('Blocked — ' + ok.reason); flash(null);
+      } else if (cardDef.type === 'unit' && !unit) {
+        var placeCheck = canPlace(state.board, side, row, index, cardStrength(card), C.placeOpts(card.id, side === PLAYER ? state.relics : [], state.board, side));
+        if (placeCheck.ok) { beginPlay(PLAYER, state.selectedCard, { row: row, index: index }); return; }
+        addLog('Blocked — ' + placeCheck.reason); flash(null);
       }
     }
   }
-  s.inspected = { side: side, row: row, index: index };
-  s.inspectedHazard = null;
+  state.inspected = { side: side, row: row, index: index };
+  state.inspectedHazard = null;
   render();
-  var ev2 = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
-  openInfo(sideName(side) + ' · ' + slotName(row, index), tileInfo(ev2, s.inspected));
+  var ev = evaluateBoard(state.board, state.hazards, RUN.evalCtx(state));
+  openInfo(sideName(side) + ' · ' + slotName(row, index), tileInfo(ev, state.inspected));
 }
 
-function flash(n) { if (!n) return; n.classList.remove('flash'); void n.offsetWidth; n.classList.add('flash'); }
+function flash(el) { if (!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 
 function pass(side) {
-  var s = getBattleState();
+  var state = getBattleState();
   markRewindPoint(side);
   addLog(sideName(side) + ' passed.');
   /* The enemy's pass is the one that needs saying out loud — the player knows
@@ -1472,19 +1472,19 @@ function pass(side) {
      back rather than vanishing on a timer the player might miss. */
   if (side === ENEMY) showPassPuck(true);
   resetChain();
-  s.selectedCard = null; s.mode = 'place'; s.mixBase = null; s.pending = null;
-  if (s.finalTurn) { resolveRound(); return; }
-  s.finalTurn = true; s.turn = otherSide(side);
+  state.selectedCard = null; state.mode = 'place'; state.mixBase = null; state.pending = null;
+  if (state.finalTurn) { resolveRound(); return; }
+  state.finalTurn = true; state.turn = otherSide(side);
   render(); maybeOpponentMove();
 }
 function endTurn(side) {
-  var s = getBattleState();
-  if (s.finalTurn) { resolveRound(); return; }
-  s.turn = otherSide(side); s.selectedCard = null; s.mode = 'place'; s.mixBase = null;
+  var state = getBattleState();
+  if (state.finalTurn) { resolveRound(); return; }
+  state.turn = otherSide(side); state.selectedCard = null; state.mode = 'place'; state.mixBase = null;
   render();
   if (!teachNow()) maybeOpponentMove();
 }
-function onPass() { var s = getBattleState(); if (s.turn !== PLAYER || s.resolving || s.battleOver || s.opponentThinking || s.pending) return; pass(PLAYER); }
+function onPass() { var state = getBattleState(); if (state.turn !== PLAYER || state.resolving || state.battleOver || state.opponentThinking || state.pending) return; pass(PLAYER); }
 
 function showPassPuck(on) {
   var el = document.getElementById('passPuck');
@@ -1500,9 +1500,9 @@ function showPassPuck(on) {
   }
 }
 function onMixToggle() {
-  var s = getBattleState();
-  if (s.turn !== PLAYER || s.resolving || s.battleOver || s.opponentThinking || s.pending) return;
-  s.mode = s.mode === 'mix' ? 'place' : 'mix'; s.mixBase = null; s.selectedCard = null; render();
+  var state = getBattleState();
+  if (state.turn !== PLAYER || state.resolving || state.battleOver || state.opponentThinking || state.pending) return;
+  state.mode = state.mode === 'mix' ? 'place' : 'mix'; state.mixBase = null; state.selectedCard = null; render();
 }
 
 /* ===================================================================
