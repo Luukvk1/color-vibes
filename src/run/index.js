@@ -3016,19 +3016,19 @@ function recordMint(recipe) {
   if (run && run.minted) run.minted.push(recipe);
 }
 function applyLift(id, fromId, up, amount) {
-  var d = CARDS[fromId];
-  if (!d || d.type !== 'unit') return null;
-  CARDS[id] = Object.assign({}, d, {
+  var cardDef = CARDS[fromId];
+  if (!cardDef || cardDef.type !== 'unit') return null;
+  CARDS[id] = Object.assign({}, cardDef, {
     strength: C.cardStrength({ id: fromId, up: up }) + amount,
-    cost: (d.cost || 30) + amount * 10,
+    cost: (cardDef.cost || 30) + amount * 10,
     reforged: true
   });
   return id;
 }
 function applyRecolour(id, fromId, up, color) {
-  var d = CARDS[fromId];
-  if (!d || d.type !== 'unit') return null;
-  CARDS[id] = Object.assign({}, d, {
+  var cardDef = CARDS[fromId];
+  if (!cardDef || cardDef.type !== 'unit') return null;
+  CARDS[id] = Object.assign({}, cardDef, {
     color: color, strength: C.cardStrength({ id: fromId, up: up }), reforged: true
   });
   return id;
@@ -3048,31 +3048,31 @@ function recolourCard(entry, color) {
   return { id: id, up: false };
 }
 /* The Lab's permanent fusion mints too, so it needs the same ledger entry. */
-function fuseInDeck(a, b) {
-  var out = C.fuseCards(a, b);
+function fuseInDeck(entryA, entryB) {
+  var fused = C.fuseCards(entryA, entryB);
   /* The inherited effect list is recorded, not recomputed. Once a fusion
      carries more than three effects the surplus is dropped at random, so
      replaying the same two parents on load would roll a different card than
      the one the player is actually holding. */
-  recordMint({ k: 'fuse', id: out.id, a: a.id, aUp: !!a.up, b: b.id, bUp: !!b.up,
-               eff: (out.effectSources || []).slice() });
-  return out;
+  recordMint({ k: 'fuse', id: fused.id, a: entryA.id, aUp: !!entryA.up, b: entryB.id, bUp: !!entryB.up,
+               eff: (fused.effectSources || []).slice() });
+  return fused;
 }
 /* Replay a ledger onto CARDS. Order matters: a lift can be built on a recolour
    which was built on a fusion, so recipes are applied exactly as recorded. */
 function replayMints(ledger) {
   var highest = 0, highestFusion = 0;
-  (ledger || []).forEach(function (m) {
-    if (m.k === 'lift') applyLift(m.id, m.from, m.up, m.amount);
-    else if (m.k === 'recolour') applyRecolour(m.id, m.from, m.up, m.color);
-    else if (m.k === 'fuse') {
-      var made = C.fuseCards({ id: m.a, up: m.aUp }, { id: m.b, up: m.bUp }, m.eff);
-      CARDS[m.id] = CARDS[made.id];          // re-key onto the id the deck remembers
-      var fn = +String(made.id).split('_')[1];
-      if (fn > highestFusion) highestFusion = fn;
+  (ledger || []).forEach(function (mint) {
+    if (mint.k === 'lift') applyLift(mint.id, mint.from, mint.up, mint.amount);
+    else if (mint.k === 'recolour') applyRecolour(mint.id, mint.from, mint.up, mint.color);
+    else if (mint.k === 'fuse') {
+      var made = C.fuseCards({ id: mint.a, up: mint.aUp }, { id: mint.b, up: mint.bUp }, mint.eff);
+      CARDS[mint.id] = CARDS[made.id];          // re-key onto the id the deck remembers
+      var fusionNum = +String(made.id).split('_')[1];
+      if (fusionNum > highestFusion) highestFusion = fusionNum;
     }
-    var n = +String(m.id).split('_')[1];
-    if (m.k !== 'fuse' && n > highest) highest = n;
+    var mintNum = +String(mint.id).split('_')[1];
+    if (mint.k !== 'fuse' && mintNum > highest) highest = mintNum;
   });
   if (highest > liftSeq) liftSeq = highest;
 }
@@ -3093,33 +3093,33 @@ var VOLATILE_EFFECTS = ['boost', 'recolor', 'fuse'];
    primaries, plus any secondary whose two parents are both in your deck. It
    can never mint Black. Black stays something you build. */
 function recolourPalette() {
-  var held = C.colourCounts(run.deck), out = C.PRIMARY_COLORS.slice();
+  var held = C.colourCounts(run.deck), palette = C.PRIMARY_COLORS.slice();
   var PARENTS = { yellow: ['red', 'green'], cyan: ['green', 'blue'], magenta: ['red', 'blue'] };
-  Object.keys(PARENTS).forEach(function (k) {
-    if (held[k] > 0 || PARENTS[k].every(function (p) { return held[p] > 0; })) out.push(k);
+  Object.keys(PARENTS).forEach(function (colorKey) {
+    if (held[colorKey] > 0 || PARENTS[colorKey].every(function (parentColor) { return held[parentColor] > 0; })) palette.push(colorKey);
   });
-  return out;
+  return palette;
 }
 
 function curseRisk(presses) { return Math.min(0.75, 0.06 + presses * 0.06); }
 
 function applyVolatile(kind) {
-  var i, j;
+  var index, otherIndex;
   if (kind === 'boost') {
-    i = randomUnitIndex();
-    if (i < 0) return null;
-    var before = C.cardName(run.deck[i]);
-    run.deck[i] = liftStrength(run.deck[i], 1);
-    return before + ' grows to ' + C.cardStrength(run.deck[i]);
+    index = randomUnitIndex();
+    if (index < 0) return null;
+    var before = C.cardName(run.deck[index]);
+    run.deck[index] = liftStrength(run.deck[index], 1);
+    return before + ' grows to ' + C.cardStrength(run.deck[index]);
   }
   if (kind === 'recolor') {
-    i = randomUnitIndex();
-    if (i < 0) return null;
-    var pal = recolourPalette();
-    var col = pal[Math.floor(rnd() * pal.length)];
-    var was = C.colorInfo(CARDS[run.deck[i].id].color).name;
-    run.deck[i] = recolourCard(run.deck[i], col);
-    return C.cardName(run.deck[i]) + ' turns ' + was + ' \u2192 ' + C.COLORS[col].name;
+    index = randomUnitIndex();
+    if (index < 0) return null;
+    var palette = recolourPalette();
+    var col = palette[Math.floor(rnd() * palette.length)];
+    var was = C.colorInfo(CARDS[run.deck[index].id].color).name;
+    run.deck[index] = recolourCard(run.deck[index], col);
+    return C.cardName(run.deck[index]) + ' turns ' + was + ' \u2192 ' + C.COLORS[col].name;
   }
   if (kind === 'fuse') {
     var units = deckUnits();
@@ -3130,15 +3130,15 @@ function applyVolatile(kind) {
        so the bench is free to pick any two units exactly as mixing on the
        board can. A secondary landing on the wrong primary here just comes
        back as that secondary, stronger, the same as it would in battle. */
-    i = units[Math.floor(rnd() * units.length)].index;
-    do { j = units[Math.floor(rnd() * units.length)].index; } while (j === i && units.length > 1);
-    if (i === j) return null;
-    var hi = Math.max(i, j), lo = Math.min(i, j);
-    var na = C.cardName(run.deck[lo]), nb = C.cardName(run.deck[hi]);
+    index = units[Math.floor(rnd() * units.length)].index;
+    do { otherIndex = units[Math.floor(rnd() * units.length)].index; } while (otherIndex === index && units.length > 1);
+    if (index === otherIndex) return null;
+    var hi = Math.max(index, otherIndex), lo = Math.min(index, otherIndex);
+    var nameA = C.cardName(run.deck[lo]), nameB = C.cardName(run.deck[hi]);
     var fused = fuseInDeck(run.deck[lo], run.deck[hi]);
     run.deck.splice(hi, 1); run.deck.splice(lo, 1);
     run.deck.push(fused);
-    return na + ' and ' + nb + ' collapse into ' + CARDS[fused.id].name + ' ' + CARDS[fused.id].strength;
+    return nameA + ' and ' + nameB + ' collapse into ' + CARDS[fused.id].name + ' ' + CARDS[fused.id].strength;
   }
   return null;
 }
