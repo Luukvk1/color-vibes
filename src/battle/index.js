@@ -631,93 +631,93 @@ function stickyToast(text, tone) {
 }
 
 function renderStatus() {
-  var s = getBattleState();
-  if (s.pending) {
+  var state = getBattleState();
+  if (state.pending) {
     var spec = pendingSpec();
-    var who = s.pending.kind === 'wild' ? 'Wild Palette' : CARDS[s.pending.card.id].name;
+    var who = state.pending.kind === 'wild' ? 'Wild Palette' : CARDS[state.pending.card.id].name;
     stickyToast(who + ': ' + (spec ? spec.prompt : 'resolving') + '.', 'target');
-  } else if (s.mode === 'mix') {
-    stickyToast(s.mixBase
-      ? 'Pick a touching friendly unit to mix into ' + slotName(s.mixBase.row, s.mixBase.index) + '.'
+  } else if (state.mode === 'mix') {
+    stickyToast(state.mixBase
+      ? 'Pick a touching friendly unit to mix into ' + slotName(state.mixBase.row, state.mixBase.index) + '.'
       : 'Pick the unit that will absorb the other.', 'mix');
   } else {
     stickyToast(null);
   }
   if (els.battleHud) {
     els.battleHud.hidden = false;      // shown only while a battle is on screen
-    var active = !s.resolving && !s.battleOver;
-    els.battleHud.classList.toggle('turn-you', active && s.turn === PLAYER);
-    els.battleHud.classList.toggle('turn-opp', active && s.turn === ENEMY);
+    var active = !state.resolving && !state.battleOver;
+    els.battleHud.classList.toggle('turn-you', active && state.turn === PLAYER);
+    els.battleHud.classList.toggle('turn-opp', active && state.turn === ENEMY);
   }
 }
 
 function renderControls(ev) {
-  var s = getBattleState();
-  var canAct = s.turn === PLAYER && !s.resolving && !s.battleOver && !s.opponentThinking;
+  var state = getBattleState();
+  var canAct = state.turn === PLAYER && !state.resolving && !state.battleOver && !state.opponentThinking;
   els.scoreYou.textContent = ev.totals.bottom;
   els.scoreOpp.textContent = ev.totals.top;
-  function pips(n) {
+  function pips(count) {
     var out = '';
-    for (var i = 0; i < 2; i++) out += '<span class="pip' + (i < n ? ' on' : '') + '"></span>';
+    for (var i = 0; i < 2; i++) out += '<span class="pip' + (i < count ? ' on' : '') + '"></span>';
     return out;
   }
-  els.pipsYou.innerHTML = pips(s.wins.bottom);
-  els.pipsOpp.innerHTML = pips(s.wins.top);
+  els.pipsYou.innerHTML = pips(state.wins.bottom);
+  els.pipsOpp.innerHTML = pips(state.wins.top);
 
-  els.chainCount.textContent = (s.chains && s.chains[PLAYER]) || 0;
-  els.chainBadge.classList.toggle('live', ((s.chains && s.chains[PLAYER]) || 0) > 0);
-  els.easeNote.hidden = !s.easeIn;
-  els.enemyName.textContent = s.enemy.name;
+  els.chainCount.textContent = (state.chains && state.chains[PLAYER]) || 0;
+  els.chainBadge.classList.toggle('live', ((state.chains && state.chains[PLAYER]) || 0) > 0);
+  els.easeNote.hidden = !state.easeIn;
+  els.enemyName.textContent = state.enemy.name;
   /* The rank mark and the rule icons only change when the enemy does, so they
      are rebuilt on that key rather than every render \u2014 rebuilding mid-battle
      would drop any rule the player had tapped open. */
-  if (els.enemyRules.dataset.for !== s.enemyKey) {
-    var rank = C.rankIcon(s.enemyKey);
+  if (els.enemyRules.dataset.for !== state.enemyKey) {
+    var rank = C.rankIcon(state.enemyKey);
     els.enemyRank.innerHTML = rank
       ? '<span class="ic rank-' + rank.i + '" title="' + rank.t + '">' + C.glyphSvg(rank.i) + '</span>'
       : '';
-    var rules = C.enemyIcons(s.enemyKey);
+    var rules = C.enemyIcons(state.enemyKey);
     els.enemyRulesLayer.hidden = !rules.length;
-    els.enemyRules.innerHTML = rules.map(function (e, i) {
-      var style = e.colour ? ' style="color:' + C.COLORS[e.colour].hex + '"' : '';
-      return '<button class="rule-ic" data-rule="' + i + '"' + style + '>' +
-        C.glyphSvg(e.i) + (e.v !== undefined ? '<i class="icn">' + e.v + '</i>' : '') + '</button>';
+    els.enemyRules.innerHTML = rules.map(function (rule, index) {
+      var style = rule.colour ? ' style="color:' + C.COLORS[rule.colour].hex + '"' : '';
+      return '<button class="rule-ic" data-rule="' + index + '"' + style + '>' +
+        C.glyphSvg(rule.i) + (rule.v !== undefined ? '<i class="icn">' + rule.v + '</i>' : '') + '</button>';
     }).join('');
-    els.enemyRules.dataset.for = s.enemyKey;
+    els.enemyRules.dataset.for = state.enemyKey;
     els.enemyRuleText.hidden = true;
-    Array.prototype.forEach.call(els.enemyRules.querySelectorAll('.rule-ic'), function (b2) {
-      b2.addEventListener('click', function () {
-        var idx = +b2.getAttribute('data-rule');
-        var open = els.enemyRuleText.dataset.open === String(idx) && !els.enemyRuleText.hidden;
+    Array.prototype.forEach.call(els.enemyRules.querySelectorAll('.rule-ic'), function (ruleBtn) {
+      ruleBtn.addEventListener('click', function () {
+        var ruleIndex = +ruleBtn.getAttribute('data-rule');
+        var open = els.enemyRuleText.dataset.open === String(ruleIndex) && !els.enemyRuleText.hidden;
         Array.prototype.forEach.call(els.enemyRules.querySelectorAll('.rule-ic'),
-          function (o) { o.classList.remove('on'); });
+          function (otherBtn) { otherBtn.classList.remove('on'); });
         if (open) { els.enemyRuleText.hidden = true; return; }
-        b2.classList.add('on');
-        els.enemyRuleText.textContent = rules[idx].t;
-        els.enemyRuleText.dataset.open = String(idx);
+        ruleBtn.classList.add('on');
+        els.enemyRuleText.textContent = rules[ruleIndex].t;
+        els.enemyRuleText.dataset.open = String(ruleIndex);
         els.enemyRuleText.hidden = false;
       });
     });
   }
-  renderOmens(s);
-  if (!els.enemyColors.dataset.for || els.enemyColors.dataset.for !== s.enemyKey) {
-    els.enemyColors.innerHTML = s.enemy.colors.map(function (c) { return RUN.chip(c); }).join(' ');
-    els.enemyColors.dataset.for = s.enemyKey;
+  renderOmens(state);
+  if (!els.enemyColors.dataset.for || els.enemyColors.dataset.for !== state.enemyKey) {
+    els.enemyColors.innerHTML = state.enemy.colors.map(function (colorKey) { return RUN.chip(colorKey); }).join(' ');
+    els.enemyColors.dataset.for = state.enemyKey;
   }
 
-  els.passBtn.disabled = !canAct || !!s.pending;
+  els.passBtn.disabled = !canAct || !!state.pending;
   els.passBtn.textContent = 'Pass';
   /* No meter, no warning, no count. The button is either offered or it is not. */
   els.rewindBtn.disabled = !canRewind();
   // the icon carries the state; a crossed-out arrow needs no label
-  els.rewindBtn.classList.toggle('spent', !!s.rewindUsedThisRound);
-  els.rewindBtn.title = s.rewindUsedThisRound
+  els.rewindBtn.classList.toggle('spent', !!state.rewindUsedThisRound);
+  els.rewindBtn.title = state.rewindUsedThisRound
     ? 'Rewind already used this round.'
     : 'Take back your last move and the enemy\u2019s answer to it. Once per round.';
-  els.cancelBtn.hidden = !s.pending;
-  els.wildBtn.hidden = !hasRelic(s.relics, 'wild_palette');
-  els.wildBtn.disabled = !canAct || !!s.pending || s.wildPaletteUsed;
-  els.wildBtn.textContent = s.wildPaletteUsed ? 'Wild Palette used' : 'Wild Palette';
+  els.cancelBtn.hidden = !state.pending;
+  els.wildBtn.hidden = !hasRelic(state.relics, 'wild_palette');
+  els.wildBtn.disabled = !canAct || !!state.pending || state.wildPaletteUsed;
+  els.wildBtn.textContent = state.wildPaletteUsed ? 'Wild Palette used' : 'Wild Palette';
 
   var spec = pendingSpec();
   var showPicker = !!(spec && spec.kind === 'color');
@@ -731,11 +731,11 @@ function renderControls(ev) {
      before. */
   els.controls.hidden = !showPicker;
   if (showPicker && !els.colorPicker.dataset.built) {
-    els.colorPicker.innerHTML = COLOR_KEYS.map(function (k) {
-      return '<button class="pick" data-color="' + k + '" style="background:' + COLORS[k].hex + ';color:' + COLORS[k].ink + '">' + COLORS[k].name + '</button>';
+    els.colorPicker.innerHTML = COLOR_KEYS.map(function (colorKey) {
+      return '<button class="pick" data-color="' + colorKey + '" style="background:' + COLORS[colorKey].hex + ';color:' + COLORS[colorKey].ink + '">' + COLORS[colorKey].name + '</button>';
     }).join('');
-    Array.prototype.forEach.call(els.colorPicker.querySelectorAll('.pick'), function (b) {
-      b.addEventListener('click', function () { advanceTarget({ color: b.getAttribute('data-color') }); });
+    Array.prototype.forEach.call(els.colorPicker.querySelectorAll('.pick'), function (btn) {
+      btn.addEventListener('click', function () { advanceTarget({ color: btn.getAttribute('data-color') }); });
     });
     els.colorPicker.dataset.built = '1';
   }
@@ -744,13 +744,13 @@ function renderControls(ev) {
 
 /* Omens, not explanations. A colour the enemy is currently attuned to, and a pip
    per Mix token they hold beyond the first. The player works out the rest. */
-function renderOmens(s) {
+function renderOmens(state) {
   var out = '';
-  if (s.spectrumColor) {
-    out += '<span class="omen-dot" style="background:' + COLORS[s.spectrumColor].hex +
-      '" aria-label="The enemy is attuned to ' + COLORS[s.spectrumColor].name + ' this round"></span>';
+  if (state.spectrumColor) {
+    out += '<span class="omen-dot" style="background:' + COLORS[state.spectrumColor].hex +
+      '" aria-label="The enemy is attuned to ' + COLORS[state.spectrumColor].name + ' this round"></span>';
   }
-  var extra = (s.mixTokens[ENEMY] || 0) - 1;
+  var extra = (state.mixTokens[ENEMY] || 0) - 1;
   for (var i = 0; i < extra; i++) out += '<span class="omen-pip" aria-label="Extra enemy Mix token"></span>';
   els.enemyOmens.innerHTML = out;
 }
@@ -764,8 +764,8 @@ function openInfo(title, html) {
 }
 function closeInfo() {
   els.infoOverlay.hidden = true;
-  var s = getBattleState();
-  if (s) { s.inspected = null; s.inspectedHazard = null; render(); }
+  var state = getBattleState();
+  if (state) { state.inspected = null; state.inspectedHazard = null; render(); }
 }
 
 function hazardInfo(hz) {
