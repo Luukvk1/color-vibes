@@ -1823,7 +1823,7 @@ function beginAct(key) {
      depth 13 \u2014 and the enemy's half is broken too, which is what makes it a
      shared condition instead of a handicap. */
   if (act.alwaysFissures) {
-    for (var i = 0; i < 3; i++) { spawnFissure(PLAYER, null); spawnFissure(ENEMY, null); }
+    for (var seedIndex = 0; seedIndex < 3; seedIndex++) { spawnFissure(PLAYER, null); spawnFissure(ENEMY, null); }
   }
   applyActTheme();
   show('map');
@@ -3231,7 +3231,7 @@ var EVENTS = [
     ] },
   { title: 'The Grinder', text: 'A stone wheel offers to sharpen one card, but it wears the rest.',
     options: [
-      { label: 'Sharpen — upgrade a random active card', run: function () { var i = Math.floor(rnd() * run.deck.length); run.deck[i].up = true; } },
+      { label: 'Sharpen — upgrade a random active card', run: function () { var index = Math.floor(rnd() * run.deck.length); run.deck[index].up = true; } },
       { label: 'Walk on — gain 20 gold', run: function () { run.gold += 20; } }
     ] },
   { title: 'Colour Merchant', text: 'A trader will take a card off your hands for coin.',
@@ -3244,7 +3244,7 @@ var EVENTS = [
       { label: 'Take the relic — pay 40 gold', run: function () {
           if (run.gold < 40) return;
           run.gold -= 40;
-          var avail = RELIC_KEYS.filter(function (k) { return !hasRelic(run.relics, k); });
+          var avail = RELIC_KEYS.filter(function (key) { return !hasRelic(run.relics, key); });
           if (avail.length && run.relics.length < C.RELIC_LIMIT) run.relics.push(avail[Math.floor(rnd() * avail.length)]);
         } },
       { label: 'Rest instead \u2014 restore 1 life', run: function () { run.lives = Math.min(run.maxLives, run.lives + 1); } }
@@ -3270,8 +3270,8 @@ var EVENTS = [
       { label: 'Cut the weakest card \u2014 and gain 40 gold', run: function () {
           if (run.deck.length <= 5) { run.gold += 40; return; }
           var worst = 0;
-          run.deck.forEach(function (e, i) {
-            if (C.cardStrength(e) < C.cardStrength(run.deck[worst])) worst = i;
+          run.deck.forEach(function (entry, index) {
+            if (C.cardStrength(entry) < C.cardStrength(run.deck[worst])) worst = index;
           });
           run.deck.splice(worst, 1); run.gold += 40;
         } },
@@ -3280,7 +3280,7 @@ var EVENTS = [
   { title: 'The Sieve', text: 'Fine mesh, endlessly patient. It will strain the curses out \u2014 and a little else besides.',
     options: [
       { label: 'Strain it \u2014 remove every curse from your deck', run: function () {
-          run.deck = run.deck.filter(function (e) { return !CARDS[e.id].curse; });
+          run.deck = run.deck.filter(function (entry) { return !CARDS[entry.id].curse; });
         } },
       { label: 'Trust your own hands \u2014 gain 50 gold', run: function () { run.gold += 50; } }
     ] }
@@ -3291,22 +3291,22 @@ function rollEvent() {
   run.eventPick = null;
 }
 function renderEvent() {
-  var e = run.event;
+  var event = run.event;
   /* Some options do not resolve on the tap — they open a picker, because
      *which* card leaves matters more than how many. The event stays on screen
      until the choice is made rather than advancing underneath the player. */
   if (run.eventPick) {
     var left = run.eventPick.left;
-    els.eventBody.innerHTML = '<h2>' + e.title + '</h2>' +
+    els.eventBody.innerHTML = '<h2>' + event.title + '</h2>' +
       '<p class="screen-lead">Choose ' + (left > 1 ? left + ' cards' : 'a card') +
       ' to take out of the run for good.</p>' +
-      '<div class="deck-grid">' + run.deck.map(function (c, i) {
-        return '<button class="swap-card" data-cut="' + i + '">' + cardMini(c) + '</button>';
+      '<div class="deck-grid">' + run.deck.map(function (entry, index) {
+        return '<button class="swap-card" data-cut="' + index + '">' + cardMini(entry) + '</button>';
       }).join('') + '</div>';
-    Array.prototype.forEach.call(els.eventBody.querySelectorAll('[data-cut]'), function (b) {
-      b.addEventListener('click', function () {
+    Array.prototype.forEach.call(els.eventBody.querySelectorAll('[data-cut]'), function (btn) {
+      btn.addEventListener('click', function () {
         if (run.deck.length <= 5) { run.eventPick = null; advance(); return; }
-        run.deck.splice(+b.getAttribute('data-cut'), 1);
+        run.deck.splice(+btn.getAttribute('data-cut'), 1);
         run.eventPick.left--;
         if (run.eventPick.left <= 0) { run.eventPick = null; renderRunBar(); advance(); return; }
         renderRunBar(); show('event');
@@ -3314,14 +3314,14 @@ function renderEvent() {
     });
     return;
   }
-  els.eventBody.innerHTML = '<h2>' + e.title + '</h2><p class="screen-lead">' + e.text + '</p><div class="lab-opts">' +
-    e.options.map(function (o, i) { return '<button class="lab-opt" data-i="' + i + '">' + o.label + '</button>'; }).join('') + '</div>';
-  Array.prototype.forEach.call(els.eventBody.querySelectorAll('.lab-opt'), function (b) {
-    b.addEventListener('click', function () {
+  els.eventBody.innerHTML = '<h2>' + event.title + '</h2><p class="screen-lead">' + event.text + '</p><div class="lab-opts">' +
+    event.options.map(function (option, index) { return '<button class="lab-opt" data-i="' + index + '">' + option.label + '</button>'; }).join('') + '</div>';
+  Array.prototype.forEach.call(els.eventBody.querySelectorAll('.lab-opt'), function (btn) {
+    btn.addEventListener('click', function () {
       // A fast double tap used to resolve the same option twice — and cost two lives.
       if (run.eventTaken) return;
       run.eventTaken = true;
-      var opt = e.options[+b.getAttribute('data-i')];
+      var opt = event.options[+btn.getAttribute('data-i')];
       opt.run();
       renderRunBar();
       if (run.lives <= 0) { show('gameover'); return; }
@@ -3349,8 +3349,8 @@ function renderGameOver() {
       ? 'Every road had already fallen once before this one finally took you — in ' +
         ACTS[run.act].name + ', at depth ' + (run.depth + 1) + '.'
       : 'You ran out of lives in ' + ACTS[run.act].name + ', at depth ' + (run.depth + 1) + '.';
-  } else if (SECRET_ACT_KEYS.some(function (k) { return run.actsCleared.indexOf(k) !== -1; })) {
-    var walkedSecret = SECRET_ACT_KEYS.filter(function (k) { return run.actsCleared.indexOf(k) !== -1; });
+  } else if (SECRET_ACT_KEYS.some(function (key) { return run.actsCleared.indexOf(key) !== -1; })) {
+    var walkedSecret = SECRET_ACT_KEYS.filter(function (key) { return run.actsCleared.indexOf(key) !== -1; });
     var lastSecret = walkedSecret[walkedSecret.length - 1];
     var SECRET_END = {
       white: 'You brought every colour back to the one place that had none, and it was enough.',
@@ -3379,11 +3379,11 @@ function renderGameOver() {
     '<div><span class="tag">GOLD</span><b>' + run.gold + '</b></div>' +
     '<div><span class="tag">RELICS</span><b>' + run.relics.length + '</b></div>' +
     '<div><span class="tag">DECK</span><b>' + run.deck.length + '</b></div></div>' +
-    '<div class="deck-grid">' + run.deck.map(function (c) { return cardMini(c); }).join('') + '</div>';
+    '<div class="deck-grid">' + run.deck.map(function (entry) { return cardMini(entry); }).join('') + '</div>';
 }
 
 const CV_RUN = {
-  getRun: function () { return run; }, setRun: function (r) { run = r; },
+  getRun: function () { return run; }, setRun: function (newRunValue) { run = newRunValue; },
   newRun: newRun, buildMap: buildMap, startingDeck: startingDeck, clearFrontlines: clearFrontlines,
   ACTS: ACTS, ACT_KEYS: ACT_KEYS, ACT_LENGTH: ACT_LENGTH, ACT_PLANNED: ACT_PLANNED,
   eligibleActs: eligibleActs, powerAt: powerAt, finishAct: finishAct, beginAct: beginAct,
@@ -3425,12 +3425,12 @@ const CV_RUN = {
   newBattle: newBattle, depthBonusFor: depthBonusFor, shuffle: shuffle, addLog: addLog, tileKey: tileKey,
   REWIND: REWIND, rewindImpact: rewindImpact, rewindChunk: rewindChunk,
   addInstability: addInstability, spawnFissure: spawnFissure,
-  getState: function () { return state; }, setState: function (s) { state = s; },
+  getState: function () { return state; }, setState: function (newState) { state = newState; },
   els: els, tileEls: tileEls, log: log, cardMini: cardMini, chip: chip,
-  setRnd: function (f) { rnd = f; }, getRnd: function () { return rnd; },
+  setRnd: function (newRnd) { rnd = newRnd; }, getRnd: function () { return rnd; },
   NORMAL_ENEMIES: NORMAL_ENEMIES,
   renderRunBar: renderRunBar, renderMap: renderMap, renderDeckModal: renderDeckModal,
-  setLinesGroup: function (g) { linesGroup = g; }, getLinesGroup: function () { return linesGroup; }
+  setLinesGroup: function (newLinesGroup) { linesGroup = newLinesGroup; }, getLinesGroup: function () { return linesGroup; }
 };
 
 window.CV_RUN = CV_RUN;
