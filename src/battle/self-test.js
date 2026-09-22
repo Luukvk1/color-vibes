@@ -381,15 +381,15 @@ export function createSelfTest(ctx) {
         var map2 = RUN.buildMap('green', true);
         if (map2[12][0].type !== 'boss') return false;
         var sawChoice = 0, entries = 0, canSkip = 0, crossings = 0;
-        for (var t = 0; t < 150; t++) {
-          var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], t % 2 === 0);
-          var row = m[8], prev = m[7];
+        for (var attempt = 0; attempt < 150; attempt++) {
+          var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
+          var row = map[8], prev = map[7];
           /* A single column offers nothing to choose between — whatever rolled
              there was always unavoidable, independent of anything this
              function does, so it is not part of the guarantee. */
           if (row.length < 2) continue;
           var eliteCols = [], battleCols = [];
-          row.forEach(function (n, i) { (n.type === 'elite' ? eliteCols : battleCols).push(i); });
+          row.forEach(function (node, i) { (node.type === 'elite' ? eliteCols : battleCols).push(i); });
           if (!eliteCols.length || !battleCols.length) return false;
           sawChoice++;
           /* Zero crossings is the actual promise now, not "every entry can
@@ -399,16 +399,16 @@ export function createSelfTest(ctx) {
              player not being offered the skip from one specific branch is a
              far smaller cost than a road that visibly cuts through itself. */
           var edges = [];
-          prev.forEach(function (p) { p.next.forEach(function (j) { edges.push({ a: p.col, b: row[j].col }); }); });
+          prev.forEach(function (node) { node.next.forEach(function (nextIndex) { edges.push({ a: node.col, b: row[nextIndex].col }); }); });
           for (var x = 0; x < edges.length; x++) {
             for (var y = x + 1; y < edges.length; y++) {
               var e1 = edges[x], e2 = edges[y];
               if ((e1.a < e2.a && e1.b > e2.b) || (e1.a > e2.a && e1.b < e2.b)) crossings++;
             }
           }
-          prev.forEach(function (p) {
+          prev.forEach(function (node) {
             entries++;
-            if (p.next.some(function (j) { return battleCols.indexOf(j) !== -1; })) canSkip++;
+            if (node.next.some(function (nextIndex) { return battleCols.indexOf(nextIndex) !== -1; })) canSkip++;
           });
         }
         // the guarantee has to actually get exercised, cost nothing in crossings,
@@ -425,11 +425,11 @@ export function createSelfTest(ctx) {
          per 800 maps), not a tight one, since this specific tradeoff was
          deliberately accepted rather than eliminated. */
       var crossings = 0, mapsChecked = 0;
-      for (var t = 0; t < 400; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], t % 2 === 0);
-        for (var d = 0; d < m.length - 1; d++) {
+      for (var attempt = 0; attempt < 400; attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
+        for (var depth = 0; depth < map.length - 1; depth++) {
           var edges = [];
-          m[d].forEach(function (n) { n.next.forEach(function (j) { edges.push({ a: n.col, b: m[d + 1][j].col }); }); });
+          map[depth].forEach(function (node) { node.next.forEach(function (nextIndex) { edges.push({ a: node.col, b: map[depth + 1][nextIndex].col }); }); });
           for (var x = 0; x < edges.length; x++) {
             for (var y = x + 1; y < edges.length; y++) {
               var e1 = edges[x], e2 = edges[y];
@@ -454,24 +454,24 @@ export function createSelfTest(ctx) {
       return alpha > 0 && alpha < 1;
     })());
     check('The first act opens with three unavoidable battles', (function () {
-      for (var t = 0; t < 25; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], true);
-        for (var d = 0; d < 3; d++) {
-          if (m[d].length !== 1 || m[d][0].type !== 'battle') return false;
+      for (var attempt = 0; attempt < 25; attempt++) {
+        var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], true);
+        for (var depth = 0; depth < 3; depth++) {
+          if (map[depth].length !== 1 || map[depth][0].type !== 'battle') return false;
         }
       }
       return true;
     })());
     check('Later acts branch straight away', (function () {
       var branchedEarly = 0;
-      for (var t = 0; t < 40; t++) {
-        var m = RUN.buildMap(RUN.ACT_KEYS[t % RUN.ACT_KEYS.length], false);
+      for (var attempt = 0; attempt < 40; attempt++) {
+        var map2 = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], false);
         // the very first node is still single-file: an act needs one way in
-        if (m[0].length !== 1 || m[0][0].type !== 'battle') return false;
-        if (m[1].length > 1) branchedEarly++;
+        if (map2[0].length !== 1 || map2[0][0].type !== 'battle') return false;
+        if (map2[1].length > 1) branchedEarly++;
         // and the corridor must be gone
-        var corridor = m[1].length === 1 && m[2].length === 1 &&
-                       m[1][0].type === 'battle' && m[2][0].type === 'battle';
+        var corridor = map2[1].length === 1 && map2[2].length === 1 &&
+                       map2[1][0].type === 'battle' && map2[2][0].type === 'battle';
         if (corridor) return false;
       }
       /* Not every roll widens at depth 1 — the generator decides how many
@@ -480,38 +480,38 @@ export function createSelfTest(ctx) {
       return branchedEarly > 20;
     })());
     check('A run gets the tutorial corridor once, not once per act', (function () {
-      var r = RUN.newRun();
-      var first = r.map;
-      var isCorridor = function (m) {
-        return m[1].length === 1 && m[2].length === 1 &&
-               m[1][0].type === 'battle' && m[2][0].type === 'battle';
+      var run = RUN.newRun();
+      var first = run.map;
+      var isCorridor = function (map) {
+        return map[1].length === 1 && map[2].length === 1 &&
+               map[1][0].type === 'battle' && map[2][0].type === 'battle';
       };
       if (!isCorridor(first)) return false;
-      r.actsCleared = ['green'];
-      var second = RUN.buildMap('red', r.actsCleared.length === 0);
+      run.actsCleared = ['green'];
+      var second = RUN.buildMap('red', run.actsCleared.length === 0);
       return !isCorridor(second);
     })());
     check('The warm-up handicap covers exactly those three fights',
       RUN.EASE_IN_BATTLES === 3 && RUN.easeInHand(2) > 0 && RUN.easeInHand(3) === 0);
     var reach = [0], ok = true;
-    for (var d = 0; d < map.length - 1; d++) {
-      var nx = {};
-      map[d].forEach(function (n, i) { if (reach.indexOf(i) !== -1) n.next.forEach(function (j) { nx[j] = 1; }); });
-      reach = Object.keys(nx).map(Number);
+    for (var depth = 0; depth < map.length - 1; depth++) {
+      var nextReach = {};
+      map[depth].forEach(function (node, i) { if (reach.indexOf(i) !== -1) node.next.forEach(function (nextIndex) { nextReach[nextIndex] = 1; }); });
+      reach = Object.keys(nextReach).map(Number);
       if (!reach.length) { ok = false; break; }
     }
     check('Every path reaches the boss', ok);
     check('Starting deck is ten cards', RUN.startingDeck().length === C.DECK_SIZE);
     check('A run holds one merged deck and no reserve', (function () {
-      var r = RUN.newRun();
-      return Array.isArray(r.deck) && r.deck.length === C.DECK_SIZE && r.reserve === undefined;
+      var run = RUN.newRun();
+      return Array.isArray(run.deck) && run.deck.length === C.DECK_SIZE && run.reserve === undefined;
     })());
     check('Taking a reward grows the deck past ten', (function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      var r = RUN.getRun();
-      r.deck.push({ id: 'red_brute', up: false });
-      var ok = r.deck.length === 11;
+      var run = RUN.getRun();
+      run.deck.push({ id: 'red_brute', up: false });
+      var ok = run.deck.length === 11;
       RUN.setRun(saved);
       return ok;
     })());
@@ -598,14 +598,14 @@ export function createSelfTest(ctx) {
     // --- a fusion must execute every effect its text describes ---
     check('Fusing two onPlay effects keeps both, not just the first', (function () {
       var f = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
-      var d = CARDS[f.id];
+      var cardDef = CARDS[f.id];
       /* The old composition kept exactly one "acting" carrier and threw the
          rest away, while the fused text — built independently — already
          listed every source's line. So a fusion could describe an effect in
          its own text and simply never run it. */
-      return d.text.indexOf('draw a card') !== -1 &&
-             d.text.indexOf('frontline') !== -1 &&
-             typeof d.onPlay === 'function';
+      return cardDef.text.indexOf('draw a card') !== -1 &&
+             cardDef.text.indexOf('frontline') !== -1 &&
+             typeof cardDef.onPlay === 'function';
     })());
     check('Both halves of a fused onPlay actually execute', (function () {
       var g2 = fresh();
@@ -984,8 +984,8 @@ export function createSelfTest(ctx) {
     // --- the draw archetype ---
     check('Drawing is a build, not a single card', (function () {
       var drawCards = C.DRAWABLE.filter(function (k) {
-        var d = CARDS[k];
-        return d.drawsEachRound || /draw/i.test(d.text || '');
+        var cardDef = CARDS[k];
+        return cardDef.drawsEachRound || /draw/i.test(cardDef.text || '');
       });
       var drawRelics = Object.keys(RELICS).filter(function (k) {
         return /draw|opening hand/i.test(RELICS[k].text);
@@ -1040,11 +1040,11 @@ export function createSelfTest(ctx) {
     })());
     check('Every trophy is big AND still does something', (function () {
       return C.BOSS_CARDS.every(function (k) {
-        var d = CARDS[k];
-        var hasText = !!(d.passive || d.aura || d.rowAura || d.matchup || d.onPlay ||
-                         d.drawsEachRound || d.guardsColour);
+        var cardDef = CARDS[k];
+        var hasText = !!(cardDef.passive || cardDef.aura || cardDef.rowAura || cardDef.matchup || cardDef.onPlay ||
+                         cardDef.drawsEachRound || cardDef.guardsColour);
         // the whole point: unlike a fused Amalgam these are not silenced
-        return d.strength >= 4 && hasText && !d.silenced && d.rarity === 'Legendary';
+        return cardDef.strength >= 4 && hasText && !cardDef.silenced && cardDef.rarity === 'Legendary';
       });
     })());
     check('A boss offers three trophies including its own colour', (function () {
@@ -1325,11 +1325,11 @@ export function createSelfTest(ctx) {
     })());
     check('Curse cards read the board, not a tally', (function () {
       return RUN.NEEDS_CURSES.every(function (k) {
-        var d = CARDS[k];
+        var cardDef = CARDS[k];
         // adjacency or consumption — never a count of curses owned, which is
         // how the fissure cards work and would make these feel like a reskin
-        var positional = !!(d.targets || (d.text || '').indexOf('touch') !== -1);
-        return positional && !d.fissure;
+        var positional = !!(cardDef.targets || (cardDef.text || '').indexOf('touch') !== -1);
+        return positional && !cardDef.fissure;
       });
     })());
     check('Gravebloom wakes only next to a curse', (function () {
@@ -1989,11 +1989,11 @@ export function createSelfTest(ctx) {
     // --- a fusion keeps what its parents were ---
     check('A fusion inherits what its parents were, instead of erasing it', (function () {
       var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
-      var d = CARDS[f.id];
-      return d.effectSources.length === 2 &&
-             d.effectSources.indexOf('red_scout') !== -1 &&
-             d.effectSources.indexOf('green_gardener') !== -1 &&
-             !d.silenced && !!d.passive && !!d.aura;
+      var cardDef = CARDS[f.id];
+      return cardDef.effectSources.length === 2 &&
+             cardDef.effectSources.indexOf('red_scout') !== -1 &&
+             cardDef.effectSources.indexOf('green_gardener') !== -1 &&
+             !cardDef.silenced && !!cardDef.passive && !!cardDef.aura;
     })());
     check('An inherited aura actually fires on the board', (function () {
       var f = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
@@ -2078,8 +2078,8 @@ export function createSelfTest(ctx) {
     })());
     check('Something in every colour can threaten the back rows', (function () {
       var reachers = C.DRAWABLE.filter(function (k) {
-        var d = CARDS[k];
-        return d.enemyRowAura || /behind the line|back row/i.test(d.text || '');
+        var cardDef = CARDS[k];
+        return cardDef.enemyRowAura || /behind the line|back row/i.test(cardDef.text || '');
       });
       var colours = {};
       reachers.forEach(function (k) { colours[CARDS[k].color] = 1; });
@@ -2269,8 +2269,8 @@ export function createSelfTest(ctx) {
     check('The rot road fields curse decks whatever the player is carrying', (function () {
       var clean = 0;
       for (var i = 0; i < 30; i++) {
-        var d = C.buildEnemyDeck(ENEMIES.cultist, 40, Math.random, 0, 0, RUN.ACTS.rot);
-        if (d.some(function (c) { return CARDS[c.id].curse; })) clean++;
+        var deck = C.buildEnemyDeck(ENEMIES.cultist, 40, Math.random, 0, 0, RUN.ACTS.rot);
+        if (deck.some(function (c) { return CARDS[c.id].curse; })) clean++;
       }
       var elsewhere = 0;
       for (var j = 0; j < 30; j++) {
@@ -2366,10 +2366,10 @@ export function createSelfTest(ctx) {
          have wrapped both as functions, making the aura NaN when added to a
          strength. Explicit hook shapes are what stop that. */
       var f = C.fuseCards({ id: 'green_broodmother', up: false }, { id: 'green_thicket', up: false });
-      var d = CARDS[f.id];
-      if (typeof d.swarmAura !== 'number' || d.warded !== true) return false;
+      var cardDef = CARDS[f.id];
+      if (typeof cardDef.swarmAura !== 'number' || cardDef.warded !== true) return false;
       var g2 = fresh();
-      g2.board[PLAYER].row2[0] = { cardId: f.id, color: d.color, strength: d.strength, temp: 0 };
+      g2.board[PLAYER].row2[0] = { cardId: f.id, color: cardDef.color, strength: cardDef.strength, temp: 0 };
       put(g2, 'bottom', 'row1', 0, 'red_brute', 2);
       var ev = C.evaluateBoard(g2.board, g2.hazards, {});
       var lifted = ev.strengthOf(ev.view['bottom-row1-0']);
@@ -2392,8 +2392,8 @@ export function createSelfTest(ctx) {
          reward for having already played a different one. */
       return Object.keys(AR).every(function (a) {
         return C.DRAWABLE.some(function (k) {
-          var d = CARDS[k];
-          return AR[a](k) && C.PRIMARY_COLORS.indexOf(d.color) !== -1;
+          var cardDef = CARDS[k];
+          return AR[a](k) && C.PRIMARY_COLORS.indexOf(cardDef.color) !== -1;
         });
       });
     })());
@@ -2849,8 +2849,8 @@ export function createSelfTest(ctx) {
     })());
     check('A clean player never faces a cursed enemy', (function () {
       for (var i = 0; i < 200; i++) {
-        var d = C.buildEnemyDeck(ENEMIES.brawler, 20, Math.random, 0, 0);
-        if (d.some(function (c) { return CARDS[c.id].curse; })) return false;
+        var deck = C.buildEnemyDeck(ENEMIES.brawler, 20, Math.random, 0, 0);
+        if (deck.some(function (c) { return CARDS[c.id].curse; })) return false;
       }
       return true;
     })());
@@ -2858,8 +2858,8 @@ export function createSelfTest(ctx) {
       function techRate(key) {
         var hits = 0;
         for (var i = 0; i < 250; i++) {
-          var d = C.buildEnemyDeck(ENEMIES[key], 20, Math.random, 6, 6);
-          if (d.some(function (c) { return C.NEEDS_CURSES_IDS.indexOf(c.id) !== -1; })) hits++;
+          var deck = C.buildEnemyDeck(ENEMIES[key], 20, Math.random, 6, 6);
+          if (deck.some(function (c) { return C.NEEDS_CURSES_IDS.indexOf(c.id) !== -1; })) hits++;
         }
         return hits / 250;
       }
@@ -2873,8 +2873,8 @@ export function createSelfTest(ctx) {
     })());
     check('Curse tech never shows up against a clean player', (function () {
       for (var i = 0; i < 200; i++) {
-        var d = C.buildEnemyDeck(ENEMIES.spectrum, 30, Math.random, 0, 0);
-        if (d.some(function (c) { return C.NEEDS_CURSES_IDS.indexOf(c.id) !== -1; })) return false;
+        var deck = C.buildEnemyDeck(ENEMIES.spectrum, 30, Math.random, 0, 0);
+        if (deck.some(function (c) { return C.NEEDS_CURSES_IDS.indexOf(c.id) !== -1; })) return false;
       }
       return true;
     })());
@@ -2912,8 +2912,8 @@ export function createSelfTest(ctx) {
     })());
     check('A fused card is real, playable and out of the shop pool', (function () {
       var e = C.fuseCards({ id: 'red_brute', up: false }, { id: 'green_seed', up: false });
-      var d = CARDS[e.id];
-      return d && d.type === 'unit' && d.strength === 4 && C.DRAWABLE.indexOf(e.id) === -1;
+      var cardDef = CARDS[e.id];
+      return cardDef && cardDef.type === 'unit' && cardDef.strength === 4 && C.DRAWABLE.indexOf(e.id) === -1;
     })());
     check('Reinforcement raises printed strength permanently', (function () {
       var lifted = RUN.liftStrength({ id: 'red_brute', up: false }, 2);
@@ -3076,8 +3076,8 @@ export function createSelfTest(ctx) {
       var g2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         relics: [], chains: { bottom: 0, top: 0 } };
-      function put2(sd, r, i, id, st) { var d = CARDS[id];
-        g2.board[sd][r][i] = { cardId: id, color: d.color, strength: st, temp: 0 }; }
+      function put2(side, row, index, id, strength) { var cardDef = CARDS[id];
+        g2.board[side][row][index] = { cardId: id, color: cardDef.color, strength: strength, temp: 0 }; }
       put2('bottom', 'row1', 0, 'red_brute', 3); put2('bottom', 'row2', 0, 'blue_scout', 3);
       put2('top', 'row1', 2, 'red_brute', 3); put2('top', 'row2', 2, 'blue_scout', 3);
       RUN.applyMix(g2, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
@@ -3223,9 +3223,9 @@ export function createSelfTest(ctx) {
       var f = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
       var e0 = C.evaluateBoard(b, null, { fissures: [] });
       var e1 = C.evaluateBoard(b, null, { fissures: f });
-      var d = C.FISSURE_DRAIN;
-      return e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - d &&
-             e1.view['bottom-row1-2'].bonus === e0.view['bottom-row1-2'].bonus - d;
+      var drainAmount = C.FISSURE_DRAIN;
+      return e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - drainAmount &&
+             e1.view['bottom-row1-2'].bonus === e0.view['bottom-row1-2'].bonus - drainAmount;
     })());
     check('A heavy drain empties a unit rather than making it negative', (function () {
       var b = C.emptyBoard();
