@@ -1723,8 +1723,8 @@ export function createSelfTest(ctx) {
       });
     })());
     check('Mixing into something already Black stays Black', (function () {
-      return ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'black'].every(function (c) {
-        return C.mixResultColor('black', c) === 'black' && C.mixResultColor(c, 'black') === 'black';
+      return ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'black'].every(function (color) {
+        return C.mixResultColor('black', color) === 'black' && C.mixResultColor(color, 'black') === 'black';
       });
     })());
     check('Ordinary mixes are unaffected', (function () {
@@ -2274,8 +2274,8 @@ export function createSelfTest(ctx) {
       }
       var elsewhere = 0;
       for (var j = 0; j < 30; j++) {
-        var d2 = C.buildEnemyDeck(ENEMIES.cultist, 40, Math.random, 0, 0, RUN.ACTS.red);
-        if (d2.some(function (c) { return CARDS[c.id].curse; })) elsewhere++;
+        var deck = C.buildEnemyDeck(ENEMIES.cultist, 40, Math.random, 0, 0, RUN.ACTS.red);
+        if (deck.some(function (c) { return CARDS[c.id].curse; })) elsewhere++;
       }
       // its identity, not a reaction to the player
       return clean === 30 && elsewhere === 0;
@@ -2315,9 +2315,9 @@ export function createSelfTest(ctx) {
       function withColours(list) {
         var battleState2 = fresh();
         put(battleState2, 'bottom', 'row2', 0, 'yellow_prismatic', 1);
-        list.forEach(function (c, i) {
+        list.forEach(function (color, i) {
           put(battleState2, 'bottom', 'row1', i, 'red_brute', 2);
-          battleState2.board[PLAYER].row1[i].color = c;
+          battleState2.board[PLAYER].row1[i].color = color;
         });
         var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
         return ev.strengthOf(ev.view['bottom-row2-0']);
@@ -2488,11 +2488,11 @@ export function createSelfTest(ctx) {
     check('The pool is broad enough that a colour is not one deck', (function () {
       var byColour = {};
       C.DRAWABLE.forEach(function (key) {
-        var c = CARDS[key].color || 'colourless';
-        byColour[c] = (byColour[c] || 0) + 1;
+        var color = CARDS[key].color || 'colourless';
+        byColour[color] = (byColour[color] || 0) + 1;
       });
       // every colour needs enough cards to support more than a single line of play
-      return C.COLOR_KEYS.every(function (c) { return byColour[c] >= 9; }) &&
+      return C.COLOR_KEYS.every(function (color) { return byColour[color] >= 9; }) &&
              C.DRAWABLE.length >= 95;
     })());
 
@@ -3472,8 +3472,8 @@ export function createSelfTest(ctx) {
       return early >= 12 && late > early && boss > late && boss <= 26;
     })());
     check('Enemy decks respect their colours', C.buildEnemyDeck(ENEMIES.brawler, 9, Math.random).every(function (c) {
-      var d2 = CARDS[c.id];
-      return d2.type !== 'unit' || ENEMIES.brawler.colors.indexOf(d2.color) !== -1;
+      var cardDef = CARDS[c.id];
+      return cardDef.type !== 'unit' || ENEMIES.brawler.colors.indexOf(cardDef.color) !== -1;
     }));
     check('Opening battles carry no depth bonus', RUN.depthBonusFor(0) === 0 && RUN.depthBonusFor(5) === 0);
     check('The bonus steps up toward the boss',
