@@ -25,10 +25,10 @@ var linesGroup = null, fxLayer = null, hazLayer = null;
 var fissureLayer = null, fissureSig = null, newFissures = {};
 var lastEnemyHandCount = -1;
 
-function S() { return RUN.getState(); }
-function R() { return RUN.getRun(); }
-function tileKey(s, r, i) { return s + '-' + r + '-' + i; }
-function addLog(m) { RUN.addLog(m); }
+function getBattleState() { return RUN.getState(); }
+function getActiveRun() { return RUN.getRun(); }
+function tileKey(side, row, index) { return side + '-' + row + '-' + index; }
+function addLog(msg) { RUN.addLog(msg); }
 
 /* ===================================================================
    BOARD
@@ -196,7 +196,7 @@ function fxHazard(row, kind) {
 }
 /* Curses resolve inside the draw, so the player is told what just happened. */
 function flushCurses() {
-  var s = S();
+  var s = getBattleState();
   if (!s || !s.curseFired || !s.curseFired.length) return;
   s.curseFired.forEach(function (c) {
     var who = c.side === PLAYER ? 'You drew' : s.enemy.name + ' drew';
@@ -220,7 +220,7 @@ function announce(text, tone) {
 }
 
 function pendingSpec() {
-  var s = S();
+  var s = getBattleState();
   if (!s.pending) return null;
   var list = s.pending.kind === 'wild'
     ? [{ kind: 'friendlyUnit', prompt: 'Pick a unit to repaint' }, { kind: 'color', prompt: 'Pick its new colour' }]
@@ -228,13 +228,13 @@ function pendingSpec() {
   return list ? list[s.pending.picks.length] : null;
 }
 function currentTargetOptions() {
-  var s = S(), spec = pendingSpec();
+  var s = getBattleState(), spec = pendingSpec();
   if (!spec) return [];
   return RUN.legalTargets(s, s.pending.side, spec, s.pending.picks, s.pending.tile);
 }
 
 function renderTiles(ev) {
-  var s = S();
+  var s = getBattleState();
   var locked = s.resolving || s.battleOver || s.opponentThinking;
   var canAct = !locked && s.turn === PLAYER;
   var card = s.selectedCard !== null ? s.hands[PLAYER][s.selectedCard] : null;
@@ -368,7 +368,7 @@ function bridgePoints(f) {
 }
 
 function renderFissures() {
-  var s = S();
+  var s = getBattleState();
   if (!fissureLayer) return;
   var list = (s && s.fissures) || [];
   var sig = list.map(function (f) {
@@ -405,7 +405,7 @@ function renderFissures() {
    player tapped one of their own cards. Skip the rebuild when the count
    hasn't moved; the deck/hand tally text still updates either way. */
 function renderEnemyHand() {
-  var s = S(), n = s.hands[ENEMY].length;
+  var s = getBattleState(), n = s.hands[ENEMY].length;
   els.enemyDeckCount.textContent = n + ' in hand · ' + s.decks[ENEMY].length + ' in deck';
   if (n === lastEnemyHandCount) return;
   lastEnemyHandCount = n;
@@ -415,7 +415,7 @@ function renderEnemyHand() {
 }
 
 function renderHand() {
-  var s = S(), hand = s.hands[PLAYER];
+  var s = getBattleState(), hand = s.hands[PLAYER];
   var canAct = s.turn === PLAYER && !s.resolving && !s.battleOver && !s.opponentThinking && !s.pending;
   els.handCount.textContent = hand.length + ' card' + (hand.length === 1 ? '' : 's') + ' · ' + s.decks[PLAYER].length + ' in deck';
 
@@ -485,7 +485,7 @@ function renderHand() {
       return { cardId: '__mix__', html: C.iconRow('__mix__') +
         '<span>Fuse two touching friendly units — colours combine, strengths add plus one.</span>' };
     }
-    var card = S().hands[PLAYER][+btn.getAttribute('data-card')];
+    var card = getBattleState().hands[PLAYER][+btn.getAttribute('data-card')];
     if (!card) return null;
     var d = CARDS[card.id];
     return { cardId: card.id, html: C.iconRow(card.id) + '<span>' + d.text + '</span>' };
@@ -508,7 +508,7 @@ function renderHand() {
       if (selBtn) peek(peekFor(selBtn));
     });
     btn.addEventListener('click', function () {
-      var st = S();
+      var st = getBattleState();
       peek(peekFor(btn));
       if (btn.getAttribute('data-mix')) { onMixToggle(); return; }
       var i = +btn.getAttribute('data-card');
@@ -571,7 +571,7 @@ function rowCentre(side, row) {
   return ys.reduce(function (a, c) { return a + c; }, 0) / ys.length;
 }
 function renderHazardMarks() {
-  var s = S();
+  var s = getBattleState();
   hazLayer.innerHTML = '';
   var markX = VIEWBOX.x - 40;
   ROWS.forEach(function (row) {
@@ -590,7 +590,7 @@ function renderHazardMarks() {
         g.setAttribute('aria-label', C.HAZARD_TEXT[kind]);
         g.innerHTML = '<circle class="hm-disc" r="26"/>' + HAZ_GLYPH[kind];
         function open() {
-          var st = S();
+          var st = getBattleState();
           st.inspectedHazard = { row: row, kind: kind, owner: owner };
           st.inspected = null;
           render();
@@ -631,7 +631,7 @@ function stickyToast(text, tone) {
 }
 
 function renderStatus() {
-  var s = S();
+  var s = getBattleState();
   if (s.pending) {
     var spec = pendingSpec();
     var who = s.pending.kind === 'wild' ? 'Wild Palette' : CARDS[s.pending.card.id].name;
@@ -652,7 +652,7 @@ function renderStatus() {
 }
 
 function renderControls(ev) {
-  var s = S();
+  var s = getBattleState();
   var canAct = s.turn === PLAYER && !s.resolving && !s.battleOver && !s.opponentThinking;
   els.scoreYou.textContent = ev.totals.bottom;
   els.scoreOpp.textContent = ev.totals.top;
@@ -764,7 +764,7 @@ function openInfo(title, html) {
 }
 function closeInfo() {
   els.infoOverlay.hidden = true;
-  var s = S();
+  var s = getBattleState();
   if (s) { s.inspected = null; s.inspectedHazard = null; render(); }
 }
 
@@ -778,7 +778,7 @@ function hazardInfo(hz) {
 }
 
 function tileInfo(ev, t) {
-  var s = S();
+  var s = getBattleState();
   var unit = unitAt(s.board, t.side, t.row, t.index);
   /* Read the live topology, not the pristine one: a severed tile really does
      feed fewer lanes, and the panel is where a player checks why. */
@@ -858,7 +858,7 @@ function tileInfo(ev, t) {
 
 /* Keep an open overlay in step with the board underneath it. */
 function renderInfoOverlay(ev) {
-  var s = S();
+  var s = getBattleState();
   if (els.infoOverlay.hidden) return;
   if (s.inspectedHazard) {
     openInfo(s.inspectedHazard.kind === 'colorless' ? 'Colourless Row' : 'Scorched Row', hazardInfo(s.inspectedHazard));
@@ -1098,7 +1098,7 @@ function setDrawnEyes(on, style) {
 }
 
 function render() {
-  var s = S();
+  var s = getBattleState();
   if (!s) return;
   var ev = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
   renderTiles(ev); renderStatus(); renderControls(ev); renderHand();
@@ -1148,7 +1148,7 @@ function playerCanAct(s) {
 }
 
 function teachNow(ev) {
-  var s = S();
+  var s = getBattleState();
   if (!s || s.resolving || s.battleOver || s.pending) return false;
   if (RUN.tutorialOpen()) return false;
   ev = ev || evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
@@ -1194,7 +1194,7 @@ function teachNow(ev) {
    TURN FLOW
    =================================================================== */
 function resetChain(side) {
-  var s = S();
+  var s = getBattleState();
   s.chains = s.chains || { bottom: 0, top: 0 };
   s.chains[side] = 0;
   s.mixChain = 0;
@@ -1233,7 +1233,7 @@ function snapshotForRewind(s) {
 
 /* Only the player's own turns are rewindable, and only the most recent one. */
 function markRewindPoint(side) {
-  var s = S();
+  var s = getBattleState();
   if (!s || side !== PLAYER || s.rewindUsedThisRound) return;
   s.rewindSnap = snapshotForRewind(s);
 }
@@ -1260,7 +1260,7 @@ function restoreRewind(s, snap) {
 }
 
 function canRewind() {
-  var s = S();
+  var s = getBattleState();
   if (!s) return false;
   return !!s.rewindSnap && !s.rewindUsedThisRound && s.turn === PLAYER &&
     !s.resolving && !s.battleOver && !s.opponentThinking && !s.pending;
@@ -1268,7 +1268,7 @@ function canRewind() {
 
 function onRewind() {
   if (!canRewind()) return;
-  var s = S(), r = R(), snap = s.rewindSnap;
+  var s = getBattleState(), r = getActiveRun(), snap = s.rewindSnap;
   var evAfter = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
   var evBefore = evaluateBoard(snap.board, snap.hazards, {
     relics: s.relics, enemyMod: s.enemyMod, chains: snap.chains,
@@ -1309,7 +1309,7 @@ function onRewind() {
 }
 
 function beginPlay(side, cardIndex, tile) {
-  var s = S(), card = s.hands[side][cardIndex], d = CARDS[card.id];
+  var s = getBattleState(), card = s.hands[side][cardIndex], d = CARDS[card.id];
   s.pending = { side: side, card: card, cardIndex: cardIndex, tile: tile, picks: [] };
   if (d.targets && d.targets.length) {
     if (!currentTargetOptions().length) { finishPlay(); return; }
@@ -1319,7 +1319,7 @@ function beginPlay(side, cardIndex, tile) {
 }
 
 function beginWild() {
-  var s = S();
+  var s = getBattleState();
   if (s.wildPaletteUsed || s.turn !== PLAYER) return;
   s.pending = { side: PLAYER, kind: 'wild', picks: [] };
   if (!currentTargetOptions().length) { s.pending = null; render(); return; }
@@ -1327,7 +1327,7 @@ function beginWild() {
 }
 
 function advanceTarget(pick) {
-  var s = S();
+  var s = getBattleState();
   if (!s.pending) return;
   s.pending.picks.push(pick);
   var total = s.pending.kind === 'wild' ? 2 : CARDS[s.pending.card.id].targets.length;
@@ -1338,7 +1338,7 @@ function advanceTarget(pick) {
 
 function finishPlay() {
   showPassPuck(false);
-  var s = S(), p = s.pending;
+  var s = getBattleState(), p = s.pending;
   if (!p) return;
 
   if (p.kind === 'wild') {
@@ -1373,11 +1373,11 @@ function finishPlay() {
   endTurn(side);
 }
 
-function cancelPending() { var s = S(); if (!s.pending) return; s.pending = null; s.selectedCard = null; render(); }
+function cancelPending() { var s = getBattleState(); if (!s.pending) return; s.pending = null; s.selectedCard = null; render(); }
 
 function performMix(side, base, other) {
   if (side === PLAYER) showPassPuck(false);
-  var s = S();
+  var s = getBattleState();
   var a = unitAt(s.board, side, base.row, base.index), b = unitAt(s.board, side, other.row, other.index);
   var before = colorInfo(a.color).name + ' ' + a.strength + ' + ' + colorInfo(b.color).name + ' ' + b.strength;
   markRewindPoint(side);
@@ -1414,7 +1414,7 @@ function performMix(side, base, other) {
 }
 
 function onTileActivate(side, row, index) {
-  var s = S();
+  var s = getBattleState();
   if (!s) return;
   var locked = s.resolving || s.battleOver || s.opponentThinking;
   var unit = unitAt(s.board, side, row, index);
@@ -1463,7 +1463,7 @@ function onTileActivate(side, row, index) {
 function flash(n) { if (!n) return; n.classList.remove('flash'); void n.offsetWidth; n.classList.add('flash'); }
 
 function pass(side) {
-  var s = S();
+  var s = getBattleState();
   markRewindPoint(side);
   addLog(sideName(side) + ' passed.');
   /* The enemy's pass is the one that needs saying out loud — the player knows
@@ -1478,13 +1478,13 @@ function pass(side) {
   render(); maybeOpponentMove();
 }
 function endTurn(side) {
-  var s = S();
+  var s = getBattleState();
   if (s.finalTurn) { resolveRound(); return; }
   s.turn = otherSide(side); s.selectedCard = null; s.mode = 'place'; s.mixBase = null;
   render();
   if (!teachNow()) maybeOpponentMove();
 }
-function onPass() { var s = S(); if (s.turn !== PLAYER || s.resolving || s.battleOver || s.opponentThinking || s.pending) return; pass(PLAYER); }
+function onPass() { var s = getBattleState(); if (s.turn !== PLAYER || s.resolving || s.battleOver || s.opponentThinking || s.pending) return; pass(PLAYER); }
 
 function showPassPuck(on) {
   var el = document.getElementById('passPuck');
@@ -1500,7 +1500,7 @@ function showPassPuck(on) {
   }
 }
 function onMixToggle() {
-  var s = S();
+  var s = getBattleState();
   if (s.turn !== PLAYER || s.resolving || s.battleOver || s.opponentThinking || s.pending) return;
   s.mode = s.mode === 'mix' ? 'place' : 'mix'; s.mixBase = null; s.selectedCard = null; render();
 }
@@ -1628,7 +1628,7 @@ function afterBreakValue(g, side, foe) {
 }
 
 function decideOpponentMove() {
-  var s = S(), side = ENEMY, foe = PLAYER, ai = s.enemy.ai || {};
+  var s = getBattleState(), side = ENEMY, foe = PLAYER, ai = s.enemy.ai || {};
   var tier = aiSkill(s);
   var now = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
   var rawLead = tier >= 4 ? laneShapedDelta(now, side, foe)
@@ -1713,7 +1713,7 @@ function runOpponentMove(decision) {
   var side = decision.side, best = decision.best;
   if (decision.willPass) { pass(side); return; }
   if (best.type === 'mix') { performMix(side, best.base, best.other); return; }
-  var s = S();
+  var s = getBattleState();
   s.pending = { side: side, card: s.hands[side][best.cardIndex], cardIndex: best.cardIndex, tile: best.tile, picks: best.targets };
   finishPlay();
 }
@@ -1731,12 +1731,12 @@ function decisionDelay(margin) {
 }
 
 function maybeOpponentMove() {
-  var s = S();
+  var s = getBattleState();
   if (!s || s.turn !== ENEMY || s.resolving || s.battleOver) return;
   s.opponentThinking = true; render();
   var decision = decideOpponentMove();
   setTimeout(function () {
-    var st = S();
+    var st = getBattleState();
     if (!st) return;
     st.opponentThinking = false;
     if (st.resolving || st.battleOver) { render(); return; }
@@ -1749,7 +1749,7 @@ function maybeOpponentMove() {
    ROUND / BATTLE RESOLUTION
    =================================================================== */
 function resolveRound() {
-  var s = S();
+  var s = getBattleState();
   var ev = evaluateBoard(s.board, s.hazards, RUN.evalCtx(s));
   var result = decideRound(ev, s.roundStarter);
   s.wins[result.winner]++;
@@ -1762,7 +1762,7 @@ function resolveRound() {
   addLog('Round ' + s.round + ' — You ' + result.bottom + ' : ' + result.top + '. ' + sideName(result.winner) + ' won it.');
   render();
   // let the final animation land before the modal covers the board
-  setTimeout(function () { if (S() === s) showResults(ev, result); }, 520);
+  setTimeout(function () { if (getBattleState() === s) showResults(ev, result); }, 520);
 }
 
 function laneTable(ev) {
@@ -1782,7 +1782,7 @@ function laneTable(ev) {
 }
 
 function showResults(ev, result) {
-  var s = S(), r = R();
+  var s = getBattleState(), r = getActiveRun();
   var playerWon = s.wins.bottom >= 2;
   els.resultsTitle.textContent = s.battleOver
     ? (playerWon ? 'Battle won' : 'Battle lost')
@@ -1808,7 +1808,7 @@ function showResults(ev, result) {
 
 function nextRound(winner) {
   showPassPuck(false);
-  var s = S();
+  var s = getBattleState();
   // The line breaks: frontline units in contested lanes are spent. Snapshot the
   // board first so the tutorial can show the player exactly what fell and why.
   var ctxNow = RUN.evalCtx(s);
@@ -1892,7 +1892,7 @@ function nextRound(winner) {
      the endgame target size is something the relic actively argues for. */
   var lean = 0;
   if (hasRelic(s.relics, 'deep_pockets')) {
-    lean = Math.max(0, Math.floor((25 - R().deck.length) / 5));
+    lean = Math.max(0, Math.floor((25 - getActiveRun().deck.length) / 5));
     if (lean) addLog('Deep Pockets draws ' + lean + ' extra \u2014 your deck is lean.');
   }
   RUN.drawInto(s, PLAYER, C.ROUND_DRAW + engineDraw + lean + (hasRelic(s.relics, 'recycling_bin') ? 1 : 0));
@@ -1908,7 +1908,7 @@ function nextRound(winner) {
 }
 
 function endBattle(won) {
-  var s = S(), r = R();
+  var s = getBattleState(), r = getActiveRun();
   if (won) {
     r.battlesWon++;
     RUN.rollReward(s.node);
@@ -1931,7 +1931,7 @@ let builtSelfTest = null;
 async function selfTest() {
   if (!builtSelfTest) {
     const { createSelfTest } = await import('./self-test.js');
-    builtSelfTest = createSelfTest({ S, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD });
+    builtSelfTest = createSelfTest({ S: getBattleState, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD });
   }
   return builtSelfTest();
 }
@@ -2059,7 +2059,7 @@ function init() {
   els.wildBtn.addEventListener('click', beginWild);
   document.getElementById('leaveShopBtn').addEventListener('click', function () { RUN.advance(); });
   document.getElementById('skipRewardBtn').addEventListener('click', function () {
-    var r = R();
+    var r = getActiveRun();
     if (!r.reward || r.reward.cardTaken) return;
     r.reward.cardTaken = true;
     r.gold += RUN.skipValue();
@@ -2138,7 +2138,7 @@ function init() {
     var html;
     if (cardId === '__mix__') {
       html = '<div class="cd-card" style="--card:' + colorInfo(null).hex + ';--card-ink:' + colorInfo(null).ink + '">' +
-        '<div class="cd-top"><span class="cd-badge">' + (S() ? S().mixTokens[PLAYER] : 1) + '</span>' +
+        '<div class="cd-top"><span class="cd-badge">' + (getBattleState() ? getBattleState().mixTokens[PLAYER] : 1) + '</span>' +
         '<div><div class="cd-name">Mix</div><div class="cd-meta">Action</div></div></div>' +
         '<div class="cd-icons">' + C.iconRow('__mix__') + '</div>' +
         '<div class="cd-text">Fuse two touching friendly units. Colours combine, strengths add plus one.</div></div>';
@@ -2162,7 +2162,7 @@ function init() {
      bare CARDS[cardId].strength would miss — read it off the hand entry
      when one matches, same as the small card button already does. */
   function cardStrengthDisplay(cardId) {
-    var s = S();
+    var s = getBattleState();
     var entry = s && s.hands[PLAYER].filter(function (c) { return c.id === cardId; })[0];
     return entry ? cardStrength(entry) : CARDS[cardId].strength;
   }
@@ -2239,7 +2239,7 @@ function init() {
      no use at all to someone trying to cut one specific curse out of a deck.
      Now it arms a picker and the player chooses. */
   els.shopRemove.addEventListener('click', function () {
-    var r = R();
+    var r = getActiveRun();
     if (r.gold < RUN.removalCost(r.shop) || r.deck.length <= 5) return;
     if (RUN.removalsLeft(r.shop) <= 0) return;
     r.shop.removing = !r.shop.removing;
@@ -2247,7 +2247,7 @@ function init() {
   });
 
   document.addEventListener('keydown', function (e) {
-    var s = S();
+    var s = getBattleState();
     if (e.key === 'Escape') {
       if (!els.infoOverlay.hidden) { closeInfo(); return; }
       if (!els.lanesOverlay.hidden) { els.lanesOverlay.hidden = true; return; }
@@ -2258,7 +2258,7 @@ function init() {
     if (!document.getElementById('cardDetailOverlay').hidden && e.key === 'Escape') { document.getElementById('cardDetailOverlay').hidden = true; return; }
     if (!els.overlay.hidden && e.key === 'Escape') { els.overlay.hidden = true; return; }
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
-    if (!s || R().screen !== 'battle') return;
+    if (!s || getActiveRun().screen !== 'battle') return;
     var k = e.key.toLowerCase();
     if (k === 'escape') { if (s.pending) cancelPending(); else if (s.mode === 'mix') { s.mode = 'place'; s.mixBase = null; render(); } return; }
     if (s.pending) return;
@@ -2291,7 +2291,7 @@ const CV_BATTLE = {
   laneShapedDelta: laneShapedDelta,
   flushCurses: flushCurses,
   maybeOpponentMove: maybeOpponentMove, opponentMove: opponentMove,
-  decideOpponentMove: decideOpponentMove, runOpponentMove: runOpponentMove, decisionDelay: decisionDelay,
+  runOpponentMove: runOpponentMove, decisionDelay: decisionDelay,
   beginPlay: beginPlay, advanceTarget: advanceTarget, finishPlay: finishPlay,
   performMix: performMix, pass: pass, onPass: onPass, resolveRound: resolveRound,
   onRewind: onRewind, canRewind: canRewind, snapshotForRewind: snapshotForRewind,
