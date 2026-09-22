@@ -1316,53 +1316,53 @@ function glFoeEntry(key) {
 function renderGlossary() {
   var body = document.getElementById('glossaryBody');
   if (!body) return;
-  var n = codexCounts(), html = '';
+  var counts = codexCounts(), html = '';
 
   if (glossaryTab === 'cards') {
-    html += '<p class="gl-note">' + n.cards + ' of ' + n.cardsTotal +
+    html += '<p class="gl-note">' + counts.cards + ' of ' + counts.cardsTotal +
       ' cards recorded. Cards enter the codex when you are offered one, ' +
       'or when you carry one into a fight.</p>';
     var groups = {};
-    C.DRAWABLE.concat(C.BOSS_CARDS).concat(C.CURSE_KEYS).forEach(function (k) {
-      var d = CARDS[k];
-      var g = d.curse ? 'Curses' : d.bossOnly ? 'Boss drops'
-            : d.color ? COLORS[d.color].name : 'Colourless';
-      (groups[g] = groups[g] || []).push(k);
+    C.DRAWABLE.concat(C.BOSS_CARDS).concat(C.CURSE_KEYS).forEach(function (cardId) {
+      var cardDef = CARDS[cardId];
+      var group = cardDef.curse ? 'Curses' : cardDef.bossOnly ? 'Boss drops'
+            : cardDef.color ? COLORS[cardDef.color].name : 'Colourless';
+      (groups[group] = groups[group] || []).push(cardId);
     });
     var order = ['Red', 'Green', 'Blue', 'Yellow', 'Cyan', 'Magenta', 'Black',
                  'Colourless', 'Boss drops', 'Curses'];
-    order.forEach(function (g) {
-      if (!groups[g]) return;
-      var seen = groups[g].filter(function (k) { return codex.cards[k]; }).length;
-      html += '<div class="gl-group"><span class="lbl">' + g +
-        ' \u00b7 ' + seen + '/' + groups[g].length + '</span>' +
-        groups[g].map(glCardEntry).join('') + '</div>';
+    order.forEach(function (group) {
+      if (!groups[group]) return;
+      var seen = groups[group].filter(function (cardId) { return codex.cards[cardId]; }).length;
+      html += '<div class="gl-group"><span class="lbl">' + group +
+        ' \u00b7 ' + seen + '/' + groups[group].length + '</span>' +
+        groups[group].map(glCardEntry).join('') + '</div>';
     });
   } else if (glossaryTab === 'foes') {
-    html += '<p class="gl-note">' + n.foes + ' of ' + n.foesTotal +
+    html += '<p class="gl-note">' + counts.foes + ' of ' + counts.foesTotal +
       ' recorded. Every act has its own elite and boss, and each boss plays by ' +
       'a rule of its own \u2014 learning them is how you choose which roads to open.</p>';
     var byKind = { boss: [], elite: [], normal: [] };
-    Object.keys(ENEMIES).forEach(function (k) { byKind[ENEMIES[k].kind].push(k); });
+    Object.keys(ENEMIES).forEach(function (key) { byKind[ENEMIES[key].kind].push(key); });
     [['boss', 'Act bosses'], ['elite', 'Elites'], ['normal', 'Common foes']].forEach(function (pair) {
       var list = byKind[pair[0]];
       if (!list.length) return;
-      var seen = list.filter(function (k) { return codex.foes[k]; }).length;
+      var seen = list.filter(function (key) { return codex.foes[key]; }).length;
       html += '<div class="gl-group"><span class="lbl">' + pair[1] +
         ' \u00b7 ' + seen + '/' + list.length + '</span>' +
         list.map(glFoeEntry).join('') + '</div>';
     });
   } else if (glossaryTab === 'roads') {
     var omens = codex.omens || {};
-    var found = ACT_KEYS.filter(function (k) { return omens[k]; }).length;
+    var found = ACT_KEYS.filter(function (key) { return omens[key]; }).length;
     html += '<p class="gl-note">' + found + ' of ' + ACT_KEYS.length +
       ' roads have opened for you. Each one wrote itself down the first time ' +
       'it became reachable \u2014 what it says is what you noticed, not how it works.</p>';
-    html += '<div class="gl-group">' + ACT_KEYS.map(function (k) {
-      var act = ACTS[k], col = COLORS[act.color];
+    html += '<div class="gl-group">' + ACT_KEYS.map(function (key) {
+      var act = ACTS[key], col = COLORS[act.color];
       var swatch = '<span class="gl-swatch" style="background:' + col.hex + ';color:' + col.ink +
-        '">' + (omens[k] ? '\u2726' : '?') + '</span>';
-      if (!omens[k]) {
+        '">' + (omens[key] ? '\u2726' : '?') + '</span>';
+      if (!omens[key]) {
         return '<div class="gl-entry gl-locked">' + swatch +
           '<div class="gl-main"><span class="gl-name">A road you have not opened</span>' +
           '<div class="gl-text">Something has to change in your deck before this one will exist.</div>' +
@@ -1370,7 +1370,7 @@ function renderGlossary() {
       }
       return '<div class="gl-entry">' + swatch +
         '<div class="gl-main"><span class="gl-name">' + act.name + '</span>' +
-        '<div class="gl-text">' + ACT_OMENS[k] + '</div></div></div>';
+        '<div class="gl-text">' + ACT_OMENS[key] + '</div></div></div>';
     }).join('') + '</div>';
   } else {
     html += '<p class="gl-note">Every icon in the game, and what it means. ' +
@@ -1412,35 +1412,35 @@ function renderGlossary() {
       ['block', 'Blocks a tile.'],
       ['x2', 'Doubles something.']
     ];
-    html += '<div class="gl-group">' + ICON_TEXT.map(function (p2) {
-      return '<div class="gl-icon">' + C.glyphSvg(p2[0]) +
-        '<span class="gl-text">' + p2[1] + '</span></div>';
+    html += '<div class="gl-group">' + ICON_TEXT.map(function (iconPair) {
+      return '<div class="gl-icon">' + C.glyphSvg(iconPair[0]) +
+        '<span class="gl-text">' + iconPair[1] + '</span></div>';
     }).join('') + '</div>';
   }
   body.innerHTML = html;
 }
 
 function openGlossary() {
-  var g = document.getElementById('glossary');
-  if (!g) return;
+  var glossaryEl = document.getElementById('glossary');
+  if (!glossaryEl) return;
   renderGlossary();
-  g.hidden = false;
+  glossaryEl.hidden = false;
 }
 function closeGlossary() {
-  var g = document.getElementById('glossary');
-  if (g) g.hidden = true;
+  var glossaryEl = document.getElementById('glossary');
+  if (glossaryEl) glossaryEl.hidden = true;
 }
-function setGlossaryTab(t) {
-  glossaryTab = t;
-  Array.prototype.forEach.call(document.querySelectorAll('.gl-tab'), function (b) {
-    b.classList.toggle('on', b.getAttribute('data-tab') === t);
+function setGlossaryTab(tab) {
+  glossaryTab = tab;
+  Array.prototype.forEach.call(document.querySelectorAll('.gl-tab'), function (tabEl) {
+    tabEl.classList.toggle('on', tabEl.getAttribute('data-tab') === tab);
   });
   renderGlossary();
 }
 
 function nodeAt(depth, col) { return run.map[depth] && run.map[depth][col]; }
 function currentNodes() {
-  if (run.depth === 0) return run.map[0].map(function (n, i) { return i; });
+  if (run.depth === 0) return run.map[0].map(function (node, index) { return index; });
   return run.available;
 }
 
@@ -1461,9 +1461,9 @@ function show(screen) {
     var art = document.querySelector('.room-art');
     if (art) { art.style.backgroundPosition = ''; art.style.backgroundSize = ''; }
   }
-  ['map', 'act', 'victory', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (s) {
-    var el = els['screen_' + s];
-    if (el) el.hidden = (s !== screen);
+  ['map', 'act', 'victory', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (screenName) {
+    var el = els['screen_' + screenName];
+    if (el) el.hidden = (screenName !== screen);
   });
   applyGrey();
   renderRunBar();
@@ -1480,16 +1480,16 @@ function show(screen) {
 }
 
 function chip(colorKey, label) {
-  var c = colorInfo(colorKey);
-  return '<span class="chip" style="background:' + c.hex + ';color:' + c.ink + '">' + (label || c.name) + '</span>';
+  var colorDef = colorInfo(colorKey);
+  return '<span class="chip" style="background:' + colorDef.hex + ';color:' + colorDef.ink + '">' + (label || colorDef.name) + '</span>';
 }
 function cardMini(entry, extra) {
-  var d = CARDS[entry.id], c = colorInfo(d.color);
-  return '<div class="mini-card ' + d.type + (extra || '') + '" style="--card:' + c.hex + ';--card-ink:' + c.ink + '">' +
-    '<span class="mini-top">' + (d.type === 'unit' ? cardStrength(entry)
-      : d.type === 'hazard' ? 'HAZ' : d.type === 'curse' ? 'CRS' : 'SPL') + '</span>' +
+  var cardDef = CARDS[entry.id], colorDef = colorInfo(cardDef.color);
+  return '<div class="mini-card ' + cardDef.type + (extra || '') + '" style="--card:' + colorDef.hex + ';--card-ink:' + colorDef.ink + '">' +
+    '<span class="mini-top">' + (cardDef.type === 'unit' ? cardStrength(entry)
+      : cardDef.type === 'hazard' ? 'HAZ' : cardDef.type === 'curse' ? 'CRS' : 'SPL') + '</span>' +
     '<span class="mini-name">' + cardName(entry) + '</span>' +
-    '<span class="mini-text">' + d.text + '</span></div>';
+    '<span class="mini-text">' + cardDef.text + '</span></div>';
 }
 
 /* Every curse that lands in your deck takes a little colour out of the world.
@@ -1501,17 +1501,17 @@ function gainCurse(id) {
   return CARDS[id];
 }
 function applyGrey() {
-  var n = (run && run.corruption) || 0;
-  var sat = Math.max(0.28, 1 - n * 0.075);
+  var corruption = (run && run.corruption) || 0;
+  var sat = Math.max(0.28, 1 - corruption * 0.075);
   document.documentElement.style.setProperty('--sat', sat.toFixed(3));
   // the room withers on its own curve, a little ahead of the interface
-  document.documentElement.style.setProperty('--ash', Math.min(1, n / 8).toFixed(3));
+  document.documentElement.style.setProperty('--ash', Math.min(1, corruption / 8).toFixed(3));
 }
 
 function renderRunBar() {
   if (run.lives < 0) run.lives = 0;
   var hearts = '';
-  for (var i = 0; i < run.maxLives; i++) hearts += '<span class="life' + (i < run.lives ? '' : ' lost') + '">\u25c6</span>';
+  for (var index = 0; index < run.maxLives; index++) hearts += '<span class="life' + (index < run.lives ? '' : ' lost') + '">\u25c6</span>';
   els.runLives.innerHTML = hearts;
   els.runGold.textContent = run.gold;
   /* Between acts the old act's depth is meaningless and reading "13 / 13"
@@ -1522,9 +1522,9 @@ function renderRunBar() {
   if (actCell) actCell.textContent = ACTS[run.act] ? ACTS[run.act].name.replace(/^The /, '') : '\u2014';
   els.deckBtnCount.textContent = run.deck.length;
   els.relicBtnCount.textContent = run.relics.length;
-  run.relics = run.relics.filter(function (k) { return !!RELICS[k]; });
+  run.relics = run.relics.filter(function (key) { return !!RELICS[key]; });
   els.runRelics.innerHTML = run.relics.length
-    ? run.relics.map(function (k) { return '<span class="relic-pip" title="' + RELICS[k].text + '">' + RELICS[k].name + '</span>'; }).join('')
+    ? run.relics.map(function (key) { return '<span class="relic-pip" title="' + RELICS[key].text + '">' + RELICS[key].name + '</span>'; }).join('')
     : '<span class="muted" style="font-size:11px">No relics yet</span>';
 }
 
@@ -1532,22 +1532,22 @@ function renderRunBar() {
    reachable from any screen including mid-battle. */
 function renderDeckModal() {
   var byColour = {};
-  run.deck.forEach(function (c) {
-    var k = CARDS[c.id].color || 'colourless';
-    (byColour[k] = byColour[k] || []).push(c);
+  run.deck.forEach(function (entry) {
+    var colorKey = CARDS[entry.id].color || 'colourless';
+    (byColour[colorKey] = byColour[colorKey] || []).push(entry);
   });
   var order = C.COLOR_KEYS.concat(['colourless']);
-  var groups = order.filter(function (k) { return byColour[k]; }).map(function (k) {
-    var label = k === 'colourless' ? 'Colourless' : COLORS[k].name;
-    return '<div class="deck-group"><span class="lbl">' + label + ' · ' + byColour[k].length + '</span>' +
-      '<div class="deck-grid">' + byColour[k].map(function (c) { return cardMini(c); }).join('') + '</div></div>';
+  var groups = order.filter(function (colorKey) { return byColour[colorKey]; }).map(function (colorKey) {
+    var label = colorKey === 'colourless' ? 'Colourless' : COLORS[colorKey].name;
+    return '<div class="deck-group"><span class="lbl">' + label + ' · ' + byColour[colorKey].length + '</span>' +
+      '<div class="deck-grid">' + byColour[colorKey].map(function (entry) { return cardMini(entry); }).join('') + '</div></div>';
   }).join('');
 
   els.deckModalBody.innerHTML =
     '<div class="dm-section"><h3>Relics · ' + run.relics.length + '</h3>' +
     (run.relics.length
-      ? run.relics.map(function (k) {
-          return '<div class="relic-line"><b>' + RELICS[k].name + '</b><span>' + RELICS[k].text + '</span></div>';
+      ? run.relics.map(function (key) {
+          return '<div class="relic-line"><b>' + RELICS[key].name + '</b><span>' + RELICS[key].text + '</span></div>';
         }).join('')
       : '<p class="muted" style="font-size:12.5px;margin:0">No relics yet. Elites and bosses always drop one.</p>') +
     '</div>' +
