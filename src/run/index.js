@@ -2794,27 +2794,27 @@ function renderReward() {
 function rollShop() {
   var cards = [], guard = 0, stock = offerableCards();
   while (cards.length < 5 && guard++ < 200) {
-    var id = stock[Math.floor(rnd() * stock.length)];
-    if (cards.some(function (c) { return c.id === id; })) continue;
-    cards.push({ id: id, up: false });
+    var cardId = stock[Math.floor(rnd() * stock.length)];
+    if (cards.some(function (entry) { return entry.id === cardId; })) continue;
+    cards.push({ id: cardId, up: false });
   }
-  var avail = RELIC_KEYS.filter(function (k) { return !hasRelic(run.relics, k); });
+  var avail = RELIC_KEYS.filter(function (key) { return !hasRelic(run.relics, key); });
   shuffle(avail);
-  cards.forEach(function (c) { discoverCard(c.id); });
+  cards.forEach(function (entry) { discoverCard(entry.id); });
   run.shop = { cards: cards, relics: avail.slice(0, 2), removalUsed: false, sold: {} };
 }
 function renderShop() {
-  var s = run.shop;
-  els.shopCards.innerHTML = s.cards.map(function (c, i) {
-    var price = CARDS[c.id].cost || 30;
-    var owned = s.sold['c' + i];
-    return '<button class="shop-item" data-c="' + i + '"' + (owned || run.gold < price ? ' disabled' : '') + '>' +
-      cardMini(c) + '<span class="price">' + (owned ? 'Sold' : price + 'g') + '</span></button>';
+  var shop = run.shop;
+  els.shopCards.innerHTML = shop.cards.map(function (entry, index) {
+    var price = CARDS[entry.id].cost || 30;
+    var owned = shop.sold['c' + index];
+    return '<button class="shop-item" data-c="' + index + '"' + (owned || run.gold < price ? ' disabled' : '') + '>' +
+      cardMini(entry) + '<span class="price">' + (owned ? 'Sold' : price + 'g') + '</span></button>';
   }).join('');
-  els.shopRelics.innerHTML = s.relics.map(function (k, i) {
-    var price = shopRelicPrice(k), owned = s.sold['r' + i];
-    return '<button class="shop-item" data-r="' + i + '"' + (owned || run.gold < price ? ' disabled' : '') + '>' +
-      '<div class="mini-card relicbox"><span class="mini-name">' + RELICS[k].name + '</span><span class="mini-text">' + RELICS[k].text + '</span></div>' +
+  els.shopRelics.innerHTML = shop.relics.map(function (relicKey, index) {
+    var price = shopRelicPrice(relicKey), owned = shop.sold['r' + index];
+    return '<button class="shop-item" data-r="' + index + '"' + (owned || run.gold < price ? ' disabled' : '') + '>' +
+      '<div class="mini-card relicbox"><span class="mini-name">' + RELICS[relicKey].name + '</span><span class="mini-text">' + RELICS[relicKey].text + '</span></div>' +
       '<span class="price">' + (owned ? 'Sold' : price + 'g') + '</span></button>';
   }).join('');
   /* Removal is repeatable now, at a price that climbs each time. One removal
@@ -2822,52 +2822,52 @@ function renderShop() {
      it flatly unlimited would trivialise deck size instead. A rising cost
      lets a player who is committed to a lean deck spend their whole purse on
      it, while still charging real money for the privilege. */
-  var cost = removalCost(s), left = removalsLeft(s);
+  var cost = removalCost(shop), left = removalsLeft(shop);
   els.shopRemove.disabled = run.gold < cost || run.deck.length <= 5 || left <= 0;
   els.shopRemove.textContent = left <= 0 ? 'This bench has cut all it will'
     : run.deck.length <= 5 ? 'Deck is as lean as it goes'
-    : s.removing ? 'Pick a card to burn \u2014 or tap to cancel'
+    : shop.removing ? 'Pick a card to burn \u2014 or tap to cancel'
     : 'Remove a card \u2014 ' + cost + 'g' + (left < SHOP_REMOVAL_LIMIT ? ' (last one here)' : '');
-  els.shopRemove.classList.toggle('armed', !!s.removing);
+  els.shopRemove.classList.toggle('armed', !!shop.removing);
 
   /* The picker lives under the button rather than in a modal: it is a deck
      view with one extra job, and the deck is already the thing the player is
      looking at when they decide something has to go. */
   var pick = document.getElementById('shopRemovePick');
   if (pick) {
-    pick.hidden = !s.removing || left <= 0;
+    pick.hidden = !shop.removing || left <= 0;
     pick.innerHTML = pick.hidden ? '' :
       '<p class="screen-lead">' + cost + ' gold and it is gone from the run for good. ' +
       (left > 1 ? 'This bench will cut ' + left + ' cards in all.' : 'This is the last cut on offer here.') + '</p>' +
-      '<div class="deck-grid">' + run.deck.map(function (c, i) {
-        return '<button class="swap-card" data-burn="' + i + '">' + cardMini(c) + '</button>';
+      '<div class="deck-grid">' + run.deck.map(function (entry, index) {
+        return '<button class="swap-card" data-burn="' + index + '">' + cardMini(entry) + '</button>';
       }).join('') + '</div>';
-    Array.prototype.forEach.call(pick.querySelectorAll('[data-burn]'), function (b) {
-      b.addEventListener('click', function () {
-        if (run.gold < cost || run.deck.length <= 5 || removalsLeft(s) <= 0) return;
+    Array.prototype.forEach.call(pick.querySelectorAll('[data-burn]'), function (btn) {
+      btn.addEventListener('click', function () {
+        if (run.gold < cost || run.deck.length <= 5 || removalsLeft(shop) <= 0) return;
         run.gold -= cost;
-        run.deck.splice(+b.getAttribute('data-burn'), 1);
-        s.removals = (s.removals || 0) + 1; s.removing = false;
+        run.deck.splice(+btn.getAttribute('data-burn'), 1);
+        shop.removals = (shop.removals || 0) + 1; shop.removing = false;
         renderRunBar(); show('shop');
       });
     });
   }
 
-  Array.prototype.forEach.call(els.shopCards.querySelectorAll('.shop-item'), function (b) {
-    b.addEventListener('click', function () {
-      var i = +b.getAttribute('data-c'), price = CARDS[s.cards[i].id].cost || 30;
+  Array.prototype.forEach.call(els.shopCards.querySelectorAll('.shop-item'), function (btn) {
+    btn.addEventListener('click', function () {
+      var index = +btn.getAttribute('data-c'), price = CARDS[shop.cards[index].id].cost || 30;
       if (run.gold < price) return;
-      run.gold -= price; s.sold['c' + i] = true;
-      run.deck.push(s.cards[i]);
+      run.gold -= price; shop.sold['c' + index] = true;
+      run.deck.push(shop.cards[index]);
       renderRunBar(); renderShop();
     });
   });
-  Array.prototype.forEach.call(els.shopRelics.querySelectorAll('.shop-item'), function (b) {
-    b.addEventListener('click', function () {
+  Array.prototype.forEach.call(els.shopRelics.querySelectorAll('.shop-item'), function (btn) {
+    btn.addEventListener('click', function () {
       // same price function the shelf displays, so the two cannot disagree
-      var i = +b.getAttribute('data-r'), k = s.relics[i], price = shopRelicPrice(k);
+      var index = +btn.getAttribute('data-r'), relicKey = shop.relics[index], price = shopRelicPrice(relicKey);
       if (run.gold < price) return;
-      run.gold -= price; s.sold['r' + i] = true; run.relics.push(k);
+      run.gold -= price; shop.sold['r' + index] = true; run.relics.push(relicKey);
       renderRunBar(); renderShop();
     });
   });
