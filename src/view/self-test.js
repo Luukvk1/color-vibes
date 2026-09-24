@@ -1,11 +1,13 @@
-/* The self-test suite: 305 checks covering the rules, board evaluation, the
+/* The self-test suite: 304 checks covering the rules, board evaluation, the
    colour gate, saves, map generation, AI behaviour and layout invariants. Run
    it from the in-game menu, or from a console with:
-     CV_BATTLE.selfTest().filter(t => !t.pass)
+     (await ColorVibes.selfTest()).filter(t => !t.pass)
+   Under Node, `npm test` runs everything here that needs no page.
 
-   It is one self-contained function that only reads battle scope, so it takes
-   that scope as a context object rather than closing over it — which is what
-   lets 3,500 lines of tests live outside the module they test. */
+   It takes what it works on as a context object (see test-context.js) rather
+   than closing over it, which is what lets 3,500 lines of tests live outside the
+   modules they test. Each check is a function run on its own, so one that throws
+   is a failure with a reason, not the end of the suite. */
 
 export function createSelfTest(ctx) {
   const { S: getState, sizeBoardStage, render, snapshotForRewind, markRewindPoint, restoreRewind, canRewind, pass, showPassPuck, aiSkill, shapedLead, reservePrice, concedeBonus, spendCost, laneShapedDelta, decideOpponentMove, endBattle, C, RUN, COLORS, COLOR_KEYS, CARDS, RELICS, ENEMIES, ROW_INFO, ROWS, PLAYER, ENEMY, GEO, eachUnit, lanesOf, els, tileEls, SAFE_LEAD } = ctx;
@@ -15,7 +17,14 @@ export function createSelfTest(ctx) {
      =================================================================== */
   function selfTest() {
     var out = [];
-    function check(name, pass, detail) { out.push({ name: name, pass: !!pass, detail: detail || '' }); }
+    /* Each check is a function, run at once and on its own: one that throws is a
+       failure with a reason, not the end of the suite. */
+    function check(name, run, detail) {
+      var pass = false, note = '', threw = null;
+      try { pass = run(); note = detail ? detail() : ''; }
+      catch (error) { threw = error; note = 'threw: ' + error.message; }
+      out.push({ name: name, pass: !!pass && !threw, detail: note || '', threw: threw ? String(threw.message) : null });
+    }
     function fresh(relics) {
       return { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
@@ -28,25 +37,25 @@ export function createSelfTest(ctx) {
     }
 
     // --- board and lanes still intact ---
-    check('Board has 18 tiles', GEO.length === 18);
+    check('Board has 18 tiles', function () { return (GEO.length === 18); });
     check('Row 1/2/3 serve 1/2/3 lanes',
-      lanesOf('row1', 2).length === 1 && lanesOf('row2', 1).length === 2 && lanesOf('row3', 0).length === 3);
-    check('Colours are balanced three-and-three', COLOR_KEYS.every(function (key) {
+      function () { return (lanesOf('row1', 2).length === 1 && lanesOf('row2', 1).length === 2 && lanesOf('row3', 0).length === 3); });
+    check('Colours are balanced three-and-three', function () { return (COLOR_KEYS.every(function (key) {
       return C.EFFECTIVE[key].length === 3 && COLOR_KEYS.filter(function (a) { return C.isEffective(a, key); }).length === 3;
-    }));
+    })); });
 
     // --- mixing baseline ---
     var battleState = fresh();
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
     var res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-    check('Plain mix is A + B + 1', res.color === 'magenta' && res.strength === 8, res.color + ' ' + res.strength);
-    check('A normal mix opens the chain at 1', battleState.chains.bottom === 1, 'chain ' + battleState.chains.bottom);
+    check('Plain mix is A + B + 1', function () { return (res.color === 'magenta' && res.strength === 8); }, function () { return (res.color + ' ' + res.strength); });
+    check('A normal mix opens the chain at 1', function () { return (battleState.chains.bottom === 1); }, function () { return ('chain ' + battleState.chains.bottom); });
 
     // --- relic: Stable Fusion ---
     battleState = fresh(['stable_fusion']);
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
     res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-    check('Stable Fusion makes mixing add 2', res.strength === 9, 'got ' + res.strength);
+    check('Stable Fusion makes mixing add 2', function () { return (res.strength === 9); }, function () { return ('got ' + res.strength); });
 
     // --- relic: Prism Core, first mix only ---
     battleState = fresh(['prism_core']);
@@ -55,23 +64,23 @@ export function createSelfTest(ctx) {
     var first = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
     var second = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
     check('Prism Core boosts only the first mix of the round',
-      first.strength === 10 && second.strength === 8, first.strength + ' then ' + second.strength);
+      function () { return (first.strength === 10 && second.strength === 8); }, function () { return (first.strength + ' then ' + second.strength); });
 
     // --- relic: Double Rainbow ---
     battleState = fresh(['double_rainbow']);
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 4);
     RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
-    check('Double Rainbow makes the first Free Mix worth 3 links', battleState.chains.bottom === 3, 'chain ' + battleState.chains.bottom);
+    check('Double Rainbow makes the first Free Mix worth 3 links', function () { return (battleState.chains.bottom === 3); }, function () { return ('chain ' + battleState.chains.bottom); });
 
     // --- Black Singularity scales off the chain ---
     battleState = fresh();
     battleState.chains.bottom = 2;                       // two links already built this turn
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 3); put(battleState, 'bottom', 'row2', 0, 'black_singularity', 6);
     res = RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, true);
-    check('Black Singularity adds 2 per earlier link', res.strength === 3 + 6 + 2 + (2 * 2), 'got ' + res.strength);
+    check('Black Singularity adds 2 per earlier link', function () { return (res.strength === 3 + 6 + 2 + (2 * 2)); }, function () { return ('got ' + res.strength); });
 
     // --- Black Devourer takes the CURRENT (aura-inclusive) strength, and eats the card for good ---
-    check('Black Devourer takes the effective strength, not just the stored fields', (function () {
+    check('Black Devourer takes the effective strength, not just the stored fields', function () { return ((function () {
       /* v.strength + v.temp never included what a neighbour's aura was
          currently lending the target \u2014 a unit standing next to a Green
          Gardener reads larger on the board than that sum says, and the old
@@ -89,8 +98,8 @@ export function createSelfTest(ctx) {
       var got = battleState2.board[PLAYER].row2[1].strength + (battleState2.board[PLAYER].row2[1].temp || 0);
       // devourer's own 3 + red_brute's raw 5 would be 8; the aura must push it past that
       return got > 8;
-    })());
-    check('Devouring permanently removes the meal from the run deck', (function () {
+    })()); });
+    check('Devouring permanently removes the meal from the run deck', function () { return ((function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -111,8 +120,8 @@ export function createSelfTest(ctx) {
                !afterDeck.some(function (c) { return c.id === 'green_gardener'; });
       RUN.setState(savedState); RUN.setRun(saved);
       return ok;
-    })());
-    check('Devouring keeps every other card\\u2019s deck slot correctly synced', (function () {
+    })()); });
+    check('Devouring keeps every other card\\u2019s deck slot correctly synced', function () { return ((function () {
       /* The one real risk in a mid-battle deck splice: any OTHER card still
          holding a deckIndex reference — in hand, in the draw pile, or already
          on the board — silently points at the wrong slot for the rest of the
@@ -143,8 +152,8 @@ export function createSelfTest(ctx) {
       var stillBlueScoutSlot = RUN.getRun().deck[idx] && RUN.getRun().deck[idx].id !== 'yellow_spark';
       RUN.setState(savedState); RUN.setRun(saved);
       return slotIsBlueScout && stillBlueScoutSlot;
-    })());
-    check('Devouring survives a save and reload once the battle ends', (function () {
+    })()); });
+    check('Devouring survives a save and reload once the battle ends', function () { return ((function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
@@ -171,10 +180,10 @@ export function createSelfTest(ctx) {
       RUN.clearSave();
       RUN.setState(savedState); RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
 
     // --- a targeted spell with nothing to target must never auto-resolve ---
-    check('Catalyst on an empty board is marked unplayable, not auto-resolved', (function () {
+    check('Catalyst on an empty board is marked unplayable, not auto-resolved', function () { return ((function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -197,8 +206,8 @@ export function createSelfTest(ctx) {
          immediately with no picks: the card vanished, onPlay did nothing, and
          there was never a chance to even read it, let alone back out. */
       return markedDead && stillInHand && noPending;
-    })());
-    check('Catalyst with units present still begins targeting normally', (function () {
+    })()); });
+    check('Catalyst with units present still begins targeting normally', function () { return ((function () {
       var saved = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -215,16 +224,16 @@ export function createSelfTest(ctx) {
       var beganTargeting = !!getState().pending;
       RUN.setState(savedState); RUN.setRun(saved); RUN.show('map');
       return notMarkedDead && beganTargeting;
-    })());
+    })()); });
 
     // --- a numeric mix hook must survive fusion as a number, not a function ---
-    check('A fused card\\u2019s onMixConsumed/onMixConsumedChain stay numeric', (function () {
+    check('A fused card\\u2019s onMixConsumed/onMixConsumedChain stay numeric', function () { return ((function () {
       var f1 = C.fuseCards({ id: 'black_voidling', up: false }, { id: 'red_scout', up: false });
       var f2 = C.fuseCards({ id: 'black_singularity', up: false }, { id: 'red_scout', up: false });
       return typeof CARDS[f1.id].onMixConsumed === 'number' &&
              typeof CARDS[f2.id].onMixConsumedChain === 'number';
-    })());
-    check('Mixing a fused onMixConsumed card produces a real number, not NaN or a string', (function () {
+    })()); });
+    check('Mixing a fused onMixConsumed card produces a real number, not NaN or a string', function () { return ((function () {
       /* This is the exact corruption a player hit: onMixConsumed/onMixConsumedChain
          are plain numbers on their home cards, but every hook in the generic
          inherited list used to be composed as a callable function regardless.
@@ -242,8 +251,8 @@ export function createSelfTest(ctx) {
       return typeof out.strength === 'number' && !isNaN(out.strength) &&
              typeof battleState2.board[PLAYER].row1[0].strength === 'number' &&
              !isNaN(afterDamage);
-    })());
-    check('Every inherited hook is consistently one type across every card that carries it', (function () {
+    })()); });
+    check('Every inherited hook is consistently one type across every card that carries it', function () { return ((function () {
       /* The actual gap: a NUMBER_HOOKS registry already existed for exactly
          this failure mode, and two hooks were simply left off it. This checks
          the registry against reality instead of trusting it stays complete —
@@ -260,7 +269,7 @@ export function createSelfTest(ctx) {
         });
         return Object.keys(types).length <= 1;
       });
-    })());
+    })()); });
 
     // --- Volatile Fusion cascades and terminates ---
     battleState = fresh(['volatile_fusion']);
@@ -270,40 +279,40 @@ export function createSelfTest(ctx) {
     var notes = [];
     RUN.doMixCascade(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false, notes);
     var left = 0; eachUnit(battleState.board, 'bottom', function () { left++; });
-    check('Volatile Fusion cascades without looping forever', battleState.chains.bottom >= 1 && left >= 1 && left <= 6,
-      'chain ' + battleState.chains.bottom + ', ' + left + ' units left');
+    check('Volatile Fusion cascades without looping forever', function () { return (battleState.chains.bottom >= 1 && left >= 1 && left <= 6); },
+      function () { return ('chain ' + battleState.chains.bottom + ', ' + left + ' units left'); });
 
     // --- relic: Colour Lens ---
     battleState = fresh(['color_lens']);
     put(battleState, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
     var ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['color_lens'] });
     check('Colour Lens lifts the best effective lane to x2.5',
-      ev.lanes[0].bottom.multiplier === 2.5 && ev.lanes[0].bottom.final === 10, 'x' + ev.lanes[0].bottom.multiplier + ' = ' + ev.lanes[0].bottom.final);
+      function () { return (ev.lanes[0].bottom.multiplier === 2.5 && ev.lanes[0].bottom.final === 10); }, function () { return ('x' + ev.lanes[0].bottom.multiplier + ' = ' + ev.lanes[0].bottom.final); });
 
     // --- relic: Glass Cannon ---
     battleState = fresh(['glass_cannon']);
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 2);
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['glass_cannon'] });
-    check('Glass Cannon adds 1 to a frontline unit', ev.lanes[0].bottom.frontStrength === 3, 'front ' + ev.lanes[0].bottom.frontStrength);
+    check('Glass Cannon adds 1 to a frontline unit', function () { return (ev.lanes[0].bottom.frontStrength === 3); }, function () { return ('front ' + ev.lanes[0].bottom.frontStrength); });
     RUN.buildApi(battleState, 'bottom', []).damage('bottom', 'row1', 0, 1);
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['glass_cannon'] });
-    check('Glass Cannon cracks hard when damaged', ev.lanes[0].bottom.frontStrength === 0,
-      'front now ' + ev.lanes[0].bottom.frontStrength);
+    check('Glass Cannon cracks hard when damaged', function () { return (ev.lanes[0].bottom.frontStrength === 0); },
+      function () { return ('front now ' + ev.lanes[0].bottom.frontStrength); });
 
     // --- relic: Empty Palette ---
     battleState = fresh(['empty_palette']);
     battleState.hazards.bottom.row1 = 'colorless';
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { relics: ['empty_palette'] });
-    check('Empty Palette pays 1.25x for a colourless frontline', ev.lanes[0].bottom.multiplier === 1.25,
-      'x' + ev.lanes[0].bottom.multiplier);
+    check('Empty Palette pays 1.25x for a colourless frontline', function () { return (ev.lanes[0].bottom.multiplier === 1.25); },
+      function () { return ('x' + ev.lanes[0].bottom.multiplier); });
 
     // --- relic: Heavy Brush on placement ---
     battleState = fresh(['heavy_brush']);
     RUN.resolveCard(battleState, 'bottom', C.makeCard('green_titan'), { row: 'row3', index: 0 }, []);
-    check('Heavy Brush adds 1 when entering Row 3', battleState.board.bottom.row3[0].strength === 6, 'got ' + battleState.board.bottom.row3[0].strength);
+    check('Heavy Brush adds 1 when entering Row 3', function () { return (battleState.board.bottom.row3[0].strength === 6); }, function () { return ('got ' + battleState.board.bottom.row3[0].strength); });
     RUN.resolveCard(battleState, 'bottom', C.makeCard('green_gardener'), { row: 'row2', index: 0 }, []);
-    check('Heavy Brush does nothing outside Row 3', battleState.board.bottom.row2[0].strength === 3);
+    check('Heavy Brush does nothing outside Row 3', function () { return (battleState.board.bottom.row2[0].strength === 3); });
 
     // --- relic: Black Paint ---
     battleState = fresh(['black_paint']);
@@ -312,38 +321,38 @@ export function createSelfTest(ctx) {
        the mixing rule now redirects instead of allowing through. */
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 3, 'yellow'); put(battleState, 'bottom', 'row2', 0, 'blue_scout', 3, 'cyan');
     RUN.applyMix(battleState, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false);
-    check('Black Paint rewards making Black', battleState.board.bottom.row1[0].color === 'black' && battleState.board.bottom.row1[0].temp === 3,
-      'temp ' + battleState.board.bottom.row1[0].temp);
+    check('Black Paint rewards making Black', function () { return (battleState.board.bottom.row1[0].color === 'black' && battleState.board.bottom.row1[0].temp === 3); },
+      function () { return ('temp ' + battleState.board.bottom.row1[0].temp); });
 
     // --- relic: Echo Chamber ---
     battleState = fresh(['echo_chamber']);
     battleState.decks.bottom = [C.makeCard('red_brute'), C.makeCard('red_brute'), C.makeCard('red_brute')];
     RUN.buildApi(battleState, 'bottom', []).draw('bottom', 1);
-    check('Echo Chamber doubles the first draw of the round', battleState.hands.bottom.length === 2, 'drew ' + battleState.hands.bottom.length);
+    check('Echo Chamber doubles the first draw of the round', function () { return (battleState.hands.bottom.length === 2); }, function () { return ('drew ' + battleState.hands.bottom.length); });
     RUN.buildApi(battleState, 'bottom', []).draw('bottom', 1);
-    check('Echo Chamber only fires once a round', battleState.hands.bottom.length === 3, 'now ' + battleState.hands.bottom.length);
+    check('Echo Chamber only fires once a round', function () { return (battleState.hands.bottom.length === 3); }, function () { return ('now ' + battleState.hands.bottom.length); });
 
     // --- relic: Chromatic Memory ---
     battleState = fresh(['chromatic_memory']);
     put(battleState, 'bottom', 'row1', 0, 'red_brute', 8);
     RUN.buildApi(battleState, 'bottom', []).recolor('bottom', { row: 'row1', index: 0 }, 'cyan');
-    check('Chromatic Memory pays a quarter on a repaint', battleState.board.bottom.row1[0].temp === 2, 'temp ' + battleState.board.bottom.row1[0].temp);
+    check('Chromatic Memory pays a quarter on a repaint', function () { return (battleState.board.bottom.row1[0].temp === 2); }, function () { return ('temp ' + battleState.board.bottom.row1[0].temp); });
 
     // --- upgrades ---
-    check('An upgraded unit is 1 stronger', C.cardStrength({ id: 'red_brute', up: true }) === 3);
-    check('Upgrade marks the name', C.cardName({ id: 'red_brute', up: true }) === 'Red Brute+');
+    check('An upgraded unit is 1 stronger', function () { return (C.cardStrength({ id: 'red_brute', up: true }) === 3); });
+    check('Upgrade marks the name', function () { return (C.cardName({ id: 'red_brute', up: true }) === 'Red Brute+'); });
 
     // --- enemy modifiers ---
     battleState = fresh();
     put(battleState, 'top', 'row1', 0, 'black_voidling', 2, 'black');
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { colorBonus: { black: 1 } } });
-    check('Colour bonus modifiers apply to the enemy', ev.strengthOf(ev.get('top', 'row1', 0)) === 3);
+    check('Colour bonus modifiers apply to the enemy', function () { return (ev.strengthOf(ev.get('top', 'row1', 0)) === 3); });
     battleState = fresh();
     put(battleState, 'bottom', 'row1', 0, 'cyan_cleanser', 4); put(battleState, 'top', 'row1', 0, 'red_brute', 2);
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { punishEffective: 2 } });
-    check('Chromatic Knight punishes your effective lanes', ev.lanes[0].top.frontStrength === 4,
-      'enemy front ' + ev.lanes[0].top.frontStrength);
-    check('The Knight bonus does not compound across lanes', (function () {
+    check('Chromatic Knight punishes your effective lanes', function () { return (ev.lanes[0].top.frontStrength === 4); },
+      function () { return ('enemy front ' + ev.lanes[0].top.frontStrength); });
+    check('The Knight bonus does not compound across lanes', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // effective in lane 2
       put(battleState2, 'bottom', 'row1', 2, 'cyan_cleanser', 4);   // effective in lane 3
@@ -351,8 +360,8 @@ export function createSelfTest(ctx) {
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       // each lane gets +2 once, and the unit itself is untouched
       return e2.lanes[1].top.frontStrength === 5 && e2.lanes[2].top.frontStrength === 5 && e2.raw.top === 6;
-    })());
-    check('The Knight bonus does not leak into non-effective lanes', (function () {
+    })()); });
+    check('The Knight bonus does not leak into non-effective lanes', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // Cyan beats Red — effective
       put(battleState2, 'bottom', 'row1', 2, 'green_gardener', 4);  // Green does not
@@ -360,24 +369,24 @@ export function createSelfTest(ctx) {
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       return e2.lanes[1].bottom.effective === true && e2.lanes[2].bottom.effective === false &&
              e2.lanes[1].top.frontStrength === 5 && e2.lanes[2].top.frontStrength === 3;
-    })());
-    check('The Knight gains nothing while you are not effective', (function () {
+    })()); });
+    check('The Knight gains nothing while you are not effective', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'green_gardener', 4);
       put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { punishEffective: 2 } });
       return e2.lanes[1].top.frontStrength === 3;
-    })());
+    })()); });
     battleState = fresh();
     put(battleState, 'top', 'row1', 0, 'red_brute', 2, 'red');
     ev = C.evaluateBoard(battleState.board, battleState.hazards, { enemyMod: { rotatingColor: 2 }, spectrumColor: 'red' });
-    check('The Spectrum boosts its chosen colour', ev.strengthOf(ev.get('top', 'row1', 0)) === 4);
+    check('The Spectrum boosts its chosen colour', function () { return (ev.strengthOf(ev.get('top', 'row1', 0)) === 4); });
 
     // --- run structure ---
     var map = RUN.buildMap();
-    check('The act runs 13 rows', map.length === 13);
+    check('The act runs 13 rows', function () { return (map.length === 13); });
     check('Row 13 is the boss; row 9 never draws a crossing to offer the elite-skip',
-      (function () {
+      function () { return ((function () {
         var map2 = RUN.buildMap('green', true);
         if (map2[12][0].type !== 'boss') return false;
         var sawChoice = 0, entries = 0, canSkip = 0, crossings = 0;
@@ -414,8 +423,8 @@ export function createSelfTest(ctx) {
         // the guarantee has to actually get exercised, cost nothing in crossings,
         // and still carry the skip option for a real majority of entries
         return sawChoice > 0 && crossings === 0 && canSkip / entries > 0.5;
-      })());
-    check('The volatile branch\\u2019s orphan reroute keeps crossings rare, not free', (function () {
+      })()); });
+    check('The volatile branch\\u2019s orphan reroute keeps crossings rare, not free', function () { return ((function () {
       /* This site cannot refuse the way the elite-skip patch can \u2014 the node it
          is fixing just lost its only edge, and leaving it with none at all is a
          dead end. So it always takes the ranked least-bad choice instead, which
@@ -440,8 +449,8 @@ export function createSelfTest(ctx) {
         mapsChecked++;
       }
       return mapsChecked === 400 && crossings < 400;   // averaging under one crossing per map
-    })());
-    check('The map screen lets the room show through, and stays readable doing it', (function () {
+    })()); });
+    check('The map screen lets the room show through, and stays readable doing it', function () { return ((function () {
       var box = document.querySelector('#screen-map .panelbox');
       if (!box) return false;
       var bg = getComputedStyle(box).backgroundColor;
@@ -452,8 +461,8 @@ export function createSelfTest(ctx) {
       var parts = rgbaMatch[1].split(',').map(function (part) { return parseFloat(part); });
       var alpha = parts.length > 3 ? parts[3] : 1;
       return alpha > 0 && alpha < 1;
-    })());
-    check('The first act opens with three unavoidable battles', (function () {
+    })()); });
+    check('The first act opens with three unavoidable battles', function () { return ((function () {
       for (var attempt = 0; attempt < 25; attempt++) {
         var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], true);
         for (var depth = 0; depth < 3; depth++) {
@@ -461,8 +470,8 @@ export function createSelfTest(ctx) {
         }
       }
       return true;
-    })());
-    check('Later acts branch straight away', (function () {
+    })()); });
+    check('Later acts branch straight away', function () { return ((function () {
       var branchedEarly = 0;
       for (var attempt = 0; attempt < 40; attempt++) {
         var map2 = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], false);
@@ -478,8 +487,8 @@ export function createSelfTest(ctx) {
          columns a row uses — but a run of forty that never branched early would
          mean the plan had not actually changed. */
       return branchedEarly > 20;
-    })());
-    check('A run gets the tutorial corridor once, not once per act', (function () {
+    })()); });
+    check('A run gets the tutorial corridor once, not once per act', function () { return ((function () {
       var run = RUN.newRun();
       var first = run.map;
       var isCorridor = function (map) {
@@ -490,9 +499,9 @@ export function createSelfTest(ctx) {
       run.actsCleared = ['green'];
       var second = RUN.buildMap('red', run.actsCleared.length === 0);
       return !isCorridor(second);
-    })());
+    })()); });
     check('The warm-up handicap covers exactly those three fights',
-      RUN.EASE_IN_BATTLES === 3 && RUN.easeInHand(2) > 0 && RUN.easeInHand(3) === 0);
+      function () { return (RUN.EASE_IN_BATTLES === 3 && RUN.easeInHand(2) > 0 && RUN.easeInHand(3) === 0); });
     var reach = [0], ok = true;
     for (var depth = 0; depth < map.length - 1; depth++) {
       var nextReach = {};
@@ -500,13 +509,13 @@ export function createSelfTest(ctx) {
       reach = Object.keys(nextReach).map(Number);
       if (!reach.length) { ok = false; break; }
     }
-    check('Every path reaches the boss', ok);
-    check('Starting deck is ten cards', RUN.startingDeck().length === C.DECK_SIZE);
-    check('A run holds one merged deck and no reserve', (function () {
+    check('Every path reaches the boss', function () { return (ok); });
+    check('Starting deck is ten cards', function () { return (RUN.startingDeck().length === C.DECK_SIZE); });
+    check('A run holds one merged deck and no reserve', function () { return ((function () {
       var run = RUN.newRun();
       return Array.isArray(run.deck) && run.deck.length === C.DECK_SIZE && run.reserve === undefined;
-    })());
-    check('Taking a reward grows the deck past ten', (function () {
+    })()); });
+    check('Taking a reward grows the deck past ten', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -514,28 +523,28 @@ export function createSelfTest(ctx) {
       var ok = run.deck.length === 11;
       RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
     // --- act progression (Act Progression doc, Option 1) ---
-    check('Primaries are always reachable, secondaries never at the start', (function () {
+    check('Primaries are always reachable, secondaries never at the start', function () { return ((function () {
       var deck = RUN.startingDeck();
       return C.actUnlocked('red', deck) && C.actUnlocked('green', deck) && C.actUnlocked('blue', deck) &&
              !C.actUnlocked('yellow', deck) && !C.actUnlocked('magenta', deck) &&
              !C.actUnlocked('cyan', deck) && !C.actUnlocked('black', deck);
-    })());
-    check('A colour opens its act at exactly x = 2, not one card sooner', (function () {
+    })()); });
+    check('A colour opens its act at exactly x = 2, not one card sooner', function () { return ((function () {
       var deck = RUN.startingDeck();
       deck.push({ id: 'yellow_spark', up: false });
       if (C.actUnlocked('yellow', deck)) return false;      // one is not enough
       deck.push({ id: 'yellow_banner', up: false });
       return C.actUnlocked('yellow', deck) && C.ACT_REQUIREMENT === 2;
-    })());
-    check('Curses are not a colour you earned', (function () {
+    })()); });
+    check('Curses are not a colour you earned', function () { return ((function () {
       var deck = RUN.startingDeck();
       var counts = C.colourCounts(deck.concat(C.CURSE_KEYS.map(function (key) { return { id: key, up: false }; })));
       var base = C.colourCounts(deck);
       return C.COLOR_KEYS.every(function (key) { return counts[key] === base[key]; });
-    })());
-    check('Rewards and shops only offer colours the deck already holds', (function () {
+    })()); });
+    check('Rewards and shops only offer colours the deck already holds', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -549,8 +558,8 @@ export function createSelfTest(ctx) {
       var hasHeld = pool.some(function (cardId) { return CARDS[cardId].color === 'red'; });
       RUN.setRun(saved);
       return leaks.length === 0 && hasColourless && hasHeld;
-    })());
-    check('Every node in every generated map is reachable from the start', (function () {
+    })()); });
+    check('Every node in every generated map is reachable from the start', function () { return ((function () {
       for (var attempt = 0; attempt < 60; attempt++) {
         var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
         var reach = map.map(function (row) { return row.map(function () { return false; }); });
@@ -575,8 +584,8 @@ export function createSelfTest(ctx) {
         }
       }
       return true;
-    })());
-    check('The volatile gate still commits fully when nothing depends on it', (function () {
+    })()); });
+    check('The volatile gate still commits fully when nothing depends on it', function () { return ((function () {
       // the "one gate, no other exit" design must survive wherever it is safe —
       // the fix only has to add edges back where dropping them would orphan a
       // sibling, not abandon the single-entrance feel everywhere
@@ -593,10 +602,10 @@ export function createSelfTest(ctx) {
         });
       }
       return sawSingle && sawKept;
-    })());
+    })()); });
 
     // --- a fusion must execute every effect its text describes ---
-    check('Fusing two onPlay effects keeps both, not just the first', (function () {
+    check('Fusing two onPlay effects keeps both, not just the first', function () { return ((function () {
       var fused = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
       var cardDef = CARDS[fused.id];
       /* The old composition kept exactly one "acting" carrier and threw the
@@ -606,8 +615,8 @@ export function createSelfTest(ctx) {
       return cardDef.text.indexOf('draw a card') !== -1 &&
              cardDef.text.indexOf('frontline') !== -1 &&
              typeof cardDef.onPlay === 'function';
-    })());
-    check('Both halves of a fused onPlay actually execute', (function () {
+    })()); });
+    check('Both halves of a fused onPlay actually execute', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 9);
       var fused = C.fuseCards({ id: 'blue_scout', up: false }, { id: 'black_maw', up: false });
@@ -618,14 +627,14 @@ export function createSelfTest(ctx) {
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return battleState2.decks.bottom.length < deckBefore &&                          // the draw ran
              ev.strengthOf(ev.view['top-row1-0']) < 9;                       // the damage ran
-    })());
-    check('A fusion of two targeted effects prompts for, and uses, both targets', (function () {
+    })()); });
+    check('A fusion of two targeted effects prompts for, and uses, both targets', function () { return ((function () {
       var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
       var specs = CARDS[fused.id].targets;
       // 1 (curse) + 2 (unit, empty-tile) = 3 prompts, not one card's worth
       return specs && specs.length === 3;
-    })());
-    check('A merged ref points at the right pick, not wherever it used to point', (function () {
+    })()); });
+    check('A merged ref points at the right pick, not wherever it used to point', function () { return ((function () {
       /* blue_current's second spec says "an empty tile touching the unit from
          MY step 0". Concatenating raw target arrays leaves that index pointing
          at whichever carrier happened to land in that slot globally — put a
@@ -633,8 +642,8 @@ export function createSelfTest(ctx) {
       var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
       var specs = CARDS[fused.id].targets;
       return specs[0].ref === undefined && specs[1].ref === undefined && specs[2].ref === 1;
-    })());
-    check('A three-way merged pick resolves both effects on the right targets', (function () {
+    })()); });
+    check('A three-way merged pick resolves both effects on the right targets', function () { return ((function () {
       var battleState2 = fresh();
       var fused = C.fuseCards({ id: 'black_reclaimer', up: false }, { id: 'blue_current', up: false });
       battleState2.board[PLAYER].row2[0] = { cardId: fused.id, color: CARDS[fused.id].color, strength: CARDS[fused.id].strength, temp: 0 };
@@ -652,9 +661,9 @@ export function createSelfTest(ctx) {
       var curseGone = !battleState2.board[PLAYER].row1[0];
       var unitMoved = !battleState2.board[PLAYER].row1[2] && !!battleState2.board[PLAYER][p2.row][p2.index];
       return curseGone && unitMoved;
-    })());
+    })()); });
 
-    check('Every act carries a Lab that no route can dodge', (function () {
+    check('Every act carries a Lab that no route can dodge', function () { return ((function () {
       for (var attempt = 0; attempt < 40; attempt++) {
         var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length]);
         // depth 6 must be solid lab: with rewards colour-gated it is the only
@@ -662,8 +671,8 @@ export function createSelfTest(ctx) {
         if (!map[6].length || !map[6].every(function (node) { return node.type === 'lab'; })) return false;
       }
       return true;
-    })());
-    check('Every act has an elite and a boss wearing its own colour', (function () {
+    })()); });
+    check('Every act has an elite and a boss wearing its own colour', function () { return ((function () {
       return RUN.ACT_KEYS.every(function (key) {
         var a = RUN.ACTS[key], bo = ENEMIES[a.boss];
         if (!bo || bo.kind !== 'boss') return false;
@@ -675,24 +684,24 @@ export function createSelfTest(ctx) {
            colour at once, so it leads with Red rather than its act's Black. */
         return elitesOk && (bo.colors[0] === a.color || a.boss === 'spectrum');
       });
-    })());
-    check('Every act has a painting with its own measured seam', (function () {
+    })()); });
+    check('Every act has a painting with its own measured seam', function () { return ((function () {
       return RUN.ACT_KEYS.every(function (key) {
         var art = RUN.ACT_ART[key];
         if (!art || !art.w || !art.h) return false;
         // the eyes must sit in the upper half or the aligner has nothing to pin
         return art.seam > 0.05 && art.seam < 0.5;
       });
-    })());
-    check('Every act elite is 2 stronger in its own colour', (function () {
+    })()); });
+    check('Every act elite is 2 stronger in its own colour', function () { return ((function () {
       return RUN.ACT_KEYS.every(function (key) {
         var a = RUN.ACTS[key];
         return RUN.elitesOf(a).every(function (id) {
           return ENEMIES[id].mod.colorBonus[a.color] === 2;
         });
       });
-    })());
-    check('A map only fields its own act\'s enemies', (function () {
+    })()); });
+    check('A map only fields its own act\'s enemies', function () { return ((function () {
       return RUN.ACT_KEYS.every(function (key) {
         var map = RUN.buildMap(key), act = RUN.ACTS[key], ok = true;
         map.forEach(function (row) {
@@ -705,8 +714,8 @@ export function createSelfTest(ctx) {
         });
         return ok;
       });
-    })());
-    check('Difficulty carries across acts instead of resetting', (function () {
+    })()); });
+    check('Difficulty carries across acts instead of resetting', function () { return ((function () {
       var run = { actsCleared: [] };
       var actOneEnd = RUN.powerAt(run, 12);
       run.actsCleared = ['green'];
@@ -715,8 +724,8 @@ export function createSelfTest(ctx) {
       return actTwoStart > actOneEnd - 1 &&
              RUN.depthBonusFor(actTwoStart) >= RUN.depthBonusFor(6) &&
              RUN.depthBonusFor(30) > RUN.depthBonusFor(12);
-    })());
-    check('The first act is always a primary that is actually built', (function () {
+    })()); });
+    check('The first act is always a primary that is actually built', function () { return ((function () {
       for (var t = 0; t < 30; t++) {
         var run = RUN.newRun();
         if (!RUN.ACTS[run.act]) return false;
@@ -724,13 +733,13 @@ export function createSelfTest(ctx) {
         if (run.actsCleared.length !== 0) return false;
       }
       return true;
-    })());
-    check('A cleared act is never offered again', (function () {
+    })()); });
+    check('A cleared act is never offered again', function () { return ((function () {
       var run = RUN.newRun();
       run.actsCleared = RUN.ACT_KEYS.slice();
       return RUN.eligibleActs(run).length === 0;
-    })());
-    check('Secondary acts stay shut until their colour is made', (function () {
+    })()); });
+    check('Secondary acts stay shut until their colour is made', function () { return ((function () {
       var run = RUN.newRun();
       run.deck = RUN.startingDeck();
       run.actsCleared = ['green'];
@@ -740,10 +749,10 @@ export function createSelfTest(ctx) {
       run.deck.push({ id: 'yellow_spark', up: false });
       run.deck.push({ id: 'yellow_banner', up: false });
       return RUN.eligibleActs(run).indexOf('yellow') !== -1;
-    })());
+    })()); });
 
     // --- save / load ---
-    check('A run survives a save and reload, forged cards included', (function () {
+    check('A run survives a save and reload, forged cards included', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
@@ -774,22 +783,22 @@ export function createSelfTest(ctx) {
       RUN.clearSave();
       RUN.setRun(saved);
       return ok;
-    })());
-    check('A corrupt or foreign save is refused rather than half-loaded', (function () {
+    })()); });
+    check('A corrupt or foreign save is refused rather than half-loaded', function () { return ((function () {
       var out = true;
       try {
-        window.localStorage.setItem('colorvibes.run.v1', '{not json');
+        window.localStorage.setItem(RUN.saveKey(), '{not json');
         if (RUN.loadRun() !== null) out = false;
-        window.localStorage.setItem('colorvibes.run.v1', JSON.stringify({ v: 99, run: {} }));
+        window.localStorage.setItem(RUN.saveKey(), JSON.stringify({ v: 99, run: {} }));
         if (RUN.loadRun() !== null) out = false;
-        window.localStorage.setItem('colorvibes.run.v1',
+        window.localStorage.setItem(RUN.saveKey(),
           JSON.stringify({ v: 1, run: { act: 'green', map: [[{}]], deck: [{ id: 'ghost_card' }], minted: [] } }));
         if (RUN.loadRun() !== null) out = false;   // deck points at a card that does not exist
       } catch (e) { out = false; }
       RUN.clearSave();
       return out;
-    })());
-    check('Reinforcing a fusion keeps everything it inherited', (function () {
+    })()); });
+    check('Reinforcing a fusion keeps everything it inherited', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var fused = RUN.fuseInDeck({ id: 'red_scout', up: false }, { id: 'blue_scout', up: false });
@@ -801,10 +810,10 @@ export function createSelfTest(ctx) {
                (CARDS[lifted.id].effectSources || []).length === (CARDS[fused.id].effectSources || []).length;
       RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
 
     // --- boss rules (each act boss must play differently, not just harder) ---
-    check('Exposure taxes the colour you leaned on, and spares an even board', (function () {
+    check('Exposure taxes the colour you leaned on, and spares an even board', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 4);
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
@@ -819,8 +828,8 @@ export function createSelfTest(ctx) {
       var e1 = C.evaluateBoard(even.board, even.hazards, { enemyMod: { taxDominantColor: 2 } });
       var e0 = C.evaluateBoard(even.board, even.hazards, { enemyMod: {} });
       return e1.raw.bottom === e0.raw.bottom;
-    })());
-    check('The Scorched Line halves support but leaves the frontline whole', (function () {
+    })()); });
+    check('The Scorched Line halves support but leaves the frontline whole', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 6);      // frontline
       put(battleState2, 'bottom', 'row3', 0, 'red_brute', 8);      // support behind it
@@ -831,8 +840,8 @@ export function createSelfTest(ctx) {
       return lanePenalized.bottom.frontStrength === laneFull.bottom.frontStrength &&
              lanePenalized.bottom.support < laneFull.bottom.support &&
              pen.totals.bottom < full.totals.bottom;
-    })());
-    check('The Undertow answers only the lane you invested in most', (function () {
+    })()); });
+    check('The Undertow answers only the lane you invested in most', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 10);     // the monster lane
       put(battleState2, 'bottom', 'row1', 2, 'red_brute', 2);
@@ -843,8 +852,8 @@ export function createSelfTest(ctx) {
       if (echoed.length !== 1) return false;
       var base = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
       return ev.totals.top > base.totals.top;
-    })());
-    check('Still Water cancels the matchup bonus in its weakest lanes only', (function () {
+    })()); });
+    check('Still Water cancels the matchup bonus in its weakest lanes only', function () { return ((function () {
       var battleState2 = fresh();
       // player is effective in every lane; enemy is weak in two of them
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 5);
@@ -860,8 +869,8 @@ export function createSelfTest(ctx) {
       // the lane it is strongest in is the one left exploitable
       return free.length >= 1 && free.every(function (l) { return l.bottom.multiplier === 2; }) &&
              warded.every(function (l) { return l.bottom.multiplier === 1; });
-    })());
-    check('Every act boss carries a rule of its own, and no two share one', (function () {
+    })()); });
+    check('Every act boss carries a rule of its own, and no two share one', function () { return ((function () {
       var RULES = ['growth', 'supportPenalty', 'echoBestLane', 'taxDominantColor',
                    'echoMix', 'wardWeakLanes', 'devourWeakest'];
       var seen = {};
@@ -873,18 +882,18 @@ export function createSelfTest(ctx) {
         seen[mine[0]] = 1;
         return true;
       });
-    })());
-    check('A boss leans on its rule, not on raw colour bonus', (function () {
+    })()); });
+    check('A boss leans on its rule, not on raw colour bonus', function () { return ((function () {
       return RUN.ACT_KEYS.every(function (key) {
         var a = RUN.ACTS[key], mod = ENEMIES[a.boss].mod || {};
         var colorBonus = (mod.colorBonus && mod.colorBonus[a.color]) || 0;
         // elites are the +2 stat check; bosses must not simply be +3 versions
         return colorBonus <= 1;
       });
-    })());
+    })()); });
 
     // --- deck economy: the run must be able to shrink, not only grow ---
-    check('Skipping a card pays, and pays more the deeper you are', (function () {
+    check('Skipping a card pays, and pays more the deeper you are', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -893,8 +902,8 @@ export function createSelfTest(ctx) {
       var late = RUN.skipValue();
       RUN.setRun(saved);
       return early > 0 && late > early;
-    })());
-    check('A shop cuts two cards at most, at a climbing price', (function () {
+    })()); });
+    check('A shop cuts two cards at most, at a climbing price', function () { return ((function () {
       var a = RUN.removalCost({ removals: 0 });
       var b = RUN.removalCost({ removals: 1 });
       return a === 50 && b > a &&
@@ -902,8 +911,8 @@ export function createSelfTest(ctx) {
              RUN.removalsLeft({ removals: 0 }) === 2 &&
              RUN.removalsLeft({ removals: 1 }) === 1 &&
              RUN.removalsLeft({ removals: 2 }) === 0;
-    })());
-    check('The last road is gated far harder than the rest', (function () {
+    })()); });
+    check('The last road is gated far harder than the rest', function () { return ((function () {
       var need = C.requirementFor('black');
       /* Black no longer needs a higher card COUNT than an ordinary secondary to
          stay the hardest road — the two-secondary fusion requirement already
@@ -918,8 +927,8 @@ export function createSelfTest(ctx) {
       if (C.actUnlocked('black', deck)) return false;      // one short stays shut
       deck.push({ id: 'black_eraser', up: false });
       return C.actUnlocked('black', deck);
-    })());
-    check('The volatile bench can never mint Black', (function () {
+    })()); });
+    check('The volatile bench can never mint Black', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -931,8 +940,8 @@ export function createSelfTest(ctx) {
       var pal2 = RUN.recolourPalette();
       RUN.setRun(saved);
       return pal2.indexOf('black') === -1;
-    })());
-    check('A recolour can only reach a colour the deck could already make', (function () {
+    })()); });
+    check('A recolour can only reach a colour the deck could already make', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -943,8 +952,8 @@ export function createSelfTest(ctx) {
                pal.indexOf('cyan') === -1 && pal.indexOf('magenta') === -1;
       RUN.setRun(saved);
       return ok;
-    })());
-    check('The road offers real ways to cut a deck down', (function () {
+    })()); });
+    check('The road offers real ways to cut a deck down', function () { return ((function () {
       // at least three events must be able to remove a card, or deck size only
       // ever ratchets upward and the endgame target is unreachable
       var cutters = RUN.EVENTS.filter(function (e) {
@@ -953,8 +962,8 @@ export function createSelfTest(ctx) {
         });
       });
       return cutters.length >= 3;
-    })());
-    check('A chosen cut removes exactly what the player picked', (function () {
+    })()); });
+    check('A chosen cut removes exactly what the player picked', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -966,8 +975,8 @@ export function createSelfTest(ctx) {
                !run.deck.some(function (e) { return e.id === 'yellow_spark'; });
       RUN.setRun(saved);
       return ok;
-    })());
-    check('The Sieve strains curses and leaves the rest of the deck alone', (function () {
+    })()); });
+    check('The Sieve strains curses and leaves the rest of the deck alone', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -979,10 +988,10 @@ export function createSelfTest(ctx) {
                !RUN.getRun().deck.some(function (e) { return CARDS[e.id].curse; });
       RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
 
     // --- the draw archetype ---
-    check('Drawing is a build, not a single card', (function () {
+    check('Drawing is a build, not a single card', function () { return ((function () {
       var drawCards = C.DRAWABLE.filter(function (key) {
         var cardDef = CARDS[key];
         return cardDef.drawsEachRound || /draw/i.test(cardDef.text || '');
@@ -991,8 +1000,8 @@ export function createSelfTest(ctx) {
         return /draw|opening hand/i.test(RELICS[key].text);
       });
       return drawCards.length >= 5 && drawRelics.length >= 4;
-    })());
-    check('Blue Tideline grows with everything drawn this battle', (function () {
+    })()); });
+    check('Blue Tideline grows with everything drawn this battle', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'blue_tideline', 1);
       var cold = C.evaluateBoard(battleState2.board, battleState2.hazards, { drawn: { extra: 0 } });
@@ -1000,14 +1009,14 @@ export function createSelfTest(ctx) {
       var capped = C.evaluateBoard(battleState2.board, battleState2.hazards, { drawn: { extra: 99 } });
       return dug.raw.bottom === cold.raw.bottom + 5 &&
              capped.raw.bottom === cold.raw.bottom + 8;   // the cap holds
-    })());
-    check('Deep Pockets pays a lean deck and nothing to a bloated one', (function () {
+    })()); });
+    check('Deep Pockets pays a lean deck and nothing to a bloated one', function () { return ((function () {
       function lean(deckLen) { return Math.max(0, Math.floor((25 - deckLen) / 5)); }
       return lean(40) === 0 && lean(25) === 0 && lean(20) === 1 && lean(15) === 2 && lean(10) === 3;
-    })());
+    })()); });
 
     // --- boss trophies and reward quality over a run ---
-    check('Legendaries exist only as boss drops, never in a random pool', (function () {
+    check('Legendaries exist only as boss drops, never in a random pool', function () { return ((function () {
       if (C.BOSS_CARDS.length < 7) return false;
       if (C.DRAWABLE.some(function (key) { return CARDS[key].bossOnly; })) return false;
       // one for every act colour, so each road has a signature card
@@ -1015,8 +1024,8 @@ export function createSelfTest(ctx) {
         var col = RUN.ACTS[key].color;
         return C.BOSS_CARDS.some(function (c) { return CARDS[c].color === col; });
       });
-    })());
-    check('The Devouring Star hits hard but cannot compound across battles', (function () {
+    })()); });
+    check('The Devouring Star hits hard but cannot compound across battles', function () { return ((function () {
       /* The run-ending bug: the gain was permanent, and a permanent buff writes
          back into the run deck, so every battle started where the last one
          ended and two Stars could eat each other indefinitely. Measured
@@ -1037,8 +1046,8 @@ export function createSelfTest(ctx) {
       var total = unit.strength + (unit.temp || 0);
       // twice a 20 is still a 45-strength unit for the fight
       return total === 45 && unit.strength === 5 && (unit.temp || 0) === 40;
-    })());
-    check('Every trophy is big AND still does something', (function () {
+    })()); });
+    check('Every trophy is big AND still does something', function () { return ((function () {
       return C.BOSS_CARDS.every(function (key) {
         var cardDef = CARDS[key];
         var hasText = !!(cardDef.passive || cardDef.aura || cardDef.rowAura || cardDef.matchup || cardDef.onPlay ||
@@ -1046,8 +1055,8 @@ export function createSelfTest(ctx) {
         // the whole point: unlike a fused Amalgam these are not silenced
         return cardDef.strength >= 4 && hasText && !cardDef.silenced && cardDef.rarity === 'Legendary';
       });
-    })());
-    check('A boss offers three trophies including its own colour', (function () {
+    })()); });
+    check('A boss offers three trophies including its own colour', function () { return ((function () {
       var saved = RUN.getRun();
       var ok = true;
       RUN.ACT_KEYS.forEach(function (key) {
@@ -1064,8 +1073,8 @@ export function createSelfTest(ctx) {
       });
       RUN.setRun(saved);
       return ok;
-    })());
-    check('A normal battle never hands out a trophy', (function () {
+    })()); });
+    check('A normal battle never hands out a trophy', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var clean = true;
@@ -1077,16 +1086,16 @@ export function createSelfTest(ctx) {
       }
       RUN.setRun(saved);
       return clean;
-    })());
-    check('Card rewards get better the deeper the run goes', (function () {
+    })()); });
+    check('Card rewards get better the deeper the run goes', function () { return ((function () {
       var early = RUN.rarityWeights(1), late = RUN.rarityWeights(60);
       // rares must overtake commons by the late run, not merely creep up
       return late.Rare > early.Rare && late.Common < early.Common &&
              early.Common > early.Rare && late.Rare > late.Common;
-    })());
+    })()); });
 
     // --- what the player is told about what they are fighting ---
-    check('Every enemy rule has an icon and words to go with it', (function () {
+    check('Every enemy rule has an icon and words to go with it', function () { return ((function () {
       return Object.keys(ENEMIES).every(function (key) {
         var mod = ENEMIES[key].mod || {}, icons = C.enemyIcons(key);
         var ruleKeys = Object.keys(mod).filter(function (rule) { return rule !== 'depthBonus'; });
@@ -1096,15 +1105,15 @@ export function createSelfTest(ctx) {
           return C.GLYPHS[icon.i] && typeof icon.t === 'string' && icon.t.length > 12;
         });
       });
-    })());
-    check('Bosses and elites are marked as such, normal foes are not', (function () {
+    })()); });
+    check('Bosses and elites are marked as such, normal foes are not', function () { return ((function () {
       var bossKey = RUN.ACTS[RUN.ACT_KEYS[0]].boss;
       var eliteKey = RUN.elitesOf(RUN.ACTS[RUN.ACT_KEYS[0]])[0];
       return C.rankIcon(bossKey).i === 'boss' &&
              C.rankIcon(eliteKey).i === 'elite' &&
              C.rankIcon('brawler') === null;
-    })());
-    check('A boss signature rule always reaches the player as an icon', (function () {
+    })()); });
+    check('A boss signature rule always reaches the player as an icon', function () { return ((function () {
       var RULES = { growth: 1, supportPenalty: 1, echoBestLane: 1, taxDominantColor: 1,
                     echoMix: 1, wardWeakLanes: 1, devourWeakest: 1 };
       return RUN.ACT_KEYS.every(function (actKey) {
@@ -1114,16 +1123,16 @@ export function createSelfTest(ctx) {
         // the rule icons must outnumber the plain colour-bonus ones
         return sig.length === 1 && icons.length > Object.keys(mod.colorBonus || {}).length;
       });
-    })());
-    check('Icons are derived from the rules, so they cannot drift', (function () {
+    })()); });
+    check('Icons are derived from the rules, so they cannot drift', function () { return ((function () {
       var before = C.enemyIcons('hollow_sun').filter(function (i) { return i.i === 'tax'; })[0];
       var was = ENEMIES.hollow_sun.mod.taxDominantColor;
       ENEMIES.hollow_sun.mod.taxDominantColor = 9;
       var after = C.enemyIcons('hollow_sun').filter(function (i) { return i.i === 'tax'; })[0];
       ENEMIES.hollow_sun.mod.taxDominantColor = was;
       return before.v === was && after.v === 9 && after.t.indexOf('9') !== -1;
-    })());
-    check('The codex records what you meet and nothing you have not', (function () {
+    })()); });
+    check('The codex records what you meet and nothing you have not', function () { return ((function () {
       var seen = RUN.codex.cards.red_brute;
       delete RUN.codex.cards.red_brute;
       var before = !RUN.codex.cards.red_brute;
@@ -1131,8 +1140,8 @@ export function createSelfTest(ctx) {
       var after = !!RUN.codex.cards.red_brute;
       if (seen === undefined) delete RUN.codex.cards.red_brute; else RUN.codex.cards.red_brute = seen;
       return before && after;
-    })());
-    check('Cards minted in the Lab are not codex entries', (function () {
+    })()); });
+    check('Cards minted in the Lab are not codex entries', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var fused = RUN.fuseInDeck({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
@@ -1140,9 +1149,9 @@ export function createSelfTest(ctx) {
       var ok = !RUN.codex.cards[fused.id];      // a one-off Amalgam is not a discovery
       RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
 
-    check('The colour picker is visible the moment it is asked for', (function () {
+    check('The colour picker is visible the moment it is asked for', function () { return ((function () {
       var state = getState();
       if (!state) return true;                       // no battle in progress during tests
       var savedPending = state.pending, savedSel = state.selectedCard;
@@ -1163,10 +1172,10 @@ export function createSelfTest(ctx) {
       state.hands[PLAYER][0] = savedHand; state.board[PLAYER].row2[0] = savedTile;
       render();
       return ok;
-    })());
+    })()); });
 
     // --- fixes that came out of playtesting ---
-    check('The opening hand does not count as cards dug for', (function () {
+    check('The opening hand does not count as cards dug for', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.drawn = { extra: 0 };
       battleState2.decks = { bottom: [], top: [] };
@@ -1176,16 +1185,16 @@ export function createSelfTest(ctx) {
       if (battleState2.drawn.extra !== 0) return false;     // Tideline must start at zero
       RUN.drawInto(battleState2, PLAYER, 2);                // a normal round draw
       return battleState2.drawn.extra === 2;
-    })());
-    check('Draws off an empty deck are not counted', (function () {
+    })()); });
+    check('Draws off an empty deck are not counted', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.drawn = { extra: 0 };
       battleState2.decks = { bottom: [{ id: 'red_brute', up: false }], top: [] };
       battleState2.hands = { bottom: [], top: [] };
       var got = RUN.drawInto(battleState2, PLAYER, 5);      // asked for five, only one there
       return got === 1 && battleState2.drawn.extra === 1;
-    })());
-    check('Damage lands in full on what the player can see', (function () {
+    })()); });
+    check('Damage lands in full on what the player can see', function () { return ((function () {
       var battleState2 = fresh();
       // printed 2, but carrying 6 of evaluation bonus: shows as 8
       put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
@@ -1197,27 +1206,27 @@ export function createSelfTest(ctx) {
       var ev1 = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       // used to drop by 1, because 3 came off the printed 2 and clamped
       return before - ev1.strengthOf(ev1.view['top-row1-0']) === 3;
-    })());
-    check('Damage never pushes a unit below 1', (function () {
+    })()); });
+    check('Damage never pushes a unit below 1', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
       RUN.buildApi(battleState2, PLAYER, []).damage(ENEMY, 'row1', 0, 9);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return ev.strengthOf(ev.view['top-row1-0']) === 1;
-    })());
-    check('Every curse is worth the same on the board', (function () {
+    })()); });
+    check('Every curse is worth the same on the board', function () { return ((function () {
       var vals = C.CURSE_KEYS.map(function (key) { return CARDS[key].strength; });
       return vals.every(function (v) { return v === vals[0]; }) && vals[0] >= 1;
-    })());
-    check('A curse never grows with the enemy', (function () {
+    })()); });
+    check('A curse never grows with the enemy', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'curse_husk', C.CARDS.curse_husk.strength);
       battleState2.board[ENEMY].row1[0].color = null;
       var plain = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: {} });
       var deep = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 5 } });
       return plain.strengthOf(plain.view['top-row1-0']) === deep.strengthOf(deep.view['top-row1-0']);
-    })());
-    check('Fissure cards stay out of the pool until a fissure exists', (function () {
+    })()); });
+    check('Fissure cards stay out of the pool until a fissure exists', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1231,8 +1240,8 @@ export function createSelfTest(ctx) {
       var pool = RUN.offerableCards();
       RUN.setRun(saved);
       return dry && wet && pool.indexOf('black_chorus') !== -1;
-    })());
-    check('A blank card is never the offer', (function () {
+    })()); });
+    check('A blank card is never the offer', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1242,15 +1251,15 @@ export function createSelfTest(ctx) {
       var blanks = pool.filter(function (key) { return RUN.NEEDS_FISSURES.indexOf(key) !== -1; });
       RUN.setRun(saved);
       return blanks.length === 0;
-    })());
+    })()); });
 
     // --- the opponent should not empty its hand into a round it has won ---
-    check('Strength banked past a won round counts for less', (function () {
+    check('Strength banked past a won round counts for less', function () { return ((function () {
       return shapedLead(3) === 3 && shapedLead(SAFE_LEAD) === SAFE_LEAD &&
              shapedLead(SAFE_LEAD + 20) < SAFE_LEAD + 20 &&
              shapedLead(SAFE_LEAD + 20) > SAFE_LEAD;
-    })());
-    check('A card is worth holding early and worth nothing to hold last', (function () {
+    })()); });
+    check('A card is worth holding early and worth nothing to hold last', function () { return ((function () {
       var state = getState();
       if (!state) return true;
       var savedWins = state.wins;
@@ -1261,8 +1270,8 @@ export function createSelfTest(ctx) {
       state.wins = savedWins;
       // nothing to save for once the next round decides it
       return early > 0 && last === 0;
-    })());
-    check('A thin hand makes each remaining card dearer', (function () {
+    })()); });
+    check('A thin hand makes each remaining card dearer', function () { return ((function () {
       var state = getState();
       if (!state) return true;
       var savedWins = state.wins, savedHand = state.hands[ENEMY], savedDeck = state.decks[ENEMY];
@@ -1273,8 +1282,8 @@ export function createSelfTest(ctx) {
       var poor = reservePrice(state, ENEMY, {});
       state.wins = savedWins; state.hands[ENEMY] = savedHand; state.decks[ENEMY] = savedDeck;
       return poor > rich;
-    })());
-    check('The opponent holds when it is already far ahead, and fights when behind', (function () {
+    })()); });
+    check('The opponent holds when it is already far ahead, and fights when behind', function () { return ((function () {
       var state = getState();
       if (!state) return true;
       var saved = {
@@ -1311,9 +1320,9 @@ export function createSelfTest(ctx) {
       state.power = saved.power; state.enemy = saved.enemy;
       render();
       return holdsWhenAhead && fightsWhenBehind && opensOnLevelBoard;
-    })());
+    })()); });
 
-    check('Black works without ever touching a fissure', (function () {
+    check('Black works without ever touching a fissure', function () { return ((function () {
       var plain = C.DRAWABLE.filter(function (key) {
         return CARDS[key].color === 'black' &&
                RUN.NEEDS_FISSURES.indexOf(key) === -1 &&
@@ -1322,8 +1331,8 @@ export function createSelfTest(ctx) {
       /* Gating the fissure cards left Black almost empty for a player who never
          used Rewind, which made the hardest colour gate the least supported. */
       return plain.length >= 6;
-    })());
-    check('Curse cards read the board, not a tally', (function () {
+    })()); });
+    check('Curse cards read the board, not a tally', function () { return ((function () {
       return RUN.NEEDS_CURSES.every(function (key) {
         var cardDef = CARDS[key];
         // adjacency or consumption — never a count of curses owned, which is
@@ -1331,8 +1340,8 @@ export function createSelfTest(ctx) {
         var positional = !!(cardDef.targets || (cardDef.text || '').indexOf('touch') !== -1);
         return positional && !cardDef.fissure;
       });
-    })());
-    check('Gravebloom wakes only next to a curse', (function () {
+    })()); });
+    check('Gravebloom wakes only next to a curse', function () { return ((function () {
       /* row1-0 and row1-1 are NOT adjacent: on this board tiles touch across
          rows, never along one. A same-row pair looks adjacent on screen and is
          not, which is worth stating in the test that nearly got it wrong. */
@@ -1357,8 +1366,8 @@ export function createSelfTest(ctx) {
 
       // owning a curse is not enough; it has to be placed against it
       return a === 2 && fv === 2 && nv === 6;
-    })());
-    check('Curse cards stay hidden until the run is actually cursed', (function () {
+    })()); });
+    check('Curse cards stay hidden until the run is actually cursed', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1370,10 +1379,10 @@ export function createSelfTest(ctx) {
       var cursed = RUN.NEEDS_CURSES.every(function (key) { return RUN.situationalOk(key); });
       RUN.setRun(saved);
       return dry && cursed;
-    })());
+    })()); });
 
     // --- the opponent gets better as the run goes on ---
-    check('Skill climbs with run power, and rank sits a tier above the road', (function () {
+    check('Skill climbs with run power, and rank sits a tier above the road', function () { return ((function () {
       function tier(power, kind) {
         return aiSkill({ power: power, enemy: { kind: kind || 'normal' } });
       }
@@ -1382,13 +1391,13 @@ export function createSelfTest(ctx) {
       return rising && ladder[0] === 0 && ladder[4] === 4 &&
              tier(0, 'elite') > tier(0) && tier(0, 'boss') > tier(0) &&
              tier(40, 'boss') === 4;                  // and never past the top
-    })());
-    check('Act one still overcommits, later acts do not', (function () {
+    })()); });
+    check('Act one still overcommits, later acts do not', function () { return ((function () {
       // overkill only starts being discounted once the world has taught it to
       return shapedLead(SAFE_LEAD + 20, 0) === SAFE_LEAD + 20 &&
              shapedLead(SAFE_LEAD + 20, 1) < SAFE_LEAD + 20;
-    })());
-    check('Each habit switches on at its own tier and not before', (function () {
+    })()); });
+    check('Each habit switches on at its own tier and not before', function () { return ((function () {
       var state = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [1, 2, 3] },
                 decks: { bottom: [], top: [1, 2, 3, 4] } };
       var thriftOff = reservePrice(state, ENEMY, {}, 1) === 0;
@@ -1398,8 +1407,8 @@ export function createSelfTest(ctx) {
       var spendOff = spendCost({ id: 'red_titan', up: false }, 3) === 0;
       var spendOn  = spendCost({ id: 'red_titan', up: false }, 4) > 0;
       return thriftOff && thriftOn && concedeOff && concedeOn && spendOff && spendOn;
-    })());
-    check('A round further out of reach is easier to give up on', (function () {
+    })()); });
+    check('A round further out of reach is easier to give up on', function () { return ((function () {
       var state = { wins: { bottom: 0, top: 0 }, hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] } };
       var near = concedeBonus(state, ENEMY, -12, 4);
       var far = concedeBonus(state, ENEMY, -60, 4);
@@ -1408,13 +1417,13 @@ export function createSelfTest(ctx) {
       var decider = concedeBonus(state, ENEMY, -60, 4);
       // never give up the round that decides the battle
       return level === 0 && far > near && near > 0 && decider === 0;
-    })());
-    check('Spending the better card costs more', (function () {
+    })()); });
+    check('Spending the better card costs more', function () { return ((function () {
       var cheap = spendCost({ id: 'red_scout', up: false }, 4);
       var dear = spendCost({ id: 'red_titan', up: false }, 4);
       return dear > cheap && cheap >= 0;
-    })());
-    check('Waste is counted lane by lane, not just on the total', (function () {
+    })()); });
+    check('Waste is counted lane by lane, not just on the total', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_scout', 1);
       put(battleState2, 'top', 'row1', 0, 'red_titan', 30);      // wins one lane enormously
@@ -1424,8 +1433,8 @@ export function createSelfTest(ctx) {
       /* Overkill inside a single lane has to be discounted even when the board
          score is close, or a surgical enemy still answers a 1 with a 30. */
       return shaped < plain && shaped > 0;
-    })());
-    check('The opponent holds a won round only once it is sharp enough', (function () {
+    })()); });
+    check('The opponent holds a won round only once it is sharp enough', function () { return ((function () {
       var state = getState();
       if (!state) return true;
       var saved = { board: state.board, hands: state.hands, wins: state.wins, turn: state.turn,
@@ -1448,8 +1457,8 @@ export function createSelfTest(ctx) {
       state.power = saved.power; state.enemy = saved.enemy;
       render();
       return greenDumps && veteranHolds;
-    })());
-    check('A boss never offers a trophy in a colour the run has not opened', (function () {
+    })()); });
+    check('A boss never offers a trophy in a colour the run has not opened', function () { return ((function () {
       var saved = RUN.getRun();
       var clean = true;
       for (var i = 0; i < 40; i++) {
@@ -1464,8 +1473,8 @@ export function createSelfTest(ctx) {
       }
       RUN.setRun(saved);
       return clean;
-    })());
-    check('The Devouring Star cannot be won by luck', (function () {
+    })()); });
+    check('The Devouring Star cannot be won by luck', function () { return ((function () {
       /* The three primaries are always unlocked, so a boss can always fill an
          offer of three — the shortfall-to-gold path is a guard that should not
          fire in a real run. What matters is that the locked colours, and Black
@@ -1490,9 +1499,9 @@ export function createSelfTest(ctx) {
       var earned = RUN.getRun().reward.cards.some(function (c) { return c.id === 'black_devouring_star'; });
       RUN.setRun(saved);
       return !everBlack && alwaysThree && earned;
-    })());
+    })()); });
 
-    check('Every act has its own painting, none borrowed', (function () {
+    check('Every act has its own painting, none borrowed', function () { return ((function () {
       var seen = {};
       return RUN.ACT_KEYS.every(function (key) {
         var art = RUN.ACT_ART[key];
@@ -1502,20 +1511,20 @@ export function createSelfTest(ctx) {
         // hue-rotating a borrowed room was always a placeholder
         return !art.filter;
       });
-    })());
-    check('Only the room with no painted eyes draws its own', (function () {
+    })()); });
+    check('Only the room with no painted eyes draws its own', function () { return ((function () {
       var drawn = RUN.ACT_KEYS.filter(function (key) { return RUN.ACT_ART[key].drawEyes; });
       return drawn.length === 1 && drawn[0] === 'black';
-    })());
-    check('Every seam sits where a watcher would', (function () {
+    })()); });
+    check('Every seam sits where a watcher would', function () { return ((function () {
       // all seven paintings frame their eyes in a narrow band; a value outside
       // it means a mismeasured painting rather than an unusual composition
       return RUN.ACT_KEYS.every(function (key) {
         var seam = RUN.ACT_ART[key].seam;
         return seam > 0.15 && seam < 0.30;
       });
-    })());
-    check('The drawn eyes wear every colour in the game', (function () {
+    })()); });
+    check('The drawn eyes wear every colour in the game', function () { return ((function () {
       var found = 0;
       /* The cycle must visit all seven, or the last road picks favourites.
          Compared as rgb() rather than hex: the CSSOM normalises every colour it
@@ -1546,9 +1555,9 @@ export function createSelfTest(ctx) {
         if (block.indexOf(rgb) !== -1) found++;
       });
       return found >= 6;                          // Black's own hex is near-invisible; a lilac stands in
-    })());
+    })()); });
 
-    check('An overlay never takes height from the board', (function () {
+    check('An overlay never takes height from the board', function () { return ((function () {
       var screen = els.screen_battle;
       if (!screen || screen.hidden) return true;
       /* sizeBoardStage sums its siblings to work out what is left for the board.
@@ -1575,8 +1584,8 @@ export function createSelfTest(ctx) {
       layer.hidden = wasHidden; text.hidden = textHidden;
       sizeBoardStage();
       return Math.abs(before - after) < 0.5;
-    })());
-    check('The puck ring sits under the puck, not above its face', (function () {
+    })()); });
+    check('The puck ring sits under the puck, not above its face', function () { return ((function () {
       var key = Object.keys(tileEls)[0];
       var el = key && tileEls[key];
       if (!el || !el.owner || !el.token) return true;
@@ -1584,8 +1593,8 @@ export function createSelfTest(ctx) {
       var faceY = parseFloat(el.token.getAttribute('cy'));
       // the ring used to share the top face's centre and haloed out above it
       return ringY > faceY;
-    })());
-    check('The default pair blinks on the same frame', (function () {
+    })()); });
+    check('The default pair blinks on the same frame', function () { return ((function () {
       /* Scoped to the ordinary two-eye watcher. The Rotting Choir blinks out of
          step ON PURPOSE \u2014 several throats, none of them quite together \u2014 so
          asserting global synchrony would forbid the thing that makes it a
@@ -1602,8 +1611,8 @@ export function createSelfTest(ctx) {
       var extrasHidden = getComputedStyle(eyes[2]).display === 'none';
       if (wasChoir) layer.classList.add('eyes-choir');
       return same && extrasHidden;
-    })());
-    check('Each secret road watches in its own way', (function () {
+    })()); });
+    check('Each secret road watches in its own way', function () { return ((function () {
       var styles = {};
       RUN.SECRET_ACT_KEYS.forEach(function (key) {
         var art = RUN.ACT_ART[key];
@@ -1613,8 +1622,8 @@ export function createSelfTest(ctx) {
       // three secret roads, three different watchers, none of them repeated
       return Object.keys(styles).length === RUN.SECRET_ACT_KEYS.length &&
              Object.keys(styles).every(function (key) { return styles[key] === 1; });
-    })());
-    check('Every act with drawn eyes has real art of its own', (function () {
+    })()); });
+    check('Every act with drawn eyes has real art of its own', function () { return ((function () {
       return RUN.ACT_KEYS.concat(RUN.SECRET_ACT_KEYS).every(function (key) {
         var art = RUN.ACT_ART[key];
         if (!art) return false;
@@ -1624,9 +1633,9 @@ export function createSelfTest(ctx) {
         }
         return !!art.varName;
       });
-    })());
+    })()); });
 
-    check('The enemy passing leaves a marker; the player passing does not', (function () {
+    check('The enemy passing leaves a marker; the player passing does not', function () { return ((function () {
       var el = document.getElementById('passPuck');
       if (!el) return false;
       showPassPuck(false);
@@ -1641,8 +1650,8 @@ export function createSelfTest(ctx) {
       state.turn = saved.turn; state.finalTurn = saved.finalTurn; state.pending = saved.pending;
       state.selectedCard = saved.sel; state.wins = saved.wins;
       return shows && clears;
-    })());
-    check('The pass marker never sits on a tile', (function () {
+    })()); });
+    check('The pass marker never sits on a tile', function () { return ((function () {
       var el = document.getElementById('passPuck');
       if (!el || els.screen_battle.hidden) return true;
       showPassPuck(true);
@@ -1655,8 +1664,8 @@ export function createSelfTest(ctx) {
       showPassPuck(false);
       // it is a note about the turn, not a piece in play
       return !clash;
-    })());
-    check('The fork gives away nothing about roads you have not opened', (function () {
+    })()); });
+    check('The fork gives away nothing about roads you have not opened', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1672,8 +1681,8 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       RUN.show('map');
       return clean && named.length <= 3;      // the two on offer, plus the one behind you
-    })());
-    check('Every road has its own omen, and none of them give the rule away', (function () {
+    })()); });
+    check('Every road has its own omen, and none of them give the rule away', function () { return ((function () {
       var keys = Object.keys(RUN.ACT_OMENS);
       if (keys.length !== RUN.ACT_KEYS.length) return false;
       var seen = {};
@@ -1685,8 +1694,8 @@ export function createSelfTest(ctx) {
         // no numbers and no naming of the mechanism
         return !/\\d/.test(omenText) && !/requir|unlock|need \\d|colour lab/i.test(omenText);
       });
-    })());
-    check('An omen is written the moment the road opens, and kept', (function () {
+    })()); });
+    check('An omen is written the moment the road opens, and kept', function () { return ((function () {
       var saved = RUN.getRun();
       var savedOmens = RUN.codex.omens;
       RUN.codex.omens = {};
@@ -1703,10 +1712,10 @@ export function createSelfTest(ctx) {
       RUN.codex.omens = savedOmens;
       RUN.setRun(saved);
       return primariesOnly && yellowNoted;
-    })());
+    })()); });
 
     // --- Black is a two-secondary colour, but mixing is never refused ---
-    check('A secondary mixed with the "wrong" primary stays that secondary', (function () {
+    check('A secondary mixed with the "wrong" primary stays that secondary', function () { return ((function () {
       // by raw bits every one of these is Black; none of them may become it
       var pairs = [['yellow', 'blue'], ['cyan', 'red'], ['magenta', 'green']];
       return pairs.every(function (pair) {
@@ -1715,25 +1724,25 @@ export function createSelfTest(ctx) {
         var secondary = C.isSecondary(pair[0]) ? pair[0] : pair[1];
         return raw === 'black' && result === secondary;
       });
-    })());
-    check('Two secondaries still make Black', (function () {
+    })()); });
+    check('Two secondaries still make Black', function () { return ((function () {
       var legal = [['yellow', 'cyan'], ['yellow', 'magenta'], ['cyan', 'magenta']];
       return legal.every(function (pair) {
         return C.mixResultColor(pair[0], pair[1]) === 'black';
       });
-    })());
-    check('Mixing into something already Black stays Black', (function () {
+    })()); });
+    check('Mixing into something already Black stays Black', function () { return ((function () {
       return ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'black'].every(function (color) {
         return C.mixResultColor('black', color) === 'black' && C.mixResultColor(color, 'black') === 'black';
       });
-    })());
-    check('Ordinary mixes are unaffected', (function () {
+    })()); });
+    check('Ordinary mixes are unaffected', function () { return ((function () {
       return C.mixResultColor('red', 'green') === 'yellow' &&
              C.mixResultColor('green', 'blue') === 'cyan' &&
              C.mixResultColor('red', 'blue') === 'magenta' &&
              C.mixResultColor('red', 'red') === 'red';
-    })());
-    check('Mixing is never refused for what it would produce', (function () {
+    })()); });
+    check('Mixing is never refused for what it would produce', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'yellow_spark', 3);
       put(battleState2, 'bottom', 'row1', 0, 'blue_scout', 2);   // touching, and Black by raw bits
@@ -1744,8 +1753,8 @@ export function createSelfTest(ctx) {
       });
       var res = RUN.canMix(battleState2.board, PLAYER, { row: 'row2', index: 0 }, { row: 'row1', index: 0 }, []);
       return offered && res.ok;
-    })());
-    check('That mix lands as the secondary, added together and stronger', (function () {
+    })()); });
+    check('That mix lands as the secondary, added together and stronger', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'yellow_spark', 3);
       put(battleState2, 'bottom', 'row1', 0, 'blue_scout', 2);
@@ -1753,8 +1762,8 @@ export function createSelfTest(ctx) {
                  mixesThisRound: 0, freeMixesThisRound: 0 };
       var out = RUN.applyMix(s2, PLAYER, { row: 'row2', index: 0 }, { row: 'row1', index: 0 }, 0, false);
       return out.color === 'yellow' && out.strength === 3 + 2 + 1;   // sum plus the ordinary +1
-    })());
-    check('The volatile bench can fuse any pair; Black still needs two secondaries', (function () {
+    })()); });
+    check('The volatile bench can fuse any pair; Black still needs two secondaries', function () { return ((function () {
       var saved = RUN.getRun();
       var clean = true;
       for (var t = 0; t < 40 && clean; t++) {
@@ -1776,10 +1785,10 @@ export function createSelfTest(ctx) {
       }
       RUN.setRun(saved);
       return clean;
-    })());
+    })()); });
 
     // --- odds and ends ---
-    check('Relics are no longer capped', (function () {
+    check('Relics are no longer capped', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1790,8 +1799,8 @@ export function createSelfTest(ctx) {
       var ok = C.RELIC_LIMIT === Infinity && count === keys.length;
       RUN.setRun(saved);
       return ok;
-    })());
-    check('Each act option is dressed in its own room', (function () {
+    })()); });
+    check('Each act option is dressed in its own room', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1808,8 +1817,8 @@ export function createSelfTest(ctx) {
       });
       RUN.setRun(saved); RUN.show('map');
       return ok;
-    })());
-    check('An omen says which colours opened the road', (function () {
+    })()); });
+    check('An omen says which colours opened the road', function () { return ((function () {
       var NAMES = { red: 'red', green: 'green', blue: 'blue',
                     yellow: 'red', cyan: 'green', magenta: 'red' };
       return RUN.ACT_KEYS.every(function (key) {
@@ -1817,9 +1826,9 @@ export function createSelfTest(ctx) {
         if (key === 'black') return /mixture|made colour/.test(omenText);
         return omenText.indexOf(NAMES[key]) !== -1;
       });
-    })());
+    })()); });
 
-    check('Lost lives read differently from full ones in battle', (function () {
+    check('Lost lives read differently from full ones in battle', function () { return ((function () {
       /* Purely a CSS cascade bug: battle-mode restyled every .life span the
          same warm red, so .life.lost's colour was overridden right back to
          full — the hearts never looked like they were disappearing no matter
@@ -1836,8 +1845,8 @@ export function createSelfTest(ctx) {
       document.body.classList.remove('battle-mode');
       el.remove();
       return lostColor !== fullColor;
-    })());
-    check('The lives HUD reflects the actual count, not always the max', (function () {
+    })()); });
+    check('The lives HUD reflects the actual count, not always the max', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1848,10 +1857,10 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       RUN.renderRunBar();
       return lit === 1 && lost === run.maxLives - 1;
-    })());
+    })()); });
 
     // --- the victory screen: conquering every road, and going endless ---
-    check('Beating the last unconquered act shows the victory screen, not gameover', (function () {
+    check('Beating the last unconquered act shows the victory screen, not gameover', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1866,8 +1875,8 @@ export function createSelfTest(ctx) {
       var ok = !wasConquered && after.screen === 'victory' && RUN.allActsConquered(after);
       RUN.setRun(saved);
       return ok;
-    })());
-    check('A narrow completion — not every act was ever reachable — still ends at gameover', (function () {
+    })()); });
+    check('A narrow completion — not every act was ever reachable — still ends at gameover', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1880,8 +1889,8 @@ export function createSelfTest(ctx) {
       var ok = after.screen === 'gameover' && !RUN.allActsConquered(after);
       RUN.setRun(saved);
       return ok;
-    })());
-    check('"End the run here" stops the run and marks it a true conquest', (function () {
+    })()); });
+    check('"End the run here" stops the run and marks it a true conquest', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1891,8 +1900,8 @@ export function createSelfTest(ctx) {
       var ok = after.screen === 'gameover' && !after.endless && RUN.allActsConquered(after);
       RUN.setRun(saved);
       return ok;
-    })());
-    check('"Go endless" reopens every road, including ones already cleared', (function () {
+    })()); });
+    check('"Go endless" reopens every road, including ones already cleared', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1905,8 +1914,8 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       // primaries plus every secondary this deck can still reach — never zero again
       return beforeCount === 0 && after.endless === true && after.screen === 'act' && afterCount > 0;
-    })());
-    check('Clearing a second act in endless mode never re-shows the victory screen', (function () {
+    })()); });
+    check('Clearing a second act in endless mode never re-shows the victory screen', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1923,16 +1932,16 @@ export function createSelfTest(ctx) {
       var ok = after.screen !== 'victory' && (after.screen === 'act' || after.screen === 'map');
       RUN.setRun(saved);
       return ok;
-    })());
-    check('Endless power keeps climbing loop after loop', (function () {
+    })()); });
+    check('Endless power keeps climbing loop after loop', function () { return ((function () {
       var run = { actsCleared: [] };
       RUN.ACT_KEYS.forEach(function (key) { run.actsCleared.push(key); });   // one full lap
       var afterLap1 = RUN.powerAt(run, 0);
       run.actsCleared.push(RUN.ACT_KEYS[0]);                              // one more clear, endless
       var afterLap2 = RUN.powerAt(run, 0);
       return afterLap2 > afterLap1;
-    })());
-    check('No literal escape sequences leak into victory or gameover text', (function () {
+    })()); });
+    check('No literal escape sequences leak into victory or gameover text', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1950,10 +1959,10 @@ export function createSelfTest(ctx) {
       var gameoverText = els.gameoverBody.textContent;
       RUN.setRun(saved);
       return victoryText.indexOf('\\u') === -1 && gameoverText.indexOf('\\u') === -1;
-    })());
+    })()); });
 
     // --- relics come from the things worth beating ---
-    check('Only elites and bosses drop relics, and they always do', (function () {
+    check('Only elites and bosses drop relics, and they always do', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -1969,8 +1978,8 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       // an 18% trickle off ordinary fights made relics background noise
       return ordinary === 0 && ranked === 40;
-    })());
-    check('A ranked reward carries a card AND a relic', (function () {
+    })()); });
+    check('A ranked reward carries a card AND a relic', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       RUN.getRun().relics = [];
@@ -1979,23 +1988,23 @@ export function createSelfTest(ctx) {
       var ok = reward.cards.length > 0 && !!reward.relic;
       RUN.setRun(saved);
       return ok;
-    })());
-    check('Shop relics cost more than their printed price', (function () {
+    })()); });
+    check('Shop relics cost more than their printed price', function () { return ((function () {
       return Object.keys(RELICS).every(function (key) {
         return RUN.shopRelicPrice(key) > RELICS[key].cost;
       });
-    })());
+    })()); });
 
     // --- a fusion keeps what its parents were ---
-    check('A fusion inherits what its parents were, instead of erasing it', (function () {
+    check('A fusion inherits what its parents were, instead of erasing it', function () { return ((function () {
       var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
       var cardDef = CARDS[fused.id];
       return cardDef.effectSources.length === 2 &&
              cardDef.effectSources.indexOf('red_scout') !== -1 &&
              cardDef.effectSources.indexOf('green_gardener') !== -1 &&
              !cardDef.silenced && !!cardDef.passive && !!cardDef.aura;
-    })());
-    check('An inherited aura actually fires on the board', (function () {
+    })()); });
+    check('An inherited aura actually fires on the board', function () { return ((function () {
       var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
       var battleState2 = fresh();
       battleState2.board[PLAYER].row2[0] = { cardId: fused.id, color: CARDS[fused.id].color,
@@ -2004,15 +2013,15 @@ export function createSelfTest(ctx) {
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       // the Gardener's +1 to touching units came along with the fusion
       return ev.strengthOf(ev.view['bottom-row1-0']) === 3;
-    })());
-    check('A fusion chain never carries more than three rules', (function () {
+    })()); });
+    check('A fusion chain never carries more than three rules', function () { return ((function () {
       var fused = C.fuseCards({ id: 'red_scout', up: false }, { id: 'green_gardener', up: false });
       ['yellow_banner', 'green_titan', 'red_scout', 'cyan_shield'].forEach(function (key) {
         fused = C.fuseCards(fused, { id: key, up: false });
       });
       return CARDS[fused.id].effectSources.length === C.FUSED_EFFECT_CAP;
-    })());
-    check('Past the cap, a rule is genuinely lost rather than merged away', (function () {
+    })()); });
+    check('Past the cap, a rule is genuinely lost rather than merged away', function () { return ((function () {
       /* Which rule goes is random, and the incoming one is as droppable as any
          other — that is what makes a late fusion a trade rather than a free
          stack. So the invariant is the shape, not the survival of any
@@ -2030,8 +2039,8 @@ export function createSelfTest(ctx) {
         if (!union.some(function (key) { return afterSet.indexOf(key) === -1; })) return false;
       }
       return true;
-    })());
-    check('A fusion survives a save with the exact rules it was holding', (function () {
+    })()); });
+    check('A fusion survives a save with the exact rules it was holding', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.clearSave();
       RUN.setRun(RUN.newRun());
@@ -2050,10 +2059,10 @@ export function createSelfTest(ctx) {
       RUN.clearSave();
       RUN.setRun(saved);
       return ok;
-    })());
+    })()); });
 
     // --- the back rows are no longer safe ---
-    check('Backline cards reach past the frontline, not through it', (function () {
+    check('Backline cards reach past the frontline, not through it', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 9);      // the line
       put(battleState2, 'top', 'row3', 0, 'red_brute', 6);      // what it is protecting
@@ -2064,8 +2073,8 @@ export function createSelfTest(ctx) {
       var after = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return after.strengthOf(after.view['top-row1-0']) === frontBefore &&
              after.strengthOf(after.view['top-row3-0']) < 6;
-    })());
-    check('An enemy row aura lands on the far side only', (function () {
+    })()); });
+    check('An enemy row aura lands on the far side only', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 9);
       put(battleState2, 'top', 'row3', 0, 'red_brute', 6);
@@ -2075,8 +2084,8 @@ export function createSelfTest(ctx) {
       return ev.strengthOf(ev.view['top-row3-0']) === 4 &&
              ev.strengthOf(ev.view['top-row1-0']) === 9 &&
              ev.strengthOf(ev.view['bottom-row3-0']) === 6;
-    })());
-    check('Something in every colour can threaten the back rows', (function () {
+    })()); });
+    check('Something in every colour can threaten the back rows', function () { return ((function () {
       var reachers = C.DRAWABLE.filter(function (key) {
         var cardDef = CARDS[key];
         return cardDef.enemyRowAura || /behind the line|back row/i.test(cardDef.text || '');
@@ -2084,10 +2093,10 @@ export function createSelfTest(ctx) {
       var colours = {};
       reachers.forEach(function (key) { colours[CARDS[key].color] = 1; });
       return reachers.length >= 4 && Object.keys(colours).length >= 3;
-    })());
+    })()); });
 
     // --- Black ends the game; White is the prize for the long way round ---
-    check('Beating Black ends the game even with roads left unwalked', (function () {
+    check('Beating Black ends the game even with roads left unwalked', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2098,8 +2107,8 @@ export function createSelfTest(ctx) {
       var ok = after.screen === 'victory' && !RUN.whiteUnlocked(after);
       RUN.setRun(saved);
       return ok;
-    })());
-    check('White opens only when every road was already behind you', (function () {
+    })()); });
+    check('White opens only when every road was already behind you', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2110,8 +2119,8 @@ export function createSelfTest(ctx) {
       var ok = after.screen === 'victory' && RUN.whiteUnlocked(after);
       RUN.setRun(saved);
       return ok;
-    })());
-    check('White is not on the wheel and never appears in an ordinary fork', (function () {
+    })()); });
+    check('White is not on the wheel and never appears in an ordinary fork', function () { return ((function () {
       if (RUN.ACT_KEYS.indexOf('white') !== -1) return false;
       if (RUN.SECRET_ACT_KEYS.indexOf('white') === -1) return false;
       if (C.COLOR_KEYS.indexOf('white') !== -1) return false;   // never mixable
@@ -2124,8 +2133,8 @@ export function createSelfTest(ctx) {
       var offered = RUN.eligibleActs(run).indexOf('white') !== -1;
       RUN.setRun(saved);
       return !offered;
-    })());
-    check('Beating White ends the run outright', (function () {
+    })()); });
+    check('Beating White ends the run outright', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2136,8 +2145,8 @@ export function createSelfTest(ctx) {
       var ok = after.screen === 'gameover' && after.actsCleared.indexOf('white') !== -1;
       RUN.setRun(saved);
       return ok;
-    })());
-    check('The Unbroken Light punishes Black and pays for breadth', (function () {
+    })()); });
+    check('The Unbroken Light punishes Black and pays for breadth', function () { return ((function () {
       var mod = ENEMIES.unbroken_light.mod;
       function board(colors) {
         var battleState2 = fresh();
@@ -2160,10 +2169,10 @@ export function createSelfTest(ctx) {
          this one is strongest against exactly them. */
       return score(allBlack, true) < score(allBlack, false) * 0.35 &&
              score(broad, true) > score(broad, false);
-    })());
+    })()); });
 
     // --- warding: one flag, honoured by every source of harm ---
-    check('A ward refuses a hazard', (function () {
+    check('A ward refuses a hazard', function () { return ((function () {
       function underScorch(cardId) {
         var battleState2 = fresh();
         battleState2.board[PLAYER].row1[0] = { cardId: cardId, color: CARDS[cardId].color,
@@ -2174,8 +2183,8 @@ export function createSelfTest(ctx) {
       }
       // the plain card loses a point to the burn; the warded one does not
       return underScorch('green_colony') === -1 && underScorch('green_thicket') === 0;
-    })());
-    check('A ward refuses fissure drain', (function () {
+    })()); });
+    check('A ward refuses fissure drain', function () { return ((function () {
       var link = C.severableLinks(PLAYER, [])[0];
       if (!link) return true;
       var battleState2 = fresh();
@@ -2188,8 +2197,8 @@ export function createSelfTest(ctx) {
         return ev.strengthOf(ev.view['bottom-' + at.row + '-' + at.index]) - CARDS[cardId].strength;
       }
       return drainOn('green_colony') < 0 && drainOn('green_thicket') === 0;
-    })());
-    check('A ward refuses a boss punishment', (function () {
+    })()); });
+    check('A ward refuses a boss punishment', function () { return ((function () {
       function vsWhite(cardId) {
         var battleState2 = fresh();
         battleState2.board[PLAYER].row1[0] = { cardId: cardId, color: 'black', strength: 6, temp: 0 };
@@ -2197,8 +2206,8 @@ export function createSelfTest(ctx) {
         return ev.strengthOf(ev.view['bottom-row1-0']);
       }
       return vsWhite('red_brute') === 1 && vsWhite('green_thicket') === 6;
-    })());
-    check('A ward never blocks something good', (function () {
+    })()); });
+    check('A ward never blocks something good', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.board[PLAYER].row2[0] = { cardId: 'green_thicket', color: 'green',
         strength: CARDS.green_thicket.strength, temp: 0 };
@@ -2207,8 +2216,8 @@ export function createSelfTest(ctx) {
       /* The Thicket is silenced as its cost, so its own number should not move.
          The gate must be one-directional: it filters negatives, never positives. */
       return base === CARDS.green_thicket.strength;
-    })());
-    check('The Bulwark protects what it touches, not itself', (function () {
+    })()); });
+    check('The Bulwark protects what it touches, not itself', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.board[PLAYER].row2[0] = { cardId: 'cyan_bulwark', color: 'cyan', strength: 3, temp: 0 };
       battleState2.board[PLAYER].row1[0] = { cardId: 'red_brute', color: 'red', strength: 6, temp: 0 };
@@ -2217,8 +2226,8 @@ export function createSelfTest(ctx) {
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev.strengthOf(ev.view['bottom-row1-0']) === 6 &&
              ev.strengthOf(ev.view['bottom-row2-0']) === 2;   // it burns
-    })());
-    check('The Recluse holds its ward only while it stands alone', (function () {
+    })()); });
+    check('The Recluse holds its ward only while it stands alone', function () { return ((function () {
       function reclusive(withNeighbour) {
         var battleState2 = fresh();
         battleState2.board[PLAYER].row2[0] = { cardId: 'magenta_recluse', color: 'magenta', strength: 5, temp: 0 };
@@ -2228,10 +2237,10 @@ export function createSelfTest(ctx) {
         return ev.strengthOf(ev.view['bottom-row2-0']);
       }
       return reclusive(false) === 5 && reclusive(true) < 5;
-    })());
+    })()); });
 
     // --- the roads earned by how a run was lived ---
-    check('Rot and Rift open on what the run did, not what it covered', (function () {
+    check('Rot and Rift open on what the run did, not what it covered', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2246,8 +2255,8 @@ export function createSelfTest(ctx) {
       var riftOpen = RUN.riftUnlocked(run);
       RUN.setRun(saved);
       return noneYet && rotOpen && riftOpen;
-    })());
-    check('A run that did all three hard things is offered all three roads', (function () {
+    })()); });
+    check('A run that did all three hard things is offered all three roads', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2265,8 +2274,8 @@ export function createSelfTest(ctx) {
       return offers.length === 3 &&
              offers.indexOf('white') !== -1 && offers.indexOf('rot') !== -1 &&
              offers.indexOf('rift') !== -1;
-    })());
-    check('The rot road fields curse decks whatever the player is carrying', (function () {
+    })()); });
+    check('The rot road fields curse decks whatever the player is carrying', function () { return ((function () {
       var clean = 0;
       for (var i = 0; i < 30; i++) {
         var deck = C.buildEnemyDeck(ENEMIES.cultist, 40, Math.random, 0, 0, RUN.ACTS.rot);
@@ -2279,8 +2288,8 @@ export function createSelfTest(ctx) {
       }
       // its identity, not a reaction to the player
       return clean === 30 && elsewhere === 0;
-    })());
-    check('The rift road breaks the enemy\\u2019s ground too', (function () {
+    })()); });
+    check('The rift road breaks the enemy\\u2019s ground too', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2292,17 +2301,17 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       // a shared condition, not a one-sided punishment
       return mine > 0 && theirs > 0;
-    })());
-    check('Every secret boss carries a rule of its own', (function () {
+    })()); });
+    check('Every secret boss carries a rule of its own', function () { return ((function () {
       return RUN.SECRET_ACT_KEYS.every(function (key) {
         var bossKey = RUN.ACTS[key].boss, e = ENEMIES[bossKey];
         if (!e || e.kind !== 'boss') return false;
         return C.enemyIcons(bossKey).length > 0 && (e.behaviour || '').length > 40;
       });
-    })());
+    })()); });
 
     // --- six things a deck can be built around ---
-    check('Swarm pays for bodies', (function () {
+    check('Swarm pays for bodies', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'green_swarmling', 1);
       var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
@@ -2310,8 +2319,8 @@ export function createSelfTest(ctx) {
       for (var i = 0; i < 3; i++) put(battleState2, 'bottom', 'row1', i, 'red_brute', 2);
       var crowd = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return crowd.strengthOf(crowd.view['bottom-row2-0']) > a;
-    })());
-    check('Spectrum pays for colours, and only for distinct ones', (function () {
+    })()); });
+    check('Spectrum pays for colours, and only for distinct ones', function () { return ((function () {
       function withColours(list) {
         var battleState2 = fresh();
         put(battleState2, 'bottom', 'row2', 0, 'yellow_prismatic', 1);
@@ -2324,31 +2333,31 @@ export function createSelfTest(ctx) {
       }
       // four of one colour must be worth less than four different ones
       return withColours(['red', 'green', 'blue', 'cyan']) > withColours(['red', 'red', 'red', 'red']);
-    })());
-    check('Chain pays for mix length', (function () {
+    })()); });
+    check('Chain pays for mix length', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'magenta_cascade', 1);
       var c0 = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 0, top: 0 } });
       var c3 = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 3, top: 0 } });
       return c3.strengthOf(c3.view['bottom-row2-0']) ===
              c0.strengthOf(c0.view['bottom-row2-0']) + 9;
-    })());
-    check('Control pays for shrinking a crowded enemy', (function () {
+    })()); });
+    check('Control pays for shrinking a crowded enemy', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'black_famine', 3);
       for (var i = 0; i < 3; i++) put(battleState2, 'top', 'row1', i, 'red_brute', 6);
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       // the swarm answer: three enemy bodies is one point off each of them
       return ev.strengthOf(ev.view['top-row1-0']) < 6;
-    })());
-    check('The Broodmother lifts the whole board, not just neighbours', (function () {
+    })()); });
+    check('The Broodmother lifts the whole board, not just neighbours', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 0, 'green_broodmother', 2);
       put(battleState2, 'bottom', 'row3', 0, 'red_brute', 2);     // deliberately not touching
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev.strengthOf(ev.view['bottom-row3-0']) === 3;
-    })());
-    check('Every archetype has enough cards to actually build around', (function () {
+    })()); });
+    check('Every archetype has enough cards to actually build around', function () { return ((function () {
       function count(test) { return C.DRAWABLE.filter(test).length; }
       var swarm = count(function (key) { return /friendly unit|friendly units/i.test(CARDS[key].text || ''); });
       var spectrum = count(function (key) { return /distinct colour/i.test(CARDS[key].text || ''); });
@@ -2360,8 +2369,8 @@ export function createSelfTest(ctx) {
          happens to exist \u2014 below that a deck cannot reliably find two of them. */
       return swarm >= 3 && spectrum >= 3 && chain >= 3 &&
              control >= 3 && ward >= 3 && draw >= 3;
-    })());
-    check('Archetype hooks survive a fusion without turning into nonsense', (function () {
+    })()); });
+    check('Archetype hooks survive a fusion without turning into nonsense', function () { return ((function () {
       /* swarmAura is a number and warded is a flag; the generic composer would
          have wrapped both as functions, making the aura NaN when added to a
          strength. Explicit hook shapes are what stop that. */
@@ -2374,9 +2383,9 @@ export function createSelfTest(ctx) {
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var lifted = ev.strengthOf(ev.view['bottom-row1-0']);
       return lifted === 3 && !isNaN(ev.totals.bottom);
-    })());
+    })()); });
 
-    check('No archetype is locked behind the colour gate', (function () {
+    check('No archetype is locked behind the colour gate', function () { return ((function () {
       var AR = {
         swarm:    function (key) { return /friendly unit/i.test(CARDS[key].text || ''); },
         spectrum: function (key) { return /distinct colour/i.test(CARDS[key].text || ''); },
@@ -2396,8 +2405,8 @@ export function createSelfTest(ctx) {
           return AR[a](key) && C.PRIMARY_COLORS.indexOf(cardDef.color) !== -1;
         });
       });
-    })());
-    check('The new ward shapes each protect something different', (function () {
+    })()); });
+    check('The new ward shapes each protect something different', function () { return ((function () {
       function scorched(cardId, row, extra) {
         var battleState2 = fresh();
         battleState2.board[PLAYER][row][0] = { cardId: cardId, color: CARDS[cardId].color,
@@ -2416,10 +2425,10 @@ export function createSelfTest(ctx) {
       // the Bastion guards its whole row instead
       var bastion = scorched('blue_bastion', 'row1', true);
       return front.self === 0 && back.self === -1 && bastion.mate === 0;
-    })());
+    })()); });
 
     // --- build-arounds: each payoff must want a different board ---
-    check('Every payoff rewards its own shape and punishes the wrong one', (function () {
+    check('Every payoff rewards its own shape and punishes the wrong one', function () { return ((function () {
       var SLOTS = [['row1', 0], ['row1', 1], ['row1', 2], ['row1', 3],
                    ['row2', 0], ['row2', 1], ['row2', 2], ['row3', 0], ['row3', 1]];
       function score(shape, payoff, handSize) {
@@ -2456,8 +2465,8 @@ export function createSelfTest(ctx) {
       if (!(score(WARDED, 'cyan_sanctum') > score(WIDE, 'cyan_sanctum') + 6)) return false;
       // and the Tide payoff reads the hand, not the board
       return score(TALL, 'blue_undertow', 7) > score(TALL, 'blue_undertow', 0) + 4;
-    })());
-    check('A build-around is genuinely dead in the wrong deck', (function () {
+    })()); });
+    check('A build-around is genuinely dead in the wrong deck', function () { return ((function () {
       var battleState2 = fresh();
       // Colossus on a crowded board: nine strength eaten by its own company
       [['row1', 0], ['row1', 1], ['row1', 2], ['row2', 0], ['row2', 1]].forEach(function (t) {
@@ -2466,8 +2475,8 @@ export function createSelfTest(ctx) {
       battleState2.board[PLAYER].row3[0] = { cardId: 'red_colossus', color: 'red', strength: 9, temp: 0 };
       var ev = C.evaluateBoard(battleState2.board, battleState2.hazards, RUN.evalCtx(battleState2));
       return ev.strengthOf(ev.view['bottom-row3-0']) === 0;
-    })());
-    check('Every archetype has an enabler and a payoff to reach for', (function () {
+    })()); });
+    check('Every archetype has an enabler and a payoff to reach for', function () { return ((function () {
       /* A payoff with nothing to enable it is a trap, and an enabler with no
          payoff is filler. Each named archetype needs both in the pool. */
       var need = {
@@ -2484,8 +2493,8 @@ export function createSelfTest(ctx) {
           return CARDS[key] && C.DRAWABLE.indexOf(key) !== -1;
         });
       });
-    })());
-    check('The pool is broad enough that a colour is not one deck', (function () {
+    })()); });
+    check('The pool is broad enough that a colour is not one deck', function () { return ((function () {
       var byColour = {};
       C.DRAWABLE.forEach(function (key) {
         var color = CARDS[key].color || 'colourless';
@@ -2494,16 +2503,16 @@ export function createSelfTest(ctx) {
       // every colour needs enough cards to support more than a single line of play
       return C.COLOR_KEYS.every(function (color) { return byColour[color] >= 9; }) &&
              C.DRAWABLE.length >= 95;
-    })());
+    })()); });
 
     // --- row minimums were the thing holding cheap-unit archetypes down ---
-    check('A strength-1 unit normally cannot leave Row 1', (function () {
+    check('A strength-1 unit normally cannot leave Row 1', function () { return ((function () {
       var battleState2 = fresh();
       var tiles = C.legalTiles(battleState2.board, PLAYER, 1);
       return tiles.length === ROW_INFO.row1.count &&
              tiles.every(function (t) { return t.row === 'row1'; });
-    })());
-    check('anyRow lets a small unit stand anywhere', (function () {
+    })()); });
+    check('anyRow lets a small unit stand anywhere', function () { return ((function () {
       var battleState2 = fresh();
       var opts = C.placeOpts('green_burrower', [], battleState2.board, PLAYER);
       var tiles = C.legalTiles(battleState2.board, PLAYER, 1, opts);
@@ -2511,15 +2520,15 @@ export function createSelfTest(ctx) {
          board only 4, while a Titan board filled all nine. The archetypes were
          not weak on rates, they were playing a smaller board. */
       return opts.anyRow === true && tiles.length === 9;
-    })());
-    check('Field Commission frees every unit, not just the ones that say so', (function () {
+    })()); });
+    check('Field Commission frees every unit, not just the ones that say so', function () { return ((function () {
       var battleState2 = fresh();
       var plain = C.placeOpts('green_swarmling', [], battleState2.board, PLAYER);
       var withRelic = C.placeOpts('green_swarmling', ['field_commission'], battleState2.board, PLAYER);
       return !plain.anyRow && withRelic.anyRow &&
              C.legalTiles(battleState2.board, PLAYER, 1, withRelic).length === 9;
-    })());
-    check('A Footing opens its own row and no other', (function () {
+    })()); });
+    check('A Footing opens its own row and no other', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.board[PLAYER].row2[0] = { cardId: 'cyan_footing', color: 'cyan', strength: 2, temp: 0 };
       var opts = C.placeOpts('green_swarmling', [], battleState2.board, PLAYER);
@@ -2528,8 +2537,8 @@ export function createSelfTest(ctx) {
       tiles.forEach(function (t) { rows[t.row] = 1; });
       // row1 was always legal; row2 is opened by the Footing; row3 stays shut
       return !!rows.row1 && !!rows.row2 && !rows.row3;
-    })());
-    check('Every archetype has enablers and a payoff to build toward', (function () {
+    })()); });
+    check('Every archetype has enablers and a payoff to build toward', function () { return ((function () {
       function have(pattern, min) {
         var count = C.DRAWABLE.filter(function (key) {
           return pattern.test(CARDS[key].text || '');
@@ -2544,8 +2553,8 @@ export function createSelfTest(ctx) {
              have(/ignores all negative|ignore all negative/i, 3) &&                         // ward
              have(/behind the line|back row/i, 3) &&                                         // control
              have(/draw/i, 5);                                                               // draw
-    })());
-    check('The solitude payoffs actually pay', (function () {
+    })()); });
+    check('The solitude payoffs actually pay', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.board[PLAYER].row3[0] = { cardId: 'cyan_monolith', color: 'cyan', strength: 3, temp: 0 };
       var alone = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
@@ -2556,10 +2565,10 @@ export function createSelfTest(ctx) {
       });
       var crowded = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return big > 15 && crowded.strengthOf(crowded.view['bottom-row3-0']) < big;
-    })());
+    })()); });
 
     // --- frontlines fall between rounds, but only where the lane was contested ---
-    check('A contested lane culls both frontlines, support survives', (function () {
+    check('A contested lane culls both frontlines, support survives', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 3);
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
@@ -2570,21 +2579,21 @@ export function createSelfTest(ctx) {
       return battleState2.board.bottom.row1[0] === null && battleState2.board.bottom.row1[1] === null &&
              battleState2.board.bottom.row2[0] !== null &&
              battleState2.board.top.row1[0] === null && battleState2.board.top.row1[1] === null;
-    })());
-    check('An uncontested lane spares its frontline', (function () {
+    })()); });
+    check('An uncontested lane spares its frontline', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 3, 'red_brute', 3);        // nothing opposite it
       var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       return battleState2.board.bottom.row1[3] !== null && fallen.bottom.length === 0;
-    })());
-    check('A unit fronting several lanes falls once if any was contested', (function () {
+    })()); });
+    check('A unit fronting several lanes falls once if any was contested', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row3', 0, 'green_titan', 6);      // fronts lanes 1-3 alone
       put(battleState2, 'top', 'row1', 0, 'blue_scout', 2);          // contests lane 1 only
       var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       return fallen.bottom.length === 1 && battleState2.board.bottom.row3[0] === null;
-    })());
-    check('Support steps up to the line next round', (function () {
+    })()); });
+    check('Support steps up to the line next round', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
       put(battleState2, 'bottom', 'row1', 2, 'red_brute', 3);
@@ -2594,22 +2603,22 @@ export function createSelfTest(ctx) {
       RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       var ev2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return ev2.lanes[1].bottom && ev2.lanes[1].bottom.champion.row === 'row2';
-    })());
-    check('An empty board survives the cull', (function () {
+    })()); });
+    check('An empty board survives the cull', function () { return ((function () {
       var battleState2 = fresh();
       RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       return true;
-    })());
+    })()); });
 
     check('The first three fights ease the player in',
-      RUN.easeInHand(0) === 2 && RUN.easeInHand(2) === 2 && RUN.easeInHand(3) === 0,
-      [0, 2, 3].map(RUN.easeInHand).join('/'));
-    check('The battle-start primer is a single card', RUN.TUTORIAL_STEPS.length === 1);
+      function () { return (RUN.easeInHand(0) === 2 && RUN.easeInHand(2) === 2 && RUN.easeInHand(3) === 0); },
+      function () { return ([0, 2, 3].map(RUN.easeInHand).join('/')); });
+    check('The battle-start primer is a single card', function () { return (RUN.TUTORIAL_STEPS.length === 1); });
     check('Frontline and round-break are deferred lessons',
-      typeof RUN.TUTORIAL_LESSONS.frontline === 'function' && typeof RUN.TUTORIAL_LESSONS.roundbreak === 'function');
+      function () { return (typeof RUN.TUTORIAL_LESSONS.frontline === 'function' && typeof RUN.TUTORIAL_LESSONS.roundbreak === 'function'); });
     check('Every opening card carries art or prose',
-      RUN.TUTORIAL_STEPS.every(function (step) { return step.title && (step.body || step.art || step.artHtml); }));
-    check('Lessons build from a live board and describe its own units', (function () {
+      function () { return (RUN.TUTORIAL_STEPS.every(function (step) { return step.title && (step.body || step.art || step.artHtml); })); });
+    check('Lessons build from a live board and describe its own units', function () { return ((function () {
       try {
         var battleState2 = fresh();
         put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
@@ -2623,14 +2632,14 @@ export function createSelfTest(ctx) {
         // it must name the player's real units, not a canned example
         return text.indexOf('Cyan') !== -1 && text.indexOf('Red 3') !== -1;
       } catch (e) { return false; }
-    })());
-    check('The frontline lesson holds off until a lane is contested', (function () {
+    })()); });
+    check('The frontline lesson holds off until a lane is contested', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);   // nothing opposing
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return RUN.TUTORIAL_LESSONS.frontline({ board: battleState2.board, hazards: battleState2.hazards, ev: e2 }) === null;
-    })());
-    check('The round-break lesson reports what actually fell', (function () {
+    })()); });
+    check('The round-break lesson reports what actually fell', function () { return ((function () {
       try {
         var battleState2 = fresh();
         put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
@@ -2649,8 +2658,8 @@ export function createSelfTest(ctx) {
         return cards[0].legend.length === 2 && text.indexOf('Cyan') !== -1 &&
                text.indexOf('never contested') !== -1 && text.indexOf('stays') !== -1;
       } catch (e) { return false; }
-    })());
-    check('The round-break lesson waits for a round where something fell', (function () {
+    })()); });
+    check('The round-break lesson waits for a round where something fell', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
       var pre = C.cloneBoard(battleState2.board);
@@ -2658,8 +2667,8 @@ export function createSelfTest(ctx) {
       var fallen = RUN.clearFrontlines(battleState2.board, battleState2.hazards, {});
       return RUN.TUTORIAL_LESSONS.roundbreak({ board: pre, hazards: battleState2.hazards, ev: e2,
         after: battleState2.board, fallen: fallen, evalCtx: {} }) === null;
-    })());
-    check('Live pointers keep clear of units and of each other', (function () {
+    })()); });
+    check('Live pointers keep clear of units and of each other', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
@@ -2681,15 +2690,15 @@ export function createSelfTest(ctx) {
         }
       }
       return true;
-    })());
-    check('The first-turn lesson explains playing a card', (function () {
+    })()); });
+    check('The first-turn lesson explains playing a card', function () { return ((function () {
       try {
         var cards = RUN.TUTORIAL_LESSONS.play({});
         return cards && cards.length === 1 && typeof cards[0].artHtml === 'function' &&
                cards[0].artHtml().indexOf('tut-rack') !== -1;
       } catch (e) { return false; }
-    })());
-    check('A Row 1 lesson never claims the strength was divided', (function () {
+    })()); });
+    check('A Row 1 lesson never claims the strength was divided', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
@@ -2698,16 +2707,16 @@ export function createSelfTest(ctx) {
       var txt = cards[0].legend.join(' ');
       return txt.indexOf('feeds lane 2.') !== -1 && txt.indexOf('Nothing is split off') !== -1 &&
              txt.indexOf('splits into') === -1;
-    })());
-    check('Flow arrows draw over the units, not under them', (function () {
+    })()); });
+    check('Flow arrows draw over the units, not under them', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row3', 0, 'green_titan', 7);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var svg = RUN.TUTORIAL_LESSONS.lanes_row3({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row3', index: 0 } })[0].art();
       return svg.indexOf('tut-token') < svg.indexOf('tut-flow');
-    })());
-    check('One share chip per lane, sitting above Row 1', (function () {
+    })()); });
+    check('One share chip per lane, sitting above Row 1', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row3', 0, 'green_titan', 7);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
@@ -2716,12 +2725,12 @@ export function createSelfTest(ctx) {
       var chips = svg.match(/class="tut-amtbox"/g) || [];
       var ys = (svg.match(/class="tut-amtbox" x="[-\d.]+" y="([-\d.]+)"/) || [])[1];
       return chips.length === 3 && parseFloat(ys) < 0;   // above the board's top edge
-    })());
-    check('Every rule has a lesson that waits for its moment', (function () {
+    })()); });
+    check('Every rule has a lesson that waits for its moment', function () { return ((function () {
       var need = ['lanes_row1', 'lanes_row2', 'lanes_row3', 'mixing', 'passing', 'frontline', 'roundbreak'];
       return need.every(function (key) { return typeof RUN.TUTORIAL_LESSONS[key] === 'function'; });
-    })());
-    check('Lane lessons draw the row the player actually used', (function () {
+    })()); });
+    check('Lane lessons draw the row the player actually used', function () { return ((function () {
       try {
         var battleState2 = fresh();
         put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 4);
@@ -2734,50 +2743,50 @@ export function createSelfTest(ctx) {
         // Row 2 splits across two lanes, so the shares must read as a sum of two
         return txt.indexOf('lanes 2, 3') !== -1 && txt.indexOf('2 + 2') !== -1;
       } catch (e) { return false; }
-    })());
-    check('A lane lesson ignores a placement in another row', (function () {
+    })()); });
+    check('A lane lesson ignores a placement in another row', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return RUN.TUTORIAL_LESSONS.lanes_row3({ board: battleState2.board, hazards: battleState2.hazards, ev: e2,
         tile: { row: 'row1', index: 0 } }) === null;
-    })());
-    check('Turning the tutorial off silences every lesson', (function () {
+    })()); });
+    check('Turning the tutorial off silences every lesson', function () { return ((function () {
       var was = RUN.tutorial.enabled;
       RUN.setTutorial(false);
       var quiet = ['mixing', 'passing', 'frontline', 'lanes_row1'].every(function (key) { return !RUN.shouldTeach(key); });
       RUN.setTutorial(was);
       return quiet;
-    })());
-    check('Lessons are not confined to the first battle', (function () {
+    })()); });
+    check('Lessons are not confined to the first battle', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       RUN.getRun().battlesFought = 4;
       var ok = RUN.shouldTeach('mixing');
       RUN.setRun(saved);
       return ok;
-    })());
-    check('The tutorial has steps and can be switched off', (function () {
+    })()); });
+    check('The tutorial has steps and can be switched off', function () { return ((function () {
       var was = RUN.tutorial.enabled;
       RUN.setTutorial(false);
       var off = RUN.tutorial.enabled === false;
       RUN.setTutorial(was);
       return RUN.TUTORIAL_STEPS.length >= 1 && off;
-    })());
+    })()); });
     // --- colour lab ---
-    check('The ordinary lab rolls fusion or reinforcement', (function () {
+    check('The ordinary lab rolls fusion or reinforcement', function () { return ((function () {
       var seen = {}, saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       for (var i = 0; i < 300; i++) { RUN.rollLab(); seen[RUN.getRun().lab.kind] = 1; }
       RUN.setRun(saved);
       return seen.fuse && seen.boost && !seen.volatile;   // volatile is its own map node now
-    })());
+    })()); });
     check('Curse risk climbs with every pull and is capped',
-      RUN.curseRisk(0) < RUN.curseRisk(1) && RUN.curseRisk(1) < RUN.curseRisk(5) &&
-      RUN.curseRisk(99) <= 0.75, [0, 1, 5, 99].map(function (pulls) { return Math.round(RUN.curseRisk(pulls) * 100); }).join('/'));
+      function () { return (RUN.curseRisk(0) < RUN.curseRisk(1) && RUN.curseRisk(1) < RUN.curseRisk(5) &&
+      RUN.curseRisk(99) <= 0.75); }, function () { return ([0, 1, 5, 99].map(function (pulls) { return Math.round(RUN.curseRisk(pulls) * 100); }).join('/')); });
     check('Curses stay out of rewards and shops',
-      C.DRAWABLE.every(function (key) { return !CARDS[key].curse; }) && C.CURSE_KEYS.length >= 4);
-    check('A drawn curse plants itself and never enters the hand', (function () {
+      function () { return (C.DRAWABLE.every(function (key) { return !CARDS[key].curse; }) && C.CURSE_KEYS.length >= 4); });
+    check('A drawn curse plants itself and never enters the hand', function () { return ((function () {
       var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [C.makeCard('curse_husk'), C.makeCard('red_brute')], top: [] },
         mixTokens: { bottom: 1, top: 1 }, relics: [] };
@@ -2787,36 +2796,36 @@ export function createSelfTest(ctx) {
              CARDS[battleState2.hands.bottom[0].id].curse !== true &&
              planted && planted.cardId === 'curse_husk' && planted.color === null &&
              battleState2.curseFired && battleState2.curseFired.length === 1;
-    })());
-    check('Curses take the front row first, blocking a lane', (function () {
+    })()); });
+    check('Curses take the front row first, blocking a lane', function () { return ((function () {
       var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [C.makeCard('curse_idol')], top: [] },
         mixTokens: { bottom: 1, top: 1 }, relics: [] };
       RUN.drawInto(battleState2, 'bottom', 1);
       return !!battleState2.board.bottom.row1[0];
-    })());
-    check('Leaden Idol drags its neighbours down', (function () {
+    })()); });
+    check('Leaden Idol drags its neighbours down', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 4);
       put(battleState2, 'bottom', 'row2', 1, 'curse_idol', 1);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.strengthOf(e2.get('bottom', 'row1', 1)) === 3;
-    })());
-    check('Beacon of Rot feeds the enemy frontline', (function () {
+    })()); });
+    check('Beacon of Rot feeds the enemy frontline', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row2', 1, 'curse_beacon', 1);
       put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.lanes[1].top.frontStrength === 5;
-    })());
-    check('A curse unit is colourless, so no colour can answer it', (function () {
+    })()); });
+    check('A curse unit is colourless, so no colour can answer it', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'curse_husk', 1);
       put(battleState2, 'top', 'row1', 1, 'red_brute', 3);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.lanes[1].bottom.effective === false && e2.lanes[1].top.effective === false;
-    })());
-    check('A fusion of two blank cards is still silenced', (function () {
+    })()); });
+    check('A fusion of two blank cards is still silenced', function () { return ((function () {
       /* Red Brute is the only unit in the game with no rules whatsoever, so two
          of them is the one fusion that inherits nothing — it stays the old
          pure-stat Amalgam and auras still cannot lift it. A fusion that DID
@@ -2831,8 +2840,8 @@ export function createSelfTest(ctx) {
       return CARDS[fused.id].silenced === true &&
              (CARDS[fused.id].effectSources || []).length === 0 &&
              e2.strengthOf(e2.get('bottom', 'row1', 1)) === CARDS[fused.id].strength;
-    })());
-    check('The enemy rots at the rate the player does', (function () {
+    })()); });
+    check('The enemy rots at the rate the player does', function () { return ((function () {
       function avgCurses(playerCurses, corruption) {
         var total = 0;
         for (var i = 0; i < 300; i++) {
@@ -2846,15 +2855,15 @@ export function createSelfTest(ctx) {
          onward the enemy carried a curse in every single fight. It has to stay
          rare when the player is barely cursed, and it has to scale. */
       return none === 0 && few > 0 && few < 0.6 && many > few * 2;
-    })());
-    check('A clean player never faces a cursed enemy', (function () {
+    })()); });
+    check('A clean player never faces a cursed enemy', function () { return ((function () {
       for (var i = 0; i < 200; i++) {
         var deck = C.buildEnemyDeck(ENEMIES.brawler, 20, Math.random, 0, 0);
         if (deck.some(function (c) { return CARDS[c.id].curse; })) return false;
       }
       return true;
-    })());
-    check('Elites and bosses bring curse tech, normal foes rarely do', (function () {
+    })()); });
+    check('Elites and bosses bring curse tech, normal foes rarely do', function () { return ((function () {
       function techRate(key) {
         var hits = 0;
         for (var i = 0; i < 250; i++) {
@@ -2870,15 +2879,15 @@ export function createSelfTest(ctx) {
          roughly one run in twenty. The point of the test is the gap between
          ranks, not a tight bound on either. */
       return boss > normal * 1.6 && normal < 0.3;
-    })());
-    check('Curse tech never shows up against a clean player', (function () {
+    })()); });
+    check('Curse tech never shows up against a clean player', function () { return ((function () {
       for (var i = 0; i < 200; i++) {
         var deck = C.buildEnemyDeck(ENEMIES.spectrum, 30, Math.random, 0, 0);
         if (deck.some(function (c) { return C.NEEDS_CURSES_IDS.indexOf(c.id) !== -1; })) return false;
       }
       return true;
-    })());
-    check('Every act carries exactly one Volatile Lab behind a gate', (function () {
+    })()); });
+    check('Every act carries exactly one Volatile Lab behind a gate', function () { return ((function () {
       for (var attempt = 0; attempt < 25; attempt++) {
         var map = RUN.buildMap(RUN.ACT_KEYS[attempt % RUN.ACT_KEYS.length], attempt % 2 === 0);
         var vol = [], gates = [];
@@ -2903,27 +2912,27 @@ export function createSelfTest(ctx) {
         if (into.length !== 1 || !into[0].hidden || into[0].type !== 'elite') return false;
       }
       return true;
-    })());
-    check('Fusion follows the board mixing maths', (function () {
+    })()); });
+    check('Fusion follows the board mixing maths', function () { return ((function () {
       var preview1 = C.fusePreview({ id: 'red_brute', up: false }, { id: 'blue_scout', up: false });
       var preview2 = C.fusePreview({ id: 'black_voidling', up: false }, { id: 'red_brute', up: false });
       // Red 2 + Blue 1 + 1 = Magenta 4 ; Black 1 + Red 2 + 2 = Black 5
       return preview1.color === 'magenta' && preview1.strength === 4 && preview2.color === 'black' && preview2.strength === 5;
-    })());
-    check('A fused card is real, playable and out of the shop pool', (function () {
+    })()); });
+    check('A fused card is real, playable and out of the shop pool', function () { return ((function () {
       var e = C.fuseCards({ id: 'red_brute', up: false }, { id: 'green_seed', up: false });
       var cardDef = CARDS[e.id];
       return cardDef && cardDef.type === 'unit' && cardDef.strength === 4 && C.DRAWABLE.indexOf(e.id) === -1;
-    })());
-    check('Reinforcement raises printed strength permanently', (function () {
+    })()); });
+    check('Reinforcement raises printed strength permanently', function () { return ((function () {
       var lifted = RUN.liftStrength({ id: 'red_brute', up: false }, 2);
       return C.cardStrength(lifted) === 4 && CARDS[lifted.id].name === 'Red Brute';
-    })());
-    check('Reinforcement keeps the card\u2019s rules text and hooks', (function () {
+    })()); });
+    check('Reinforcement keeps the card\u2019s rules text and hooks', function () { return ((function () {
       var lifted = RUN.liftStrength({ id: 'green_gardener', up: false }, 1);
       return typeof CARDS[lifted.id].aura === 'function' && C.cardStrength(lifted) === 4;
-    })());
-    check('Volatile fusion never hollows the deck out', (function () {
+    })()); });
+    check('Volatile fusion never hollows the deck out', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2931,8 +2940,8 @@ export function createSelfTest(ctx) {
       var units = RUN.deckUnits().length;
       RUN.setRun(saved);
       return units >= 4;                      // playable units, not padded count
-    })());
-    check('Curses spread out before repeating', (function () {
+    })()); });
+    check('Curses spread out before repeating', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2948,8 +2957,8 @@ export function createSelfTest(ctx) {
       }
       RUN.setRun(saved);
       return Object.keys(kinds).length >= 3;
-    })());
-    check('A one-shot choice cannot be taken twice', (function () {
+    })()); });
+    check('A one-shot choice cannot be taken twice', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -2963,10 +2972,10 @@ export function createSelfTest(ctx) {
       RUN.setRun(saved);
       RUN.show('map');
       return lives === 1;
-    })());
+    })()); });
 
     // --- the peek strip's click-to-expand overlay ---
-    check('Tapping the peek strip opens the full, un-clipped card text', (function () {
+    check('Tapping the peek strip opens the full, un-clipped card text', function () { return ((function () {
       /* The strip that reads this text is fixed at two lines with overflow
          hidden, so a three-effect fusion's third sentence was silently cut off
          with no sign anything was missing. The strip is now a button that
@@ -2992,8 +3001,8 @@ export function createSelfTest(ctx) {
       overlay.hidden = true;
       RUN.setRun(saved); RUN.show('map');
       return gotId && opened && fullTextShown;
-    })());
-    check('Moving off a hovered card toward the peek strip does not blank it first', (function () {
+    })()); });
+    check('Moving off a hovered card toward the peek strip does not blank it first', function () { return ((function () {
       /* The actual bug a player would hit: mouseenter sets the peek strip's
          content, but the strip sits below the cards — reaching it with a mouse
          means leaving the card first. That used to fire mouseleave, which
@@ -3015,8 +3024,8 @@ export function createSelfTest(ctx) {
       var idAfter = document.getElementById('cardPeek').dataset.cardId;
       RUN.setRun(saved); RUN.show('map');
       return idBefore === 'red_brute' && idAfter === 'red_brute';
-    })());
-    check('The card detail overlay closes via its button, the backdrop, and nothing else opens it emptied out', (function () {
+    })()); });
+    check('The card detail overlay closes via its button, the backdrop, and nothing else opens it emptied out', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3044,8 +3053,8 @@ export function createSelfTest(ctx) {
         fakePeek.dispatchEvent(evt);
       }
       return openedOk && closedByButton && stillClosed;
-    })());
-    check('The peek strip\\u2019s "read more" hint renders a real ellipsis, not an escape code', (function () {
+    })()); });
+    check('The peek strip\\u2019s "read more" hint renders a real ellipsis, not an escape code', function () { return ((function () {
       /* A doubled backslash in the CSS content string prints the six literal
          characters "\\2026" instead of the unicode codepoint they were meant
          to escape to \u2014 the exact class of bug this file has hit before in JS
@@ -3062,17 +3071,22 @@ export function createSelfTest(ctx) {
       var content = getComputedStyle(document.getElementById('cardPeek'), '::after').content;
       RUN.setRun(saved); RUN.show('map');
       return content.indexOf('\u2026') !== -1 && content.indexOf('2026') === -1;
-    })());
-    check('Lives never read below zero', (function () {
+    })()); });
+    check('Lives never read below zero', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
-      RUN.getRun().lives = -3;
-      RUN.renderRunBar();
+      var run = RUN.getRun();
+      run.lives = 0;                                  // a costly choice made with nothing left to pay it
+      run.pendingNode = { type: 'event', depth: 3, next: [0] };
+      run.event = RUN.EVENTS.filter(function (e) { return e.title === 'A Spilled Palette'; })[0];
+      run.eventTaken = false;
+      RUN.chooseEventOption(0);
       var v = RUN.getRun().lives;
       RUN.setRun(saved);
+      RUN.show('map');
       return v === 0;
-    })());
-    check('A chain belongs to the side that built it', (function () {
+    })()); });
+    check('A chain belongs to the side that built it', function () { return ((function () {
       var battleState2 = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         relics: [], chains: { bottom: 0, top: 0 } };
@@ -3085,8 +3099,8 @@ export function createSelfTest(ctx) {
       RUN.applyMix(battleState2, 'top', { row: 'row1', index: 2 }, { row: 'row2', index: 2 }, 0, false);
       // the enemy mixing must not wipe the player's chain
       return mine === 1 && battleState2.chains.bottom === 1 && battleState2.chains.top === 1;
-    })());
-    check('Magenta Echo reads its own side\u2019s chain', (function () {
+    })()); });
+    check('Magenta Echo reads its own side\u2019s chain', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'magenta_echo', 3);
       var quiet = C.evaluateBoard(battleState2.board, battleState2.hazards, { chains: { bottom: 0, top: 3 } });
@@ -3094,34 +3108,34 @@ export function createSelfTest(ctx) {
       // +2 per link on its own side, and nothing from the enemy's
       return quiet.strengthOf(quiet.get('bottom', 'row1', 1)) === 3 &&
              loud.strengthOf(loud.get('bottom', 'row1', 1)) === 7;
-    })());
-    check('A curse unit reports as colourless', (function () {
+    })()); });
+    check('A curse unit reports as colourless', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'curse_husk', 1);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var v = e2.get('bottom', 'row1', 1);
       return v.color === null && v.colorless === true;
-    })());
-    check('Inspecting a colourless unit never reads an undefined colour', (function () {
+    })()); });
+    check('Inspecting a colourless unit never reads an undefined colour', function () { return ((function () {
       // EFFECTIVE has no entry for null; anything indexing it must guard first
       return C.EFFECTIVE[null] === undefined && C.isEffective(null, 'red') === false &&
              C.isEffective('red', null) === false;
-    })());
-    check('A hazard-stripped unit is colourless too', (function () {
+    })()); });
+    check('A hazard-stripped unit is colourless too', function () { return ((function () {
       var battleState2 = fresh();
       battleState2.hazards.bottom.row1 = 'colorless';
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       return e2.get('bottom', 'row1', 1).colorless === true;
-    })());
-    check('A normal unit is not flagged colourless', (function () {
+    })()); });
+    check('A normal unit is not flagged colourless', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'red_brute', 3);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, {});
       var v = e2.get('bottom', 'row1', 1);
       return v.colorless === false && v.color === 'red';
-    })());
-    check('The player opens the first battle of a run', (function () {
+    })()); });
+    check('The player opens the first battle of a run', function () { return ((function () {
       var saved = RUN.getRun();
       var allPlayer = true;
       for (var i = 0; i < 25; i++) {
@@ -3132,8 +3146,8 @@ export function createSelfTest(ctx) {
       }
       RUN.setRun(saved);
       return allPlayer;
-    })());
-    check('Later battles still flip a coin for the opener', (function () {
+    })()); });
+    check('Later battles still flip a coin for the opener', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun(), seen = {};
@@ -3142,12 +3156,12 @@ export function createSelfTest(ctx) {
       for (var i = 0; i < 200; i++) seen[RUN.newBattle(run.pendingNode).turn] = 1;
       RUN.setRun(saved);
       return seen.bottom && seen.top;
-    })());
-    check('The first-turn lesson no longer lists row minimums', (function () {
+    })()); });
+    check('The first-turn lesson no longer lists row minimums', function () { return ((function () {
       var txt = RUN.TUTORIAL_LESSONS.play({})[0].legend.join(' ');
       return txt.indexOf('minimum strength') === -1 && txt.indexOf('Row 2 needs') === -1;
-    })());
-    check('The line-breaks lesson is two points and names the whole cull', (function () {
+    })()); });
+    check('The line-breaks lesson is two points and names the whole cull', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 1, 'cyan_cleanser', 4);
       put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
@@ -3162,9 +3176,9 @@ export function createSelfTest(ctx) {
       return cards[0].legend.length === 2 &&
              txt.indexOf('both sides, all of them') !== -1 &&
              txt.indexOf('steps up and holds') === -1;
-    })());
+    })()); });
     /* ---- Rewind and fissures ---- */
-    check('Sever cuts one seam, on one side only', (function () {
+    check('Sever cuts one seam, on one side only', function () { return ((function () {
       // the seam between Row 2 #1 and Row 1 #2
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
       var topology = C.boardTopo(fissures);
@@ -3174,8 +3188,8 @@ export function createSelfTest(ctx) {
              C.adjacentTilesFor('bottom', 'row2', 1, topology).length ===
                C.adjacentTiles('row2', 1).length - 1 &&
              C.adjacentTilesFor('top', 'row2', 1, topology).length === C.adjacentTiles('row2', 1).length;
-    })());
-    check('A crack blocks adjacency in both directions', (function () {
+    })()); });
+    check('A crack blocks adjacency in both directions', function () { return ((function () {
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
       var topology = C.boardTopo(fissures);
       var up = C.adjacentTilesFor('bottom', 'row1', 2, topology)
@@ -3183,15 +3197,15 @@ export function createSelfTest(ctx) {
       var down = C.adjacentTilesFor('bottom', 'row2', 1, topology)
         .some(function (t) { return t.row === 'row1' && t.index === 2; });
       return !up && !down;
-    })());
-    check('A Row 3 tile keeps the lanes its intact neighbour still offers', (function () {
+    })()); });
+    check('A Row 3 tile keeps the lanes its intact neighbour still offers', function () { return ((function () {
       // cut row3#0 from row2#0: it should keep only what row2#1 reaches
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row2', index: 0 } }];
       var topology = C.boardTopo(fissures);
       return C.lanesOfFor('bottom', 'row3', 0, topology).join() === '1,2' &&
              C.lanesOfFor('bottom', 'row3', 0, null).join() === '0,1,2';
-    })());
-    check('A severed link never strands a tile', (function () {
+    })()); });
+    check('A severed link never strands a tile', function () { return ((function () {
       var fissures = [], guard = 0;
       while (guard++ < 40) {
         var available = C.severableLinks('bottom', fissures);
@@ -3206,8 +3220,8 @@ export function createSelfTest(ctx) {
         }
       });
       return okAll && fissures.length > 0;
-    })());
-    check('A severed lane loses the share, it is not rerouted', (function () {
+    })()); });
+    check('A severed lane loses the share, it is not rerouted', function () { return ((function () {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 } }];
@@ -3215,8 +3229,8 @@ export function createSelfTest(ctx) {
       var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       return e0.shares['bottom-row2-1'][1] === 3 && e0.shares['bottom-row2-1'][2] === 3 &&
              e1.shares['bottom-row2-1'][2] === undefined && !e1.lanes[2].bottom;
-    })());
-    check('A crack drains the units on both of its tiles', (function () {
+    })()); });
+    check('A crack drains the units on both of its tiles', function () { return ((function () {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       b.bottom.row1[2] = { cardId: null, color: 'red', strength: 5, temp: 0 };
@@ -3226,8 +3240,8 @@ export function createSelfTest(ctx) {
       var drainAmount = C.FISSURE_DRAIN;
       return e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - drainAmount &&
              e1.view['bottom-row1-2'].bonus === e0.view['bottom-row1-2'].bonus - drainAmount;
-    })());
-    check('A heavy drain empties a unit rather than making it negative', (function () {
+    })()); });
+    check('A heavy drain empties a unit rather than making it negative', function () { return ((function () {
       var b = C.emptyBoard();
       b.bottom.row1[1] = { cardId: null, color: 'red', strength: 1, temp: 0 };
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 1 } },
@@ -3235,8 +3249,8 @@ export function createSelfTest(ctx) {
       var e = C.evaluateBoard(b, null, { fissures: fissures });
       var v = e.view['bottom-row1-1'];
       return Math.max(0, v.base + v.bonus) === 0 && e.totals.bottom >= 0;
-    })());
-    check('Mixing cannot reach across a fissure', (function () {
+    })()); });
+    check('Mixing cannot reach across a fissure', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 2, 'red_brute', 3);
       put(battleState2, 'bottom', 'row2', 1, 'green_gardener', 3);
@@ -3245,8 +3259,8 @@ export function createSelfTest(ctx) {
       var cracked = RUN.canMix(battleState2.board, 'bottom', { row: 'row2', index: 1 }, { row: 'row1', index: 2 }, fissures);
       var opts = RUN.mixOptions(battleState2.board, 'bottom', fissures);
       return whole.ok && !cracked.ok && cracked.reason.indexOf('fissure') !== -1 && opts.length === 0;
-    })());
-    check('An aura does not cross a fissure', (function () {
+    })()); });
+    check('An aura does not cross a fissure', function () { return ((function () {
       var aura = Object.keys(C.CARDS).filter(function (key) { return C.CARDS[key].aura && C.CARDS[key].type === 'unit'; })[0];
       if (!aura) return true;
       var b = C.emptyBoard();
@@ -3257,8 +3271,8 @@ export function createSelfTest(ctx) {
       var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       // the neighbour keeps only the drain, never the aura
       return e1.view['bottom-row1-2'].bonus < e0.view['bottom-row1-2'].bonus;
-    })());
-    check('The instability meter overflows and carries the remainder', (function () {
+    })()); });
+    check('The instability meter overflows and carries the remainder', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3266,15 +3280,15 @@ export function createSelfTest(ctx) {
       var okOne = run.fissures.length === 1 && Math.abs(run.instability - 30) < 1e-9;
       RUN.setRun(saved);
       return okOne;
-    })());
-    check('Rewind chunk size grows with lifetime use and never resets', (function () {
+    })()); });
+    check('Rewind chunk size grows with lifetime use and never resets', function () { return ((function () {
       var run = { rewindsUsed: 0 }, a = RUN.rewindChunk(run, 1);
       run.rewindsUsed = 9;
       var b = RUN.rewindChunk(run, 1);
       // by the tenth use one chunk alone must clear the threshold
       return a === RUN.REWIND.BASE_CHUNK && b > RUN.REWIND.THRESHOLD;
-    })());
-    check('Impact is calibrated so an ordinary exchange scores about 1.0', (function () {
+    })()); });
+    check('Impact is calibrated so an ordinary exchange scores about 1.0', function () { return ((function () {
       function imp(cardsGone, mixes, unitsBefore, unitsAfter, swing) {
         return RUN.rewindImpact(
           { handCount: { bottom: 6, top: 6 }, mixesThisRound: 0 },
@@ -3288,8 +3302,8 @@ export function createSelfTest(ctx) {
       return Math.abs(nothing - 0.5) < 1e-9 &&
              ordinary > 0.9 && ordinary < 1.15 &&
              big > ordinary && big <= RUN.REWIND.MAX_IMPACT;
-    })());
-    check('A saturated board deepens instead of looping or going quiet', (function () {
+    })()); });
+    check('A saturated board deepens instead of looping or going quiet', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3304,8 +3318,8 @@ export function createSelfTest(ctx) {
       });
       RUN.setRun(saved);
       return noRoom && allMaxed && noTileStranded && run.fissures.length > 5;
-    })());
-    check('One Rewind damages the board at most once', (function () {
+    })()); });
+    check('One Rewind damages the board at most once', function () { return ((function () {
       var saved = RUN.getRun();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3318,8 +3332,8 @@ export function createSelfTest(ctx) {
       var ev2 = RUN.addInstability(0, PLAYER, C.emptyBoard());
       RUN.setRun(saved);
       return one && carried && ev2.length === 0;
-    })());
-    check('Riftwalker thrives on damage, then drowns in it', (function () {
+    })()); });
+    check('Riftwalker thrives on damage, then drowns in it', function () { return ((function () {
       function at(power) {
         var board = C.emptyBoard();
         board.bottom.row2[1] = { cardId: 'black_riftwalker', color: 'black', strength: 3, temp: 0 };
@@ -3329,8 +3343,8 @@ export function createSelfTest(ctx) {
       }
       // climbs to a peak at 4, is back to par by 6, and is a liability past that
       return at(1) === 5 && at(4) === 11 && at(4) > at(5) && at(7) < 3 && at(8) === 0;
-    })());
-    check('Chorus grows with the board\u2019s scars but is capped', (function () {
+    })()); });
+    check('Chorus grows with the board\u2019s scars but is capped', function () { return ((function () {
       function at(power) {
         var fissures = C.severableLinks('bottom', []).slice(0, power);
         var board = C.emptyBoard();
@@ -3339,8 +3353,8 @@ export function createSelfTest(ctx) {
         return Math.max(0, view.base + view.bonus);
       }
       return at(0) === 2 && at(3) > at(0) && at(7) <= at(5);
-    })());
-    check('Cyan quiets damage for the round without healing it', (function () {
+    })()); });
+    check('Cyan quiets damage for the round without healing it', function () { return ((function () {
       var battleState2 = fresh();
       var fissures = [{ kind: 'sever', side: 'bottom', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: 2 }];
       battleState2.fissures = fissures;
@@ -3357,8 +3371,8 @@ export function createSelfTest(ctx) {
       return quiet.view['bottom-row2-1'].bonus > loud.view['bottom-row2-1'].bonus &&
              reachesAgain && fissures.length === 1 && battleState3.quieted &&
              Object.keys(battleState3.quieted).length === 1;
-    })());
-    check('A bridge joins two tiles that only meet at a corner', (function () {
+    })()); });
+    check('A bridge joins two tiles that only meet at a corner', function () { return ((function () {
       var pairs = C.bridgePairs();
       var everyPairIsNew = pairs.every(function (pr) {
         return !C.adjacentTiles(pr.a.row, pr.a.index)
@@ -3366,16 +3380,16 @@ export function createSelfTest(ctx) {
       });
       var corner = C.sharedCorner('bottom', { row: 'row2', index: 0 }, { row: 'row2', index: 1 });
       return pairs.length === 8 && everyPairIsNew && !!corner;
-    })());
-    check('A bridge carries adjacency both ways', (function () {
+    })()); });
+    check('A bridge carries adjacency both ways', function () { return ((function () {
       var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row2', index: 0 }, b: { row: 'row2', index: 1 }, power: 1 }];
       var topology = C.boardTopo(fissures);
       var fwd = C.adjacentTilesFor('bottom', 'row2', 0, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
       var back = C.adjacentTilesFor('bottom', 'row2', 1, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 0 }); });
       var enemyUntouched = !C.adjacentTilesFor('top', 'row2', 0, topology).some(function (t) { return C.sameTile(t, { row: 'row2', index: 1 }); });
       return fwd && back && enemyUntouched;
-    })());
-    check('A forward bridge grants a lane, paid for by thinner shares', (function () {
+    })()); });
+    check('A forward bridge grants a lane, paid for by thinner shares', function () { return ((function () {
       // row3#0 meets row1#1 only at a corner; bridging reaches lane 1 directly
       var fissures = [{ kind: 'bridge', side: 'bottom', a: { row: 'row3', index: 0 }, b: { row: 'row1', index: 1 }, power: 1 }];
       var b = C.emptyBoard();
@@ -3387,8 +3401,8 @@ export function createSelfTest(ctx) {
       var shareWhole = whole.shares['bottom-row3-0'][0];
       var shareBridged = bridged.shares['bottom-row3-0'][0];
       return lanesBridged === lanesWhole && shareBridged <= shareWhole;
-    })());
-    check('A bridge drains the tiles it joins', (function () {
+    })()); });
+    check('A bridge drains the tiles it joins', function () { return ((function () {
       var b = C.emptyBoard();
       b.bottom.row2[0] = { cardId: null, color: 'red', strength: 6, temp: 0 };
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 6, temp: 0 };
@@ -3397,8 +3411,8 @@ export function createSelfTest(ctx) {
       var e1 = C.evaluateBoard(b, null, { fissures: fissures });
       return e1.view['bottom-row2-0'].bonus === e0.view['bottom-row2-0'].bonus - C.FISSURE_DRAIN &&
              e1.view['bottom-row2-1'].bonus === e0.view['bottom-row2-1'].bonus - C.FISSURE_DRAIN;
-    })());
-    check('A deepened scar pulls harder in proportion to its power', (function () {
+    })()); });
+    check('A deepened scar pulls harder in proportion to its power', function () { return ((function () {
       var b = C.emptyBoard();
       b.bottom.row2[1] = { cardId: null, color: 'red', strength: 9, temp: 0 };
       function drainAt(power) {
@@ -3409,8 +3423,8 @@ export function createSelfTest(ctx) {
       return drainAt(1) - drainAt(3) === 2 * C.FISSURE_DRAIN &&
              C.fissuresTouching('bottom', 'row2', 1,
                [{ side: 'bottom', kind: 'sever', a: { row: 'row2', index: 1 }, b: { row: 'row1', index: 2 }, power: 3 }]) === 3;
-    })());
-    check('Rewind is offered only after the player has moved, once per round', (function () {
+    })()); });
+    check('Rewind is offered only after the player has moved, once per round', function () { return ((function () {
       var savedRun = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3425,8 +3439,8 @@ export function createSelfTest(ctx) {
       var spent = !canRewind();                         // hard cap holds
       RUN.setState(savedState); RUN.setRun(savedRun);
       return noneYet && armed && spent;
-    })());
-    check('Rewind restores the board, hands and turn exactly', (function () {
+    })()); });
+    check('Rewind restores the board, hands and turn exactly', function () { return ((function () {
       var savedRun = RUN.getRun(), savedState = RUN.getState();
       RUN.setRun(RUN.newRun());
       var run = RUN.getRun();
@@ -3446,23 +3460,23 @@ export function createSelfTest(ctx) {
                   newState.turn === PLAYER && newState.finalTurn === false && newState.mixTokens.bottom === 1;
       RUN.setState(savedState); RUN.setRun(savedRun);
       return okAll;
-    })());
-    check('The AI plans on the cracked board, not the pristine one', (function () {
+    })()); });
+    check('The AI plans on the cracked board, not the pristine one', function () { return ((function () {
       var battleState = { board: C.emptyBoard(), hazards: C.emptyHazards(),
         hands: { bottom: [], top: [] }, decks: { bottom: [], top: [] },
         fissures: [{ kind: 'sever', side: 'bottom', row: 'row2', index: 1, lane: 2 }] };
       var sim = RUN.simGame(battleState);
       return sim.fissures.length === 1 && RUN.evalCtx(battleState).fissures.length === 1;
-    })());
+    })()); });
 
-    check('Every map node lists at least one onward path', (function () {
+    check('Every map node lists at least one onward path', function () { return ((function () {
       var map = RUN.buildMap();
       for (var depth = 0; depth < map.length - 1; depth++) {
         for (var i = 0; i < map[depth].length; i++) if (!map[depth][i].next.length) return false;
       }
       return true;
-    })());
-    check('The enemy brings enough cards to last three rounds', (function () {
+    })()); });
+    check('The enemy brings enough cards to last three rounds', function () { return ((function () {
       /* The player opens on 6 and draws 2 a round, so a full battle is about ten
          cards. A ten-card enemy deck ran dry in round three and the fight ended
          by attrition rather than by play. */
@@ -3470,30 +3484,30 @@ export function createSelfTest(ctx) {
       var late = C.buildEnemyDeck(ENEMIES.brawler, 40, Math.random).length;
       var boss = C.buildEnemyDeck(ENEMIES.spectrum, 40, Math.random).length;
       return early >= 12 && late > early && boss > late && boss <= 26;
-    })());
-    check('Enemy decks respect their colours', C.buildEnemyDeck(ENEMIES.brawler, 9, Math.random).every(function (c) {
+    })()); });
+    check('Enemy decks respect their colours', function () { return (C.buildEnemyDeck(ENEMIES.brawler, 9, Math.random).every(function (c) {
       var cardDef = CARDS[c.id];
       return cardDef.type !== 'unit' || ENEMIES.brawler.colors.indexOf(cardDef.color) !== -1;
-    }));
-    check('Opening battles carry no depth bonus', RUN.depthBonusFor(0) === 0 && RUN.depthBonusFor(5) === 0);
+    })); });
+    check('Opening battles carry no depth bonus', function () { return (RUN.depthBonusFor(0) === 0 && RUN.depthBonusFor(5) === 0); });
     check('The bonus steps up toward the boss',
-      RUN.depthBonusFor(7) === 1 && RUN.depthBonusFor(10) === 1 && RUN.depthBonusFor(12) === 2,
-      [7, 10, 12].map(RUN.depthBonusFor).join('/'));
-    check('Enemies scale with act depth', (function () {
+      function () { return (RUN.depthBonusFor(7) === 1 && RUN.depthBonusFor(10) === 1 && RUN.depthBonusFor(12) === 2); },
+      function () { return ([7, 10, 12].map(RUN.depthBonusFor).join('/')); });
+    check('Enemies scale with act depth', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'top', 'row1', 0, 'red_brute', 2);
       var early = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 0 } });
       var late = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 3 } });
       return early.strengthOf(early.get('top', 'row1', 0)) === 2 && late.strengthOf(late.get('top', 'row1', 0)) === 5;
-    })());
-    check('The depth bonus never touches your units', (function () {
+    })()); });
+    check('The depth bonus never touches your units', function () { return ((function () {
       var battleState2 = fresh();
       put(battleState2, 'bottom', 'row1', 0, 'red_brute', 2);
       var e2 = C.evaluateBoard(battleState2.board, battleState2.hazards, { enemyMod: { depthBonus: 3 } });
       return e2.strengthOf(e2.get('bottom', 'row1', 0)) === 2;
-    })());
-    check('Every relic has text and a price', Object.keys(RELICS).every(function (key) { return RELICS[key].text && RELICS[key].cost > 0; }));
-    check('Every card has a price', C.DRAWABLE.every(function (key) { return CARDS[key].cost > 0; }));
+    })()); });
+    check('Every relic has text and a price', function () { return (Object.keys(RELICS).every(function (key) { return RELICS[key].text && RELICS[key].cost > 0; })); });
+    check('Every card has a price', function () { return (C.DRAWABLE.every(function (key) { return CARDS[key].cost > 0; })); });
 
     // --- enemy deck quality is gated by depth ---
     var early = [], late = [];
@@ -3501,19 +3515,19 @@ export function createSelfTest(ctx) {
       C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { early.push(CARDS[c.id].rarity); });
       C.buildEnemyDeck(ENEMIES.brawler, 10, Math.random).forEach(function (c) { late.push(CARDS[c.id].rarity); });
     }
-    check('Early enemies field commons only', early.every(function (rarity) { return rarity === 'Common'; }),
-      'saw ' + early.filter(function (rarity) { return rarity !== 'Common'; }).length + ' non-commons');
-    check('Late enemies can field rares', late.some(function (rarity) { return rarity === 'Rare'; }));
+    check('Early enemies field commons only', function () { return (early.every(function (rarity) { return rarity === 'Common'; })); },
+      function () { return ('saw ' + early.filter(function (rarity) { return rarity !== 'Common'; }).length + ' non-commons'); });
+    check('Late enemies can field rares', function () { return (late.some(function (rarity) { return rarity === 'Rare'; })); });
     var earlyUp = 0;
     for (attempt = 0; attempt < 40; attempt++) C.buildEnemyDeck(ENEMIES.brawler, 1, Math.random).forEach(function (c) { if (c.up) earlyUp++; });
-    check('Early enemies bring no upgrades', earlyUp === 0, earlyUp + ' upgraded');
+    check('Early enemies bring no upgrades', function () { return (earlyUp === 0); }, function () { return (earlyUp + ' upgraded'); });
 
     // --- Volatile Fusion can actually start a chain ---
     var vg = fresh(['volatile_fusion']);
     put(vg, 'bottom', 'row1', 0, 'red_brute', 2); put(vg, 'bottom', 'row2', 0, 'blue_scout', 2);
     put(vg, 'bottom', 'row1', 2, 'red_brute', 2); put(vg, 'bottom', 'row2', 1, 'green_seed', 2);
     RUN.doMixCascade(vg, 'bottom', { row: 'row1', index: 0 }, { row: 'row2', index: 0 }, 0, false, []);
-    check('Volatile Fusion pushes the chain past 1', vg.chains.bottom >= 2, 'chain ' + vg.chains.bottom);
+    check('Volatile Fusion pushes the chain past 1', function () { return (vg.chains.bottom >= 2); }, function () { return ('chain ' + vg.chains.bottom); });
 
     return out;
   }

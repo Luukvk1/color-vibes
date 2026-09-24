@@ -1,13 +1,22 @@
-/* Entry point.
+/* Entry point: the one place the three layers meet.
 
-   The three layers import each other in dependency order, so importing the
-   battle layer pulls run/ and core/ in behind it. The battle module starts
-   itself once the DOM is ready; this file exists so the page has one obvious
-   thing to load, and so anything about being a web page rather than about the
-   game has somewhere to live. */
+   game/     the rules and everything the player decides. Knows nothing else.
+   session/  localStorage. Knows nothing else.
+   view/     what the player sees and touches. Imports game/.
 
-import './battle/index.js';
+   main.js loads what the session saved, hands it to the game, and from then on
+   writes the game's snapshot back whenever the game says something changed. */
 
-if (!window.CV_CORE || !window.CV_RUN || !window.CV_BATTLE) {
-  console.error('Colour Vibes: a module failed to load — check the paths under src/.');
-}
+import * as game from './game/index.js';
+import * as session from './session/index.js';
+import { mount, render, selfTest } from './view/index.js';
+
+var saved = session.load();
+game.loadCodex(saved.codex);
+game.start(saved.run);
+game.subscribe(function (type) { if (type === 'change') session.save(game.snapshot()); });
+
+mount();
+
+// The console, the browser tests and the self-test suite reach the game from here.
+window.ColorVibes = { game: game, session: session, selfTest: selfTest, render: render, core: game.rules };

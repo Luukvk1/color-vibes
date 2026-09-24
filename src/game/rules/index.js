@@ -1,19 +1,18 @@
 /* The rules engine's public surface.
-   Assembles the sections above into one object and publishes it. Still attached
-   to `window` because the run and battle layers, the self-tests and the browser
-   console all reach for CV_CORE by name. */
+   Assembles the sections beside it into one object. Everything here is pure
+   data and functions: no DOM, no storage, no state of its own. */
 
-import { COLORLESS, COLORS, COLOR_KEYS, EFFECTIVE, SECONDARY_COLORS, SVG_NS, colorInfo, isEffective, isSecondary, mixAllowed, mixColor, mixResultColor } from './colors.js';
+import { COLORLESS, COLORS, COLOR_KEYS, EFFECTIVE, SECONDARY_COLORS, colorInfo, isEffective, isSecondary, mixAllowed, mixColor, mixResultColor } from './colors.js';
 import { ACT_REQUIREMENT, ACT_REQUIREMENT_BY_COLOR, DECK_SIZE, EDGE_GEO, ENEMY, FISSURE_CONCENTRATES, FISSURE_DRAIN, FISSURE_MAX_POWER, GEO, HAND_LIMIT, LANE_CANDIDATES, LANE_COUNT, OPENING_HAND, PLAYER, PRIMARY_COLORS, RELIC_LIMIT, ROUND_DRAW, ROWS, ROW_INFO, VIEWBOX, actUnlocked, adjacentTiles, adjacentTilesFor, boardTopo, bridgePairs, bridgeableLinks, colourCounts, edgeKey, fissurePower, fissuresTouching, laneMembersFor, lanesOf, lanesOfFor, requirementFor, sameTile, seamOf, severableLinks, sharedCorner } from './board-shape.js';
 import { canPlace, cloneBoard, cloneHazards, eachUnit, emptyBoard, emptyHazards, freeHazardRows, hazardsOnRow, legalTiles, otherSide, placeOpts, rowHasHazard, sideName, slotName, splitStrength, unitAt } from './primitives.js';
 import { CARDS, plantCurse } from './cards.js';
-import { BOSS_CARDS, CARD_ICONS, CURSE_KEYS, DRAWABLE, FUSED_EFFECT_CAP, GLYPHS, HAZARD_TEXT, SECRET_TROPHIES, cardName, cardStrength, cardsOfRarity, effectSourcesOf, enemyIconRow, enemyIcons, fuseCards, fusePreview, glyphSvg, iconRow, iconsFor, makeCard, rankIcon } from './card-icons.js';
+import { BOSS_CARDS, CURSE_KEYS, DRAWABLE, FUSED_EFFECT_CAP, HAZARD_TEXT, SECRET_TROPHIES, cardName, cardStrength, cardsOfRarity, effectSourcesOf, fuseCards, fusePreview, makeCard } from './deck.js';
 import { RELICS, RELIC_KEYS, hasRelic } from './relics.js';
 import { ENEMIES, ENEMY_CURSE_TECH, buildEnemyDeck, curseTechChance, enemyCurseCount, enemyDeckSize } from './enemies.js';
 import { decideRound, evaluateBoard } from './evaluation.js';
 
-const CV_CORE = {
-  SVG_NS: SVG_NS, COLORS: COLORS, COLOR_KEYS: COLOR_KEYS, COLORLESS: COLORLESS, EFFECTIVE: EFFECTIVE,
+const rules = {
+  COLORS: COLORS, COLOR_KEYS: COLOR_KEYS, COLORLESS: COLORLESS, EFFECTIVE: EFFECTIVE,
   isEffective: isEffective, colorInfo: colorInfo, mixColor: mixColor,
   mixAllowed: mixAllowed, mixResultColor: mixResultColor,
   FUSED_EFFECT_CAP: FUSED_EFFECT_CAP, effectSourcesOf: effectSourcesOf,
@@ -42,8 +41,6 @@ const CV_CORE = {
   cardsOfRarity: cardsOfRarity,
   cardStrength: cardStrength, cardName: cardName, makeCard: makeCard,
   CURSE_KEYS: CURSE_KEYS, fuseCards: fuseCards, fusePreview: fusePreview,
-  GLYPHS: GLYPHS, CARD_ICONS: CARD_ICONS, iconsFor: iconsFor, glyphSvg: glyphSvg, iconRow: iconRow,
-  enemyIcons: enemyIcons, rankIcon: rankIcon, enemyIconRow: enemyIconRow,
   RELICS: RELICS, RELIC_KEYS: RELIC_KEYS, hasRelic: hasRelic,
   ENEMIES: ENEMIES, buildEnemyDeck: buildEnemyDeck, enemyDeckSize: enemyDeckSize,
   NEEDS_CURSES_IDS: ENEMY_CURSE_TECH,
@@ -51,5 +48,4 @@ const CV_CORE = {
   evaluateBoard: evaluateBoard, decideRound: decideRound
 };
 
-window.CV_CORE = CV_CORE;
-export default CV_CORE;
+export default rules;

@@ -2,7 +2,6 @@
    Which colours exist, what beats what, and the subtractive rules that decide what
    two colours make when mixed. */
 
-export var SVG_NS = 'http://www.w3.org/2000/svg';
 
 
 /* ===================================================================

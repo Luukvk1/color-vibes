@@ -253,13 +253,10 @@ export var CARDS = {
     fissure: function () { return 0; } },
   rift_the_widening: { name: 'The Widening', color: null, strength: 3, rarity: 'Legendary', type: 'unit', cost: 130,
     secretOnly: true, text: "On play, tear a new fissure on the enemy's ground and gain 6 permanently.",
-    /* spawnFissure lives in the RUN module, not here — it mutates run.fissures,
-       the run's own persistent tear list, which has to survive past this one
-       battle. A card cannot hold that state itself, so it reaches across the
-       module boundary for the one call that actually needs to, the same way
-       a card's onPlay already reaches into the api this file hands it. */
+    /* The tear list belongs to the run, not to this battle, and a card cannot
+       hold that state itself — so the api carries the one call that reaches it. */
     onPlay: function (battleState, side, at, targets, api) {
-      var made = window.CV_RUN && window.CV_RUN.spawnFissure(otherSide(side), battleState.board);
+      var made = api.spawnFissure(otherSide(side), battleState.board);
       api.buff(side, at, 6, true);
       return made ? 'tore the ground and gained 6' : 'gained 6 (no room to tear)';
     } },

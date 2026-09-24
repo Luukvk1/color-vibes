@@ -1,7 +1,7 @@
 // Builds the deployable site into build/. Bundles and minifies src/ with
 // esbuild, keeping the self-test suite as its own chunk (it is dynamically
 // imported on demand, not shipped with the initial page — see
-// src/battle/index.js), and copies the static files alongside it unchanged.
+// src/view/menu.js), and copies the static files alongside it unchanged.
 import { build } from 'esbuild';
 import { cpSync, rmSync, mkdirSync } from 'node:fs';
 

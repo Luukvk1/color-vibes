@@ -1,7 +1,7 @@
 /* Enemy and boss definitions, including the signature rule each act boss plays by. */
 
 import { CARDS } from './cards.js';
-import { CURSE_KEYS, DRAWABLE, makeCard } from './card-icons.js';
+import { CURSE_KEYS, DRAWABLE, makeCard } from './deck.js';
 
 /* ===================================================================
    6. ENEMIES  (GDD §31-33)

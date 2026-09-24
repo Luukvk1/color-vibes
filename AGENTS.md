@@ -8,25 +8,74 @@ A roguelite deckbuilder about mixing colours, built as vanilla ES modules
 - `npm install` — installs esbuild (only dependency).
 - `npm run build` — bundles `src/` into `build/` via esbuild. `build/` is
   generated and gitignored; never hand-edit anything under it.
+- `npm test` — the headless suite (Node ≥ 21, no browser): the architecture
+  boundaries, whole seeded runs played by a bot against the real rules, and the
+  self-test checks that need no page. `UPDATE_GOLDEN=1 npm test` regenerates
+  `tests/golden/runs.json` when a change is *meant* to alter how runs play out —
+  review that diff like any other.
 - Local dev needs no build step: ES modules require a real origin, so serve
   the repo root with any static server (`python3 -m http.server`, `npx serve`)
   and open `index.html` directly — do not open the file with `file://`.
-- Tests: open the game, run self-test from the in-game menu, or from a
-  console/Playwright: `(await CV_BATTLE.selfTest()).filter(t => !t.pass)`
-  (expect `[]`). Some checks only run once a battle is open.
+- Browser suite: run self-test from the in-game menu, or from a console /
+  Playwright: `(await ColorVibes.selfTest()).filter(t => !t.pass)` (expect `[]`).
+  It is the same 304 checks `npm test` runs; the ~20 that read layout or the DOM
+  only pass here. The suite saves and loads through a sandboxed storage key, so it
+  cannot touch a real save.
 
 ## Code layout
 
-`src/core` (pure rules) → `src/run` (session/map/saves) → `src/battle`
-(rendering/input/AI) is a strict one-way dependency chain — never import
-downstream. `run/index.js` and `battle/index.js` are intentionally single
-files: both hold shared mutable state reassigned throughout (`run` alone is
-read 300+ times), which an ES module can't do across files without a state
-holder. Don't split them without doing that refactor first.
+Three folders, and the arrows only ever point one way:
 
-`battle/self-test.js` is dynamically imported on demand (not shipped with
-the initial page) — keep it that way; esbuild's code-splitting depends on it
-staying a dynamic `import()`.
+```
+src/game/      the rules and everything the player decides. Imports nothing outside
+               itself and touches no browser API — no DOM, no storage, no timers.
+src/session/   localStorage, and nothing else. Imports nothing from src/.
+src/view/      what the player sees and touches. Imports game/, only through
+               game/index.js, and never session/.
+src/main.js    the one place all three meet.
+```
+
+`tests/architecture.test.js` enforces this from the real import graph — a game
+file reaching for `window`, or a view file importing session, fails `npm test`.
+Keep it true rather than editing the test.
+
+**Inside game/.** `rules/` is pure data and functions (colours, board shape,
+cards, enemies, scoring). `content/`, `run/` and `battle/` are the engine: the
+map and what happens between battles, and the table itself (mixing, targeting,
+rewind, the opponent AI, turn flow). `store.js` holds the state — one object,
+because an ES module cannot reassign a binding it exports — and `index.js` is the
+game's whole public surface; nothing outside game/ imports deeper than that.
+
+**Actions and events.** Anything that changes the game is an *action*: a function
+wrapped in `act()` that does its work and then announces `'change'` once. Actions
+call each other freely; only the outermost announces. The engine also reports
+one-off happenings a picture of the state could not show — `'log'`, `'fx'`,
+`'announce'`, `'passPuck'`, `'fissure'` — and never draws them. The view
+subscribes (`view/index.js`) and re-renders from state; a tap calls an action and
+nothing else. So a new player choice is: an action in game/, exported from
+`game/index.js`, called by a handler in view/, drawn from state by a render
+function. The game has no timers: the opponent's pause is the view's
+(`opponentThink` returns how long, `opponentAct` acts), and a test just calls
+`opponentMove()`.
+
+**Startup and saving.** `main.js` does `session.load()`, hands the result to
+`game.loadCodex()` and `game.start()`, and from then on writes `game.snapshot()`
+back on every `'change'`. The game keeps the last settled moment of the run
+itself (`checkpoint`) and never a battle in progress; `resume()` reads that, not
+storage. `restoreRun()` is where a loaded save is judged — session only checks
+that it parses. Everything random goes through `store.rnd`, so a seeded game is
+reproducible.
+
+`view/self-test.js` is dynamically imported on demand (not shipped with the
+initial page) — keep it that way; esbuild's code-splitting depends on it staying
+a dynamic `import()`.
+
+## Testing a change
+
+`tests/support/play.js` plays the game through its public surface — the same
+calls the view makes — with a bot choosing for the player, so a whole run takes
+about a tenth of a second. Prefer a test there over a browser check for anything
+about rules or flow.
 
 ## Code style
 
@@ -53,12 +102,12 @@ for different domain concepts are not. Prefer the full word:
 | `i`, `idx` | `index` | `n` | context-specific count |
 | `t` | `tile` | `k` | `key` |
 | `ev` | `evaluation` (kept as-is; established shorthand) | `L` | `laneIndex` |
-| `sev`/`sv`/`tp` | `topology` (severed/bridged board topology) | `run` | the active run object (`RUN.getRun()`) |
+| `sev`/`sv`/`tp` | `topology` (severed/bridged board topology) | `run` | the active run object (`game.getRun()`, or `store.run` inside game/) |
 
 **Extract inlined callback bodies into named functions** rather than
 nesting logic several `forEach`/`map` levels deep — a named function with a
 descriptive name documents what the block does even before you read its
-body. This matters most in the densest files (`core/evaluation.js`'s
+body. This matters most in the densest files (`game/rules/evaluation.js`'s
 scoring pipeline is the reference example: a sequence of named
 `applyX`/`computeX` functions called in order from `evaluateBoard`, each
 taking explicit params rather than closing over everything).
@@ -67,9 +116,9 @@ taking explicit params rather than closing over everything).
 already says what the code does; only add a comment for the reasoning a
 reader can't get from the code itself — a game-design rule, a non-obvious
 ordering requirement, or a past bug being guarded against. Match the voice
-already in the codebase (see `colors.js`'s mix-to-Black comment or
-`board-shape.js`'s fissure comments) — direct, specific, and short. Don't
-add a comment that just restates the function name in prose.
+already in the codebase (see `game/rules/colors.js`'s mix-to-Black comment or
+`game/rules/board-shape.js`'s fissure comments) — direct, specific, and short.
+Don't add a comment that just restates the function name in prose.
 
 **Renaming safety.** When renaming a variable across a large stretch of
 code, check what it actually means at *every* site before doing a bulk
@@ -82,13 +131,8 @@ failure modes worth watching for specifically: a single-letter regex like
 function parameter to a name some line inside that same function *also*
 already uses (e.g. `function (k) { var key = ...} ` where `k` becomes
 `key`) creates a same-scope shadowing bug. After any bulk rename, re-run
-the self-test suite and grep for the old name to confirm nothing was
-missed or corrupted.
-
-See [Code layout](#code-layout) above for the single-file constraint on
-`run/index.js` and `battle/index.js` — the naming and decomposition
-guidance here applies *within* those files (many well-named internal
-functions), not as an argument for splitting them.
+`npm test` and grep for the old name to confirm nothing was missed or
+corrupted.
 
 ## Deploys
 

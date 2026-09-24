@@ -43,61 +43,93 @@ see `.github/workflows/deploy.yml`. Node version is pinned in `.nvmrc`.
 ## Layout
 
 ```
-index.html          the page: markup only, loads one module
-styles/game.css     every style
-assets/art/         the ten act paintings, one file each
+index.html            the page: markup only, loads one module
+styles/game.css       every style
+assets/art/           the ten act paintings, one file each
 src/
-  main.js           entry point
-  core/             the rules — pure, no DOM, no run state
-    colors.js         colour identity and the mixing wheel
-    board-shape.js    the eighteen tiles: adjacency, lanes, coordinates
-    primitives.js     board reads, placement legality, card instances
-    cards.js          every card, with its hooks
-    card-icons.js     the glyph vocabulary cards are read by
-    relics.js         run-long modifiers
-    enemies.js        enemies, bosses, and each boss's signature rule
-    evaluation.js     the scoring pipeline: auras, hazards, wards, boss rules
-    index.js          assembles the public surface
-  run/index.js      the session: acts, map, rewards, shops, labs, saves
-  battle/
-    index.js          the table: rendering, input, opponent AI, turn flow
-    self-test.js      304 checks over the rules and the layout
-build.js            the esbuild bundler script (see "Building for production")
+  main.js             entry point: loads the session, starts the game, wires the view
+  game/               the rules and everything the player decides — no DOM, no storage
+    index.js            the game's whole public surface
+    store.js            the state holder, the 'change' event and the act() wrapper
+    codex.js            what the player has met
+    tutorial.js         when a lesson is worth teaching
+    rules/              pure data and functions
+      colors.js           colour identity and the mixing wheel
+      board-shape.js      the eighteen tiles: adjacency, lanes, coordinates
+      primitives.js       board reads, placement legality, card instances
+      cards.js            every card, with its hooks
+      deck.js             the card catalogue: what can drop where, fusion
+      relics.js           run-long modifiers
+      enemies.js          enemies, bosses, and each boss's signature rule
+      evaluation.js       the scoring pipeline: auras, hazards, wards, boss rules
+      index.js            assembles the rules
+    content/acts.js     the acts: every road is a colour
+    run/                what happens between battles
+      map.js              map generation and its guarantees
+      flow.js             starting, resuming, walking the map, finishing acts
+      rewards.js  shop.js  lab.js  events.js  mints.js
+    battle/             the table itself
+      setup.js            starting a battle
+      engine.js           mixing, drawing, and the api card rules are written against
+      targeting.js        what a card may ask for, and resolving it
+      rewind.js           Rewind and the fissures it leaves behind
+      ai.js               how the opponent weighs a move
+      turns.js            playing, mixing, passing, closing a round
+  session/index.js    localStorage only
+  view/               what the player sees and touches
+    index.js            listens to the game and redraws
+    menu.js             title screen, menus, keyboard, every button wired to an action
+    screens/            map, acts, reward, shop, lab, event, glossary, run bar
+    battle/             board, hand, panels, inspector, layout, round results
+    tutorial.js  icons.js  content.js  dom.js
+    self-test.js        304 checks over the rules and the layout
+tests/                headless tests (npm test)
+build.js              the esbuild bundler script (see "Building for production")
 ```
 
-The three directories under `src/` are a strict dependency chain: `core` knows
-nothing about the others, `run` uses `core`, `battle` uses both. `core` splits
-further along its own forward-only chain, so each file only ever imports from
-files listed above it.
+The folders under `src/` point one way. `game` imports nothing outside itself and
+touches no browser API, so it can be played to the end in Node. `session` reads
+and writes storage and knows nothing about the game. `view` imports `game`
+(only through `game/index.js`) and never `session`. `main.js` is the one place
+they meet: it loads what the session saved, hands it to the game, and from then
+on writes the game's snapshot back whenever the game reports a change. The
+boundaries are checked by `tests/architecture.test.js`.
 
-`run/` and `battle/` are one file each rather than several. Both are built
-around shared mutable state that every part of them reassigns — `run` alone is
-read 388 times — and an ES module cannot reassign an imported binding, so
-splitting them means routing those references through a state holder. That is a
-real refactor with real regression risk, and it is not the same change as
-"make it shareable". Navigate them by their section banners.
+The game reports rather than draws: every change to the game is an action that
+announces once when it has finished, and one-off happenings (a log line, an
+effect on a tile, a toast) are events. The view subscribes and redraws from
+state; a tap calls an action and nothing else.
 
 ## Tests
 
-304 checks cover colour rules, board evaluation, the colour gate, saves, map
-generation, opponent behaviour and layout invariants. Run them from the in-game
-menu, or from the browser console:
+`npm test` runs headlessly under Node — no browser, about twenty seconds:
+
+- **Whole games.** A bot plays seeded runs through the game's public surface, the
+  same calls the view makes. The same seed must play the same run; every screen of
+  every run must respect the rules; a snapshot must always restore. The outcome of
+  each seed is pinned in `tests/golden/runs.json`, so a change that alters how
+  games go shows up as a diff. If that was the point, regenerate with
+  `UPDATE_GOLDEN=1 npm test` and review the diff like any other change.
+- **The boundaries** between `game/`, `session/` and `view/`.
+- **The 304 self-test checks**, the ones that need no page (about 284 of them).
+
+The same 304 run in the browser too — the in-game menu, or from the console:
 
 ```js
-(await CV_BATTLE.selfTest()).filter(t => !t.pass)   // [] when everything passes
+(await ColorVibes.selfTest()).filter(t => !t.pass)   // [] when everything passes
 ```
 
-It returns a promise because the suite is fetched on demand — it is 44KB
-gzipped that no player ever runs, so it is not part of the page's payload.
-
-Headlessly, with Playwright:
+It returns a promise because the suite is fetched on demand — it is code no player
+ever runs, so it is not part of the page's payload. The twenty checks that read
+layout or the DOM only pass there. The suite saves through a sandboxed storage
+key, so running it cannot touch a real save. Headlessly, with Playwright:
 
 ```js
 await page.goto('http://localhost:8000');
-await page.evaluate(async () => (await CV_BATTLE.selfTest()).filter(t => !t.pass));
+await page.evaluate(async () => (await ColorVibes.selfTest()).filter(t => !t.pass));
 ```
 
-Five of the 304 begin `if (!s) return true` and skip unless a battle is open,
+Five of the checks begin `if (!s) return true` and skip unless a battle is open,
 which means they do not run from a cold page. Start a run and enter a fight
 before running the suite if you want the opponent-AI and hand-pricing checks to
 mean anything.
