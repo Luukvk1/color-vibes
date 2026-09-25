@@ -82,8 +82,9 @@ src/
     screens/            map, acts, reward, shop, lab, event, glossary, run bar
     battle/             board, hand, panels, inspector, layout, round results
     tutorial.js  icons.js  content.js  dom.js
-    self-test.js        304 checks over the rules and the layout
+    self-test/          304 checks over the rules and the layout, one file per subject
 tests/                headless tests (npm test)
+tools/                the balance simulation (npm run balance)
 build.js              the esbuild bundler script (see "Building for production")
 ```
 
@@ -102,7 +103,7 @@ state; a tap calls an action and nothing else.
 
 ## Tests
 
-`npm test` runs headlessly under Node — no browser, about twenty seconds:
+`npm test` runs headlessly under Node — no browser, under half a minute:
 
 - **Whole games.** A bot plays seeded runs through the game's public surface, the
   same calls the view makes. The same seed must play the same run; every screen of
@@ -110,8 +111,37 @@ state; a tap calls an action and nothing else.
   each seed is pinned in `tests/golden/runs.json`, so a change that alters how
   games go shows up as a diff. If that was the point, regenerate with
   `UPDATE_GOLDEN=1 npm test` and review the diff like any other change.
+- **Scenarios** (`tests/scenarios.test.js`). Particular situations set up on a
+  real battle and played with real actions: rewind, the Wild Palette, mix chains,
+  each boss's signature rule, best-of-three, the secret roads.
+- **Balance sanity** (`tests/balance.test.js`). Wide bands on how bots fare, so a
+  change that breaks balance outright fails. Loose on purpose; see below for the
+  real picture.
 - **The boundaries** between `game/`, `session/` and `view/`.
-- **The 304 self-test checks**, the ones that need no page (about 284 of them).
+- **The 304 self-test checks**, one group per subject, the ones that need no page
+  (287 of them). Each subject starts from a fresh game.
+
+## Balance
+
+```
+npm run balance                        a report for the current code
+npm run balance -- --save              ...and keep it as the baseline
+npm run balance -- --compare           ...and show what moved since the baseline
+npm run balance -- --runs 400 --skills careful
+```
+
+Bots of two skill levels (`tests/support/bots.js`) play many seeded runs in
+parallel: *naive* takes the first of everything, *careful* builds a deck on
+purpose, shops, cuts curses, fuses toward new colours and rewinds bad exchanges.
+Each is sampled at three lives (how far a player gets) and at forty (many late
+fights). The report gives acts cleared, win rate per enemy and per stage of the
+run, what kills runs, and which cards and relics show up in winning decks.
+
+`--compare` lists only what moved by more than noise would explain, so read it as
+a signal rather than a diff: changing one number changes every run after it. The
+per-card figures are biased — strong runs hold more of everything — so treat them
+as a place to look, not a verdict. The baseline is `tools/balance-baseline.json`;
+commit a new one when a balance change is intended.
 
 The same 304 run in the browser too — the in-game menu, or from the console:
 
@@ -120,8 +150,8 @@ The same 304 run in the browser too — the in-game menu, or from the console:
 ```
 
 It returns a promise because the suite is fetched on demand — it is code no player
-ever runs, so it is not part of the page's payload. The twenty checks that read
-layout or the DOM only pass there. The suite saves through a sandboxed storage
+ever runs, so it is not part of the page's payload. The seventeen checks that read
+layout or the DOM only pass there. `ColorVibes.selfTest('save-load')` runs one subject. The suite saves through a sandboxed storage
 key, so running it cannot touch a real save. Headlessly, with Playwright:
 
 ```js

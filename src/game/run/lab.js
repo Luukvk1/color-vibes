@@ -143,8 +143,7 @@ export var volatilePress = act(function volatilePress() {
     var curseKey = pool[Math.floor(store.rnd() * pool.length)];
     gainCurse(curseKey);
     lab.curses++;
-    lab.results.unshift({ tone: 'curse', text: 'The mixture turns on you — <b>' + CARDS[curseKey].name +
-      '</b> is now in your deck. ' + CARDS[curseKey].text });
+    lab.results.unshift({ tone: 'curse', curse: { name: CARDS[curseKey].name, text: CARDS[curseKey].text } });
     return;
   }
 
@@ -162,7 +161,7 @@ export var volatilePress = act(function volatilePress() {
     if (effectResult) lines.push(effectResult);
   }
   if (!lines.length) lines.push('The mixture fizzles. Nothing changes.');
-  lab.results.unshift({ tone: tone, text: (count > 1 ? '<b>\u00d7' + lines.length + '</b> ' : '') + lines.join(' \u00b7 ') });
+  lab.results.unshift({ tone: tone, lines: lines, multiple: count > 1 });
 });
 
 function cascade(lab) {
@@ -177,8 +176,5 @@ function cascade(lab) {
   }
   var fusions = 0;
   for (var attempt = 0; attempt < 2; attempt++) { if (applyVolatile('fuse')) fusions++; }
-  lab.results.unshift({ tone: 'cascade',
-    text: '<b>THE WHOLE BENCH GOES UP.</b> Every one of your ' + touched +
-      ' units gains strength and a new colour' + (fusions ? ', and ' + fusions + ' pair' +
-      (fusions > 1 ? 's' : '') + ' collapse together' : '') + '.' });
+  lab.results.unshift({ tone: 'cascade', touched: touched, fusions: fusions });
 }

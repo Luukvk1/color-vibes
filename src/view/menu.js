@@ -18,21 +18,21 @@ var PLAYER = C.PLAYER;
 var cardStrength = C.cardStrength;
 var colorInfo = C.colorInfo;
 
-/* The suite lives in ./self-test.js. It is 44KB gzipped of code no player
+/* The suite lives in ./self-test/. It is 44KB gzipped of code no player
    ever runs, so it is fetched the first time it is asked for rather than
    shipped with the game -- which is most of what having it in its own file
    is worth. Both ways in return a promise: the menu button and
    ColorVibes.selfTest(). */
 let builtSelfTest = null;
 
-export async function selfTest() {
+export async function selfTest(only) {
   if (!builtSelfTest) {
-    const { createSelfTest } = await import('./self-test.js');
+    const { createSelfTest } = await import('./self-test/index.js');
     const { buildTestContext, isolated } = await import('./test-context.js');
     const suite = createSelfTest(buildTestContext());
-    builtSelfTest = function () { return isolated(suite); };
+    builtSelfTest = function (topic) { return isolated(function () { return suite(topic); }); };
   }
-  return builtSelfTest();
+  return builtSelfTest(only);
 }
 
 async function runSelfTestUI() {

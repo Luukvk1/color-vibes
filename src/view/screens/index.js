@@ -1,6 +1,6 @@
 /* What is on screen follows run.screen. */
 
-import { getLog, store } from '../../game/index.js';
+import { getActiveRun, getBattleState, getLog } from '../../game/index.js';
 import { buildBoard } from '../battle/board.js';
 import { render } from '../battle/index.js';
 import { els } from '../dom.js';
@@ -16,7 +16,7 @@ import { renderShop } from './shop.js';
 var renderedBattle = null, renderedAct = null;
 
 export function renderScreen() {
-  var screen = store.run.screen;
+  var screen = getActiveRun().screen;
   // the battle screen is locked to one viewport; everything else scrolls normally
   document.body.classList.toggle('battle-mode', screen === 'battle');
   // also on the root, or its scrollbar gutter leaves a grey band beside the art
@@ -33,7 +33,7 @@ export function renderScreen() {
     var el = els['screen_' + screenName];
     if (el) el.hidden = (screenName !== screen);
   });
-  if (store.run.act !== renderedAct) { renderedAct = store.run.act; applyActTheme(); }
+  if (getActiveRun().act !== renderedAct) { renderedAct = getActiveRun().act; applyActTheme(); }
   applyGrey();
   renderRunBar();
   if (screen === 'map') { renderMap(); renderMapLegend(); }
@@ -45,7 +45,7 @@ export function renderScreen() {
   else if (screen === 'event') renderEvent();
   else if (screen === 'gameover') renderGameOver();
   else if (screen === 'battle') {
-    if (store.state !== renderedBattle) { renderedBattle = store.state; buildBoard(); }
+    if (getBattleState() !== renderedBattle) { renderedBattle = getBattleState(); buildBoard(); }
     render();
   }
 }

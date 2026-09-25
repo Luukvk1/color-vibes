@@ -9,7 +9,7 @@ import { codex } from '../codex.js';
 import { ACTS, ACT_KEYS, ACT_LENGTH } from '../content/acts.js';
 import { act, emit, store } from '../store.js';
 import { tutorial, tutorialActive } from '../tutorial.js';
-import { rollEvent } from './events.js';
+import { EVENTS, rollEvent } from './events.js';
 import { rollLab } from './lab.js';
 import { buildMap } from './map.js';
 import { replayMints } from './mints.js';
@@ -96,11 +96,15 @@ export function restoreRun(loadedRun) {
   loadedRun.minted = loadedRun.minted || [];
   loadedRun.relics = (loadedRun.relics || []).filter(function (key) { return !!RELICS[key]; });   // a relic since removed from the game
   if (loadedRun.screen === 'battle') loadedRun.screen = 'map';   // battles are never resumed
+  /* An event holds the functions its options run, which do not survive being
+     written out; only its title does. Find it again by that. */
+  if (loadedRun.event) loadedRun.event = EVENTS.filter(function (event) { return event.title === loadedRun.event.title; })[0] || null;
+  if (loadedRun.screen === 'event' && !loadedRun.event) loadedRun.screen = 'map';
   return loadedRun;
 }
 
 /* Only screens that can be rebuilt from run state alone are safe to reopen. */
-var RESUMABLE_SCREENS = ['map', 'act', 'victory', 'shop', 'lab', 'event', 'gameover'];
+var RESUMABLE_SCREENS = ['map', 'act', 'victory', 'reward', 'shop', 'lab', 'event', 'gameover'];
 
 /* Begin play from a saved run if there is a good one, otherwise from scratch.
    Returns whether it resumed. */

@@ -136,13 +136,32 @@ test('resuming lands on the screen the player left', function () {
   var run = game.getRun();
   var saved = JSON.parse(JSON.stringify(game.snapshot().run));
   game.start(saved);
-  // only a screen that can be rebuilt from the run alone is reopened; a reward is not, so it falls back to the map
-  var reopens = ['map', 'act', 'victory', 'shop', 'lab', 'event', 'gameover'].indexOf(run.screen) !== -1;
-  assert.equal(game.getRun().screen, reopens ? run.screen : 'map');
+  assert.equal(game.getRun().screen, run.screen === 'battle' ? 'map' : run.screen);
   assert.equal(game.getRun().gold, run.gold);
   assert.equal(game.getRun().deck.length, run.deck.length);
   assert.equal(game.hasCheckpoint(), true);
   assert.equal(game.resume(), true);
+});
+
+test('an event and a reward are still there, and still work, after a save', function () {
+  newSeededGame(2);
+  var run = game.getRun();
+  run.pendingNode = { type: 'event', depth: 0, col: 0, next: [0] };
+  game.rollEvent(); game.show('event');
+  game.start(JSON.parse(JSON.stringify(game.snapshot().run)));
+  assert.equal(game.getRun().screen, 'event');
+  assert.equal(typeof game.getRun().event.options[0].run, 'function', 'the event\'s options were relinked');
+  game.chooseEventOption(0);                                     // would throw if they were not
+
+  newSeededGame(2);
+  game.getRun().pendingNode = { type: 'battle', depth: 0, col: 0, next: [0] };
+  game.rollReward({ type: 'battle', depth: 0 }); game.show('reward');
+  var cards = game.getRun().reward.cards.length;
+  game.start(JSON.parse(JSON.stringify(game.snapshot().run)));
+  assert.equal(game.getRun().screen, 'reward');
+  assert.equal(game.getRun().reward.cards.length, cards);
+  game.takeRewardCard(0);
+  assert.equal(game.getRun().screen, 'map');
 });
 
 test('a save that does not make sense is refused rather than half-loaded', function () {

@@ -1,14 +1,14 @@
 /* The reward screen. */
 
-import { rules as C } from '../../game/index.js';
-import { skipValue, store, takeRewardCard, takeRewardRelic } from '../../game/index.js';
+import { getActiveRun, rules as C } from '../../game/index.js';
+import { skipValue, takeRewardCard, takeRewardRelic } from '../../game/index.js';
 import { els } from '../dom.js';
 import { cardMini } from './chrome.js';
 
 var RELICS = C.RELICS;
 
 export function renderReward() {
-  var reward = store.run.reward;
+  var reward = getActiveRun().reward;
 
   els.rewardRot.hidden = !reward.rotted;
   els.rewardRot.innerHTML = reward.rotted
@@ -32,7 +32,7 @@ export function renderReward() {
       ? 'You earned <b>' + reward.gold + '</b> gold, and the act itself. Take one of these three \u2014 ' +
         'they are the only cards on the road that are both this large and still do something.' + relicNote
       : 'You earned <b>' + reward.gold + '</b> gold. Take one card, or skip to keep your deck lean \u2014 ' +
-        'it currently holds <b>' + store.run.deck.length + '</b> cards, and a smaller deck draws its best cards more often.' + relicNote;
+        'it currently holds <b>' + getActiveRun().deck.length + '</b> cards, and a smaller deck draws its best cards more often.' + relicNote;
   }
   var skipBtn = document.getElementById('skipRewardBtn');
   if (skipBtn) {

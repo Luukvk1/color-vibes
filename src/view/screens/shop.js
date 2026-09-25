@@ -1,7 +1,7 @@
 /* The shop screen. */
 
-import { rules as C } from '../../game/index.js';
-import { SHOP_REMOVAL_LIMIT, burnShopCard, buyShopCard, buyShopRelic, removalCost, removalsLeft, shopRelicPrice, store } from '../../game/index.js';
+import { getActiveRun, rules as C } from '../../game/index.js';
+import { SHOP_REMOVAL_LIMIT, burnShopCard, buyShopCard, buyShopRelic, removalCost, removalsLeft, shopRelicPrice } from '../../game/index.js';
 import { els } from '../dom.js';
 import { cardMini } from './chrome.js';
 
@@ -9,16 +9,16 @@ var CARDS = C.CARDS;
 var RELICS = C.RELICS;
 
 export function renderShop() {
-  var shop = store.run.shop;
+  var shop = getActiveRun().shop;
   els.shopCards.innerHTML = shop.cards.map(function (entry, index) {
     var price = CARDS[entry.id].cost || 30;
     var owned = shop.sold['c' + index];
-    return '<button class="shop-item" data-c="' + index + '"' + (owned || store.run.gold < price ? ' disabled' : '') + '>' +
+    return '<button class="shop-item" data-c="' + index + '"' + (owned || getActiveRun().gold < price ? ' disabled' : '') + '>' +
       cardMini(entry) + '<span class="price">' + (owned ? 'Sold' : price + 'g') + '</span></button>';
   }).join('');
   els.shopRelics.innerHTML = shop.relics.map(function (relicKey, index) {
     var price = shopRelicPrice(relicKey), owned = shop.sold['r' + index];
-    return '<button class="shop-item" data-r="' + index + '"' + (owned || store.run.gold < price ? ' disabled' : '') + '>' +
+    return '<button class="shop-item" data-r="' + index + '"' + (owned || getActiveRun().gold < price ? ' disabled' : '') + '>' +
       '<div class="mini-card relicbox"><span class="mini-name">' + RELICS[relicKey].name + '</span><span class="mini-text">' + RELICS[relicKey].text + '</span></div>' +
       '<span class="price">' + (owned ? 'Sold' : price + 'g') + '</span></button>';
   }).join('');
@@ -28,9 +28,9 @@ export function renderShop() {
      lets a player who is committed to a lean deck spend their whole purse on
      it, while still charging real money for the privilege. */
   var cost = removalCost(shop), left = removalsLeft(shop);
-  els.shopRemove.disabled = store.run.gold < cost || store.run.deck.length <= 5 || left <= 0;
+  els.shopRemove.disabled = getActiveRun().gold < cost || getActiveRun().deck.length <= 5 || left <= 0;
   els.shopRemove.textContent = left <= 0 ? 'This bench has cut all it will'
-    : store.run.deck.length <= 5 ? 'Deck is as lean as it goes'
+    : getActiveRun().deck.length <= 5 ? 'Deck is as lean as it goes'
     : shop.removing ? 'Pick a card to burn \u2014 or tap to cancel'
     : 'Remove a card \u2014 ' + cost + 'g' + (left < SHOP_REMOVAL_LIMIT ? ' (last one here)' : '');
   els.shopRemove.classList.toggle('armed', !!shop.removing);
@@ -44,7 +44,7 @@ export function renderShop() {
     pick.innerHTML = pick.hidden ? '' :
       '<p class="screen-lead">' + cost + ' gold and it is gone from the run for good. ' +
       (left > 1 ? 'This bench will cut ' + left + ' cards in all.' : 'This is the last cut on offer here.') + '</p>' +
-      '<div class="deck-grid">' + store.run.deck.map(function (entry, index) {
+      '<div class="deck-grid">' + getActiveRun().deck.map(function (entry, index) {
         return '<button class="swap-card" data-burn="' + index + '">' + cardMini(entry) + '</button>';
       }).join('') + '</div>';
     Array.prototype.forEach.call(pick.querySelectorAll('[data-burn]'), function (btn) {

@@ -1,7 +1,7 @@
 /* The screens between acts: the fork, the victory choice, the ending. */
 
-import { rules as C } from '../../game/index.js';
-import { ACTS, ACT_KEYS, SECRET_ACT_KEYS, allActsConquered, beginAct, endAsVictory, goEndless, secretOffers, store, whiteUnlocked } from '../../game/index.js';
+import { getActiveRun, rules as C } from '../../game/index.js';
+import { ACTS, ACT_KEYS, SECRET_ACT_KEYS, allActsConquered, beginAct, endAsVictory, goEndless, secretOffers, whiteUnlocked } from '../../game/index.js';
 import { setBackgroundMetrics } from '../battle/layout.js';
 import { ACT_ART, SECRET_REASON } from '../content.js';
 import { els } from '../dom.js';
@@ -11,8 +11,8 @@ var COLORS = C.COLORS;
 var ENEMIES = C.ENEMIES;
 
 export function renderActSelect() {
-  var offer = store.run.actOffer || [];
-  var cleared = store.run.actsCleared.map(function (key) {
+  var offer = getActiveRun().actOffer || [];
+  var cleared = getActiveRun().actsCleared.map(function (key) {
     return '<span class="chip" style="background:' + COLORS[ACTS[key].color].hex +
       ';color:' + COLORS[ACTS[key].color].ink + '">' + ACTS[key].name + '</span>';
   }).join(' ');
@@ -59,11 +59,11 @@ export function renderActSelect() {
 }
 
 export function renderVictory() {
-  var offers = secretOffers(store.run);
-  var full = whiteUnlocked(store.run);
+  var offers = secretOffers(getActiveRun());
+  var full = whiteUnlocked(getActiveRun());
   var roster = ACT_KEYS.map(function (key) {
     var act = ACTS[key], colorDef = COLORS[act.color];
-    var walked = store.run.actsCleared.indexOf(key) !== -1;
+    var walked = getActiveRun().actsCleared.indexOf(key) !== -1;
     return '<span class="chip" style="background:' + (walked ? colorDef.hex : 'transparent') +
       ';color:' + (walked ? colorDef.ink : 'var(--ink-3)') +
       (walked ? '' : ';border:1px dashed var(--line)') + '">' + act.name + '</span>';
@@ -126,7 +126,7 @@ export function renderVictory() {
 }
 
 export function applyActTheme() {
-  var art = ACT_ART[(store.run && store.run.act) || 'green'] || ACT_ART.green;
+  var art = ACT_ART[(getActiveRun() && getActiveRun().act) || 'green'] || ACT_ART.green;
   document.documentElement.style.setProperty('--bg-art', 'var(' + art.varName + ')');
   document.documentElement.style.setProperty('--room-dim', String(art.dim || 0));
   document.documentElement.style.setProperty('--art-filter', art.filter || 'none');
@@ -134,21 +134,21 @@ export function applyActTheme() {
 }
 
 export function renderGameOver() {
-  var won = store.run.lives > 0 && store.run.actsCleared.length > 0;
-  var conquered = allActsConquered(store.run);
-  var last = store.run.actsCleared[store.run.actsCleared.length - 1];
+  var won = getActiveRun().lives > 0 && getActiveRun().actsCleared.length > 0;
+  var conquered = allActsConquered(getActiveRun());
+  var last = getActiveRun().actsCleared[getActiveRun().actsCleared.length - 1];
   var head, lead;
   if (!won) {
     /* Dying inside an endless run is still a real ending, and a proud one —
        it deserves its own line rather than reading identically to dying on
        the very first act. */
-    head = store.run.endless ? 'The endless road ends' : 'Run over';
-    lead = store.run.endless
+    head = getActiveRun().endless ? 'The endless road ends' : 'Run over';
+    lead = getActiveRun().endless
       ? 'Every road had already fallen once before this one finally took you — in ' +
-        ACTS[store.run.act].name + ', at depth ' + (store.run.depth + 1) + '.'
-      : 'You ran out of lives in ' + ACTS[store.run.act].name + ', at depth ' + (store.run.depth + 1) + '.';
-  } else if (SECRET_ACT_KEYS.some(function (key) { return store.run.actsCleared.indexOf(key) !== -1; })) {
-    var walkedSecret = SECRET_ACT_KEYS.filter(function (key) { return store.run.actsCleared.indexOf(key) !== -1; });
+        ACTS[getActiveRun().act].name + ', at depth ' + (getActiveRun().depth + 1) + '.'
+      : 'You ran out of lives in ' + ACTS[getActiveRun().act].name + ', at depth ' + (getActiveRun().depth + 1) + '.';
+  } else if (SECRET_ACT_KEYS.some(function (key) { return getActiveRun().actsCleared.indexOf(key) !== -1; })) {
+    var walkedSecret = SECRET_ACT_KEYS.filter(function (key) { return getActiveRun().actsCleared.indexOf(key) !== -1; });
     var lastSecret = walkedSecret[walkedSecret.length - 1];
     var SECRET_END = {
       white: 'You brought every colour back to the one place that had none, and it was enough.',
@@ -166,16 +166,16 @@ export function renderGameOver() {
     lead = 'You broke ' + ENEMIES[ACTS[last].boss].name + ' and walked out of ' + ACTS[last].name +
       '. There is no road left that your deck can open — for now, that is the end of it.';
   }
-  var loops = store.run.endless
+  var loops = getActiveRun().endless
     ? '<div><span class="tag">LOOPS</span><b>' +
-      Math.max(1, store.run.actsCleared.length - ACT_KEYS.length + 1) + '</b></div>' : '';
+      Math.max(1, getActiveRun().actsCleared.length - ACT_KEYS.length + 1) + '</b></div>' : '';
   els.gameoverBody.innerHTML = '<h2>' + head + '</h2>' +
     '<p class="screen-lead">' + lead + '</p>' +
-    '<div class="summary"><div><span class="tag">ACTS CLEARED</span><b>' + store.run.actsCleared.length + '</b></div>' +
+    '<div class="summary"><div><span class="tag">ACTS CLEARED</span><b>' + getActiveRun().actsCleared.length + '</b></div>' +
     loops +
-    '<div><span class="tag">BATTLES WON</span><b>' + store.run.battlesWon + '</b></div>' +
-    '<div><span class="tag">GOLD</span><b>' + store.run.gold + '</b></div>' +
-    '<div><span class="tag">RELICS</span><b>' + store.run.relics.length + '</b></div>' +
-    '<div><span class="tag">DECK</span><b>' + store.run.deck.length + '</b></div></div>' +
-    '<div class="deck-grid">' + store.run.deck.map(function (entry) { return cardMini(entry); }).join('') + '</div>';
+    '<div><span class="tag">BATTLES WON</span><b>' + getActiveRun().battlesWon + '</b></div>' +
+    '<div><span class="tag">GOLD</span><b>' + getActiveRun().gold + '</b></div>' +
+    '<div><span class="tag">RELICS</span><b>' + getActiveRun().relics.length + '</b></div>' +
+    '<div><span class="tag">DECK</span><b>' + getActiveRun().deck.length + '</b></div></div>' +
+    '<div class="deck-grid">' + getActiveRun().deck.map(function (entry) { return cardMini(entry); }).join('') + '</div>';
 }

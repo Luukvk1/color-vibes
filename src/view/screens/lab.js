@@ -1,15 +1,15 @@
 /* The colour lab screens. */
 
-import { rules as C } from '../../game/index.js';
-import { advance, boostUnit, confirmFusion, curseRisk, deckUnits, rollLab, store, toggleLabPick, volatilePress } from '../../game/index.js';
+import { getActiveRun, rules as C } from '../../game/index.js';
+import { advance, boostUnit, confirmFusion, curseRisk, deckUnits, rollLab, toggleLabPick, volatilePress } from '../../game/index.js';
 import { els } from '../dom.js';
 import { cardMini } from './chrome.js';
 
 var CARDS = C.CARDS;
 
 export function renderLab() {
-  if (!store.run.lab) rollLab();
-  var lab = store.run.lab;
+  if (!getActiveRun().lab) rollLab();
+  var lab = getActiveRun().lab;
   if (lab.kind === 'volatile') return renderVolatileLab();
   if (lab.kind === 'fuse') return renderFuseLab();
   return renderBoostLab();
@@ -17,10 +17,10 @@ export function renderLab() {
 
 /* --- permanent fusion --- */
 function renderFuseLab() {
-  var lab = store.run.lab, units = deckUnits();
+  var lab = getActiveRun().lab, units = deckUnits();
   var preview = '';
   if (lab.picks.length === 2) {
-    var entryA = store.run.deck[lab.picks[0]], entryB = store.run.deck[lab.picks[1]];
+    var entryA = getActiveRun().deck[lab.picks[0]], entryB = getActiveRun().deck[lab.picks[1]];
     var previewResult = C.fusePreview(entryA, entryB), colorDef = C.colorInfo(previewResult.color);
     /* Fusing a secondary against the one primary it does not already contain
        cannot make Black on its own — that takes two secondaries. The mix
@@ -56,11 +56,11 @@ function renderFuseLab() {
 
 /* --- reinforcement --- */
 function renderBoostLab() {
-  var lab = store.run.lab, units = deckUnits();
+  var lab = getActiveRun().lab, units = deckUnits();
   if (lab.done) {
     els.labBody.innerHTML = '<h2>Reinforcement</h2>' +
       '<p class="screen-lead">The bench settles on <b>+' + lab.amount + '</b>.</p>' +
-      '<div class="deck-grid">' + cardMini(store.run.deck[lab.target]) + '</div>' +
+      '<div class="deck-grid">' + cardMini(getActiveRun().deck[lab.target]) + '</div>' +
       '<button class="primary" id="labLeave">Leave the lab</button>';
     document.getElementById('labLeave').addEventListener('click', advance);
     return;
@@ -76,8 +76,18 @@ function renderBoostLab() {
   });
 }
 
+/* What one pull did, in words. The engine records what happened; how it reads is ours. */
+function describeResult(result) {
+  if (result.tone === 'curse') return 'The mixture turns on you — <b>' + result.curse.name + '</b> is now in your deck. ' + result.curse.text;
+  if (result.tone === 'cascade') {
+    return '<b>THE WHOLE BENCH GOES UP.</b> Every one of your ' + result.touched + ' units gains strength and a new colour' +
+      (result.fusions ? ', and ' + result.fusions + ' pair' + (result.fusions > 1 ? 's' : '') + ' collapse together' : '') + '.';
+  }
+  return (result.multiple ? '<b>\u00d7' + result.lines.length + '</b> ' : '') + result.lines.join(' \u00b7 ');
+}
+
 function renderVolatileLab() {
-  var lab = store.run.lab;
+  var lab = getActiveRun().lab;
   var risk = Math.round(curseRisk(lab.presses) * 100);
   els.labBody.innerHTML = '<h2>The Volatile Lab</h2>' +
     '<p class="screen-lead">Something is already bubbling. Pull the lever as often as you dare — ' +
@@ -90,7 +100,7 @@ function renderVolatileLab() {
     '<div class="vol-actions"><button class="primary danger" id="labPress">Pull the lever</button>' +
     '<button class="primary" id="labLeave">Leave with what you have</button></div>' +
     (lab.results.length ? '<ul class="vol-log">' + lab.results.map(function (result) {
-      return '<li class="' + result.tone + '">' + result.text + '</li>';
+      return '<li class="' + result.tone + '">' + describeResult(result) + '</li>';
     }).join('') + '</ul>' : '<p class="muted" style="font-size:12.5px">Nothing pulled yet.</p>');
 
   document.getElementById('labPress').addEventListener('click', volatilePress);

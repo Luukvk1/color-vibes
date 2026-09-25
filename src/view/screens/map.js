@@ -1,8 +1,8 @@
 /* The map, drawn as SVG so the edges between nodes are visible: you can see
    which branches a node leads to and plan a route to the boss. */
 
-import { rules as C } from '../../game/index.js';
-import { MAP_COLS, currentNodes, enterNode, store } from '../../game/index.js';
+import { getActiveRun, rules as C } from '../../game/index.js';
+import { MAP_COLS, currentNodes, enterNode } from '../../game/index.js';
 import { els } from '../dom.js';
 
 var COLORS = C.COLORS;
@@ -57,25 +57,25 @@ var MAP_LABEL = { battle: 'Battle', elite: 'Elite', shop: 'Shop', lab: 'Colour L
 export function renderMap() {
   var open = currentNodes();
   var mapWidth = 320, rowHeight = 74, padding = 34;
-  var mapHeight = store.run.map.length * rowHeight + padding;
+  var mapHeight = getActiveRun().map.length * rowHeight + padding;
   /* x comes from the node's grid column, not its index in the row, so a node
      keeps the same horizontal position whatever else that row contains. */
   function nodeX(depth, colIndex) {
-    var node = store.run.map[depth][colIndex];
+    var node = getActiveRun().map[depth][colIndex];
     return padding + (node.col + 0.5) * (mapWidth - padding * 2) / MAP_COLS;
   }
   function nodeY(depth) { return padding / 2 + depth * rowHeight + 26; }
 
   var edges = '', nodes = '';
-  store.run.map.forEach(function (row, depth) {
-    if (depth >= store.run.map.length - 1) return;
+  getActiveRun().map.forEach(function (row, depth) {
+    if (depth >= getActiveRun().map.length - 1) return;
     row.forEach(function (node, index) {
       node.next.forEach(function (nextIndex) {
         var x1 = nodeX(depth, index), y1 = nodeY(depth) + 20, x2 = nodeX(depth + 1, nextIndex), y2 = nodeY(depth + 1) - 20;
         var midY = (y1 + y2) / 2;
-        var taken = (store.run.history[depth] === index && store.run.history[depth + 1] === nextIndex);
-        var live = (depth === store.run.depth && open.indexOf(index) !== -1) ||
-                   (depth === store.run.depth - 1 && store.run.history[depth] === index);
+        var taken = (getActiveRun().history[depth] === index && getActiveRun().history[depth + 1] === nextIndex);
+        var live = (depth === getActiveRun().depth && open.indexOf(index) !== -1) ||
+                   (depth === getActiveRun().depth - 1 && getActiveRun().history[depth] === index);
         var cls = 'map-edge' + (taken ? ' taken' : live ? ' live' : '');
         edges += '<path class="' + cls + '" d="M' + x1 + ',' + y1 +
           ' C' + x1 + ',' + midY + ' ' + x2 + ',' + midY + ' ' + x2 + ',' + y2 + '"/>';
@@ -83,11 +83,11 @@ export function renderMap() {
     });
   });
 
-  store.run.map.forEach(function (row, depth) {
+  getActiveRun().map.forEach(function (row, depth) {
     row.forEach(function (node, index) {
       var x = nodeX(depth, index), y = nodeY(depth);
-      var reachable = (depth === store.run.depth && open.indexOf(index) !== -1);
-      var past = depth < store.run.depth, taken = past && store.run.history[depth] === index;
+      var reachable = (depth === getActiveRun().depth && open.indexOf(index) !== -1);
+      var past = depth < getActiveRun().depth, taken = past && getActiveRun().history[depth] === index;
       var cls = 'map-node t-' + node.type + (reachable ? ' open' : '') + (past ? ' past' : '') + (taken ? ' taken' : '');
       var enemy = node.enemy ? ENEMIES[node.enemy] : null;
       var title = node.hidden ? 'Unknown — something is waiting on this road'
@@ -119,7 +119,7 @@ export function renderMap() {
   if (els.mapScroll) {
     var svgEl = els.mapBody.querySelector('.map-svg');
     var drawn = svgEl ? svgEl.getBoundingClientRect().height : mapHeight;
-    var top = nodeY(store.run.depth) / mapHeight * drawn;
+    var top = nodeY(getActiveRun().depth) / mapHeight * drawn;
     els.mapScroll.scrollTop = Math.max(0, top - els.mapScroll.clientHeight * 0.45);
   }
 }

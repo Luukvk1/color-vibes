@@ -9,16 +9,20 @@ A roguelite deckbuilder about mixing colours, built as vanilla ES modules
 - `npm run build` — bundles `src/` into `build/` via esbuild. `build/` is
   generated and gitignored; never hand-edit anything under it.
 - `npm test` — the headless suite (Node ≥ 21, no browser): the architecture
-  boundaries, whole seeded runs played by a bot against the real rules, and the
-  self-test checks that need no page. `UPDATE_GOLDEN=1 npm test` regenerates
-  `tests/golden/runs.json` when a change is *meant* to alter how runs play out —
-  review that diff like any other.
+  boundaries, whole seeded runs played by a bot against the real rules, scenario
+  tests for specific rules, wide balance-sanity bands, and the self-test checks
+  that need no page. CI runs it before every deploy.
+- `npm run balance` — simulates many bot runs and reports win rates per enemy,
+  per stage, per card. `-- --compare` shows what moved since the saved baseline
+  (`-- --save` to update it). Run it after any change that touches numbers.
+- `UPDATE_GOLDEN=1 npm test` regenerates `tests/golden/runs.json` when a change is
+  *meant* to alter how runs play out — review that diff like any other.
 - Local dev needs no build step: ES modules require a real origin, so serve
   the repo root with any static server (`python3 -m http.server`, `npx serve`)
   and open `index.html` directly — do not open the file with `file://`.
 - Browser suite: run self-test from the in-game menu, or from a console /
   Playwright: `(await ColorVibes.selfTest()).filter(t => !t.pass)` (expect `[]`).
-  It is the same 304 checks `npm test` runs; the ~20 that read layout or the DOM
+  It is the same 304 checks `npm test` runs; the 17 that read layout or the DOM
   only pass here. The suite saves and loads through a sandboxed storage key, so it
   cannot touch a real save.
 
@@ -66,8 +70,8 @@ storage. `restoreRun()` is where a loaded save is judged — session only checks
 that it parses. Everything random goes through `store.rnd`, so a seeded game is
 reproducible.
 
-`view/self-test.js` is dynamically imported on demand (not shipped with the
-initial page) — keep it that way; esbuild's code-splitting depends on it staying
+`view/self-test/` (one file per subject under `topics/`) is dynamically imported on
+demand (not shipped with the initial page) — keep it that way; esbuild's code-splitting depends on it staying
 a dynamic `import()`.
 
 ## Testing a change
@@ -75,7 +79,9 @@ a dynamic `import()`.
 `tests/support/play.js` plays the game through its public surface — the same
 calls the view makes — with a bot choosing for the player, so a whole run takes
 about a tenth of a second. Prefer a test there over a browser check for anything
-about rules or flow.
+about rules or flow. `tests/support/scenario.js` sets up a particular battle (an
+enemy, relics, a board) to test one rule with real actions; `tests/support/bots.js`
+holds the players the balance tools use.
 
 ## Code style
 

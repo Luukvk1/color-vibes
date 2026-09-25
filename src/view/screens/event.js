@@ -1,20 +1,20 @@
 /* The event screen. */
 
-import { chooseEventOption, cutEventCard, store } from '../../game/index.js';
+import { chooseEventOption, cutEventCard, getActiveRun } from '../../game/index.js';
 import { els } from '../dom.js';
 import { cardMini } from './chrome.js';
 
 export function renderEvent() {
-  var event = store.run.event;
+  var event = getActiveRun().event;
   /* Some options do not resolve on the tap — they open a picker, because
      *which* card leaves matters more than how many. The event stays on screen
      until the choice is made rather than advancing underneath the player. */
-  if (store.run.eventPick) {
-    var left = store.run.eventPick.left;
+  if (getActiveRun().eventPick) {
+    var left = getActiveRun().eventPick.left;
     els.eventBody.innerHTML = '<h2>' + event.title + '</h2>' +
       '<p class="screen-lead">Choose ' + (left > 1 ? left + ' cards' : 'a card') +
       ' to take out of the run for good.</p>' +
-      '<div class="deck-grid">' + store.run.deck.map(function (entry, index) {
+      '<div class="deck-grid">' + getActiveRun().deck.map(function (entry, index) {
         return '<button class="swap-card" data-cut="' + index + '">' + cardMini(entry) + '</button>';
       }).join('') + '</div>';
     Array.prototype.forEach.call(els.eventBody.querySelectorAll('[data-cut]'), function (btn) {
