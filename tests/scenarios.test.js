@@ -324,3 +324,24 @@ test('an act boss drops a trophy of a colour the run has actually opened', funct
     assert.ok(!color || color === 'green' || C.actUnlocked(color, run.deck), entry.id + ' is a colour this run never opened');
   });
 });
+
+test('Glass Cannon: an enemy hit cracks your unit, and the crack costs 2 at scoring', function () {
+  var state = battleAgainst('brawler', { relics: ['glass_cannon'] });
+  var unit = put(state, PLAYER, 'row1', 0, 'red_brute', 6);
+  put(state, ENEMY, 'row1', 0, 'red_brute', 2);
+  function frontline() {
+    return C.evaluateBoard(state.board, state.hazards, game.evalCtx(state)).lanes[0].bottom.frontStrength;
+  }
+  var before = frontline();
+  game.buildApi(state, ENEMY, []).damage(PLAYER, 'row1', 0, 1);
+  assert.equal(unit.cracked, 1);
+  assert.equal(frontline(), before - 1 - 2, 'one from the damage, two from the crack');
+});
+
+test('Glass Cannon: enemy units are not cracked by your relic', function () {
+  var state = battleAgainst('brawler', { relics: ['glass_cannon'] });
+  var enemyUnit = put(state, ENEMY, 'row1', 0, 'red_brute', 6);
+  game.buildApi(state, PLAYER, []).damage(ENEMY, 'row1', 0, 1);
+  assert.ok(!enemyUnit.cracked);
+});
+

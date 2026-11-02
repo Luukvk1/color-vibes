@@ -174,7 +174,10 @@ export function buildApi(battleState, side, notes) {
       var shown = tileView ? evaluation.strengthOf(tileView) : unit.strength;
       var dealt = Math.max(0, Math.min(amount, shown - 1));
       unit.temp = (unit.temp || 0) - dealt;
-      if ((side2 === PLAYER || battleState.pvp) && hasRelic(battleState.pvp ? relicsFor(battleState, side2) : relics, 'glass_cannon')) unit.cracked = (unit.cracked || 0) + 1;
+      /* Asks the unit's owner, not whoever dealt the damage: reading the attacker's
+         relics meant an enemy's hit never cost a thing, so the relic's downside
+         only ever fired when you damaged your own unit. */
+      if ((side2 === PLAYER || battleState.pvp) && hasRelic(relicsFor(battleState, side2), 'glass_cannon')) unit.cracked = (unit.cracked || 0) + 1;
       return dealt;
     },
     buff: function (side2, tile, amount, permanent) {

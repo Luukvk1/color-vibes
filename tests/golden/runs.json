@@ -134,15 +134,15 @@
   "long": {
     "1": {
       "screen": "gameover",
-      "act": "magenta",
-      "actsCleared": 4,
+      "act": "green",
+      "actsCleared": 3,
       "depth": 12,
-      "battlesWon": 18,
-      "battlesFought": 31,
-      "lives": 46,
-      "gold": 667,
-      "deck": 24,
-      "relics": 11,
+      "battlesWon": 9,
+      "battlesFought": 23,
+      "lives": 45,
+      "gold": 331,
+      "deck": 16,
+      "relics": 9,
       "fissures": 0
     },
     "2": {
