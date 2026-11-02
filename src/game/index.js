@@ -17,6 +17,7 @@ export { REWIND, addInstability, canRewind, markRewindPoint, onRewind, restoreRe
 export { EASE_IN_BATTLES, addLog, clearFrontlines, depthBonusFor, easeInHand, flushCurses, newBattle, resetChain, shuffle, tileKey } from './battle/setup.js';
 export { autoTargets, currentTargetOptions, legalTargets, pendingSpec, resolveCard } from './battle/targeting.js';
 export { advanceTarget, beginPlay, beginWild, cancelPending, cancelSelection, clearInspection, continueBattle, endBattle, finishPlay, inspectHazard, nextRound, onMixToggle, onPass, onTileActivate, opponentAct, opponentMove, opponentThink, pass, performMix, resolveRound, runOpponentMove, selectCard } from './battle/turns.js';
+export { DRAFT, MODES, PVP, canTakeSeat, draftCardsMissing, pvpChooseMode, pvpDraftPick, pvpSetPlayerName, coloursOf, copyLimit, deckProblems, enterPvp, leavePvp, needsHandoff, pvpAddCard, pvpBan, pvpConfirmDeck, pvpContinue, pvpPool, pvpRematch, pvpRemoveCard, pvpReady, pvpResetSwaps, pvpSetName, pvpSwap, takeSeat } from './pvp.js';
 export { codex, codexCounts, discoverCard, discoverFoe, loadCodex } from './codex.js';
 export { ACTS, ACT_KEYS, ACT_LENGTH, ACT_PLANNED, NORMAL_ENEMIES, SECRET_ACT_KEYS, eliteFor, elitesOf } from './content/acts.js';
 export { EVENTS, chooseEventOption, cutEventCard, rollEvent } from './run/events.js';

@@ -1,6 +1,6 @@
 /* Shared pieces of the interface: chips, mini cards, the run bar and the deck modal. */
 
-import { getActiveRun, rules as C } from '../../game/index.js';
+import { getActiveRun, getBattleState, rules as C } from '../../game/index.js';
 import { ACTS } from '../../game/index.js';
 import { els } from '../dom.js';
 
@@ -51,6 +51,15 @@ export function renderRunBar() {
     : '<span class="muted" style="font-size:11px">No relics yet</span>';
 }
 
+/* Relics are personal in a draft, and the other player's change how you play. */
+function opponentRelicsSection() {
+  var state = getBattleState();
+  if (!state || !state.pvp) return '';
+  var relics = state.seats.top.relics;
+  return '<div class="dm-section"><h3>' + state.seats.top.name + '\u2019s relics · ' + relics.length + '</h3>' +
+    relics.map(function (key) { return '<div class="relic-line"><b>' + RELICS[key].name + '</b><span>' + RELICS[key].text + '</span></div>'; }).join('') + '</div>';
+}
+
 /* A single place to check what you are carrying — deck and relics together,
    reachable from any screen including mid-battle. */
 export function renderDeckModal() {
@@ -74,8 +83,9 @@ export function renderDeckModal() {
         }).join('')
       : '<p class="muted" style="font-size:12.5px;margin:0">No relics yet. Elites and bosses always drop one.</p>') +
     '</div>' +
+    opponentRelicsSection() +
     '<div class="dm-section"><h3>Deck · ' + getActiveRun().deck.length + ' cards</h3>' +
-    '<p class="screen-lead">A smaller deck draws its best cards more often. Skipping a reward keeps it lean.</p>' +
+    (getActiveRun().pvp ? '' : '<p class="screen-lead">A smaller deck draws its best cards more often. Skipping a reward keeps it lean.</p>') +
     groups + '</div>';
   els.deckOverlay.hidden = false;
 }

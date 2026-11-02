@@ -22,7 +22,9 @@ function laneTable(ev) {
     }
     return '<tr><td class="lane-no">' + (lane.index + 1) + '</td>' + cell('bottom') + cell('top') + '</tr>';
   }).join('');
-  return '<table class="lane-table"><thead><tr><th>Lane</th><th>Your frontline</th><th>Score</th><th>Enemy frontline</th><th>Score</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  var state = getBattleState();
+  var mine = state.pvp ? state.seats.bottom.name : 'Your frontline', theirs = state.pvp ? state.seats.top.name : 'Enemy frontline';
+  return '<table class="lane-table"><thead><tr><th>Lane</th><th>' + mine + '</th><th>Score</th><th>' + theirs + '</th><th>Score</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
 /* View: the modal that reads out a scored round. */
@@ -39,8 +41,26 @@ export function syncResults() {
   }, 520);
 }
 
+/* Neither "you" nor "the enemy" means anything when both of you are reading it. */
+function showMatchResults(state, ev, result) {
+  var names = state.seats;
+  els.resultsTitle.textContent = state.battleOver
+    ? names[state.wins.bottom >= 2 ? 'bottom' : 'top'].name + ' wins the match'
+    : 'Round ' + state.round + ' — ' + names[result.winner].name + ' wins';
+  els.resultsBody.innerHTML =
+    '<p class="result-score"><span class="you">' + names.bottom.name + ' ' + result.bottom + '</span><span class="vs">:</span><span class="opp">' + result.top + ' ' + names.top.name + '</span></p>' +
+    (result.note ? '<p class="tiebreak">' + result.note + '</p>' : '') + laneTable(ev) +
+    '<p class="match-line">Rounds — ' + state.wins.bottom + ' : ' + state.wins.top + ' · raw ' + ev.raw.bottom + ' : ' + ev.raw.top + '</p>' +
+    (state.battleOver ? '' : '<p class="rule-note">Frontline units in <b>contested</b> lanes fall before round ' + (state.round + 1) + '.</p>');
+  els.continueBtn.textContent = state.battleOver ? 'See the result' : 'Start round ' + (state.round + 1);
+  els.continueBtn.onclick = function () { els.overlay.hidden = true; continueBattle(); };
+  els.overlay.hidden = false;
+  els.continueBtn.focus();
+}
+
 function showResults(ev, result) {
   var state = getBattleState();
+  if (state.pvp) { showMatchResults(state, ev, result); return; }
   var playerWon = state.wins.bottom >= 2;
   els.resultsTitle.textContent = state.battleOver
     ? (playerWon ? 'Battle won' : 'Battle lost')

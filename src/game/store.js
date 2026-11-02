@@ -53,7 +53,7 @@ export function emit(type, payload) {
    for a snapshot(); resuming reads it back from here, not from anywhere else.
    A scaffolding run — the one behind the title screen on a fresh install — is
    never kept, or Continue would offer a run nobody played. */
-function settled() { return !!store.run && store.run.screen !== 'battle'; }
+function settled() { return !!store.run && !store.run.pvp && store.run.screen !== 'battle'; }
 
 var actionDepth = 0;
 /* Wraps an entry point. Actions call each other freely; only the outermost one

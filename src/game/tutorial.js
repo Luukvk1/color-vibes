@@ -23,7 +23,7 @@ export function inFirstBattle() { return tutorial.enabled && store.run && store.
 
 /* Lessons run across the whole act, not just the opening fight — several of them
    need a board situation that may not turn up until the third or fourth battle. */
-export function shouldTeach(key) { return tutorial.enabled && store.run && !tutorial.seen[key]; }
+export function shouldTeach(key) { return tutorial.enabled && store.run && !store.run.pvp && !tutorial.seen[key]; }
 
 export function tutorialOpen() { return !!tutorial.open; }
 

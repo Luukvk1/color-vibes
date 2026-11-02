@@ -37,6 +37,7 @@
     <div class="title-actions">
       <button class="primary title-btn" id="titleContinue" hidden>Continue your run</button>
       <button class="primary title-btn" id="titleNew">New run</button>
+      <button class="primary title-btn" id="titleVersus">Play a friend</button>
       <button class="primary title-btn ghost" id="titleGlossary">Glossary</button>
     </div>
     <p class="title-warn" id="titleNewWarn" hidden>This ends the run you have saved. Tap again to be sure.</p>
@@ -116,7 +117,7 @@
               <path d="M-7,-2 a4.2,4.2 0 0,1 0,-6 a4.2,4.2 0 0,1 6,0 M7,2 a4.2,4.2 0 0,1 0,6 a4.2,4.2 0 0,1 -6,0 M-3,1 L3,-1"/>
             </svg><b id="chainCount">0</b>
           </div>
-          <div class="hud-row opp"><b id="scoreOpp">0</b><span class="sb-pips" id="pipsOpp"></span><span class="hud-lbl">ENEMY</span></div>
+          <div class="hud-row opp"><b id="scoreOpp">0</b><span class="sb-pips" id="pipsOpp"></span><span class="hud-lbl" id="oppLabel">ENEMY</span></div>
         </div>
       </div>
     </div>
@@ -241,6 +242,10 @@
   </section>
 
   <!-- ============ SUMMARY ============ -->
+  <section class="screen" id="screen-pvp" hidden>
+    <div class="panelbox" id="pvpBody"></div>
+  </section>
+
   <section class="screen" id="screen-gameover" hidden>
     <div class="panelbox">
       <div id="gameoverBody"></div>
@@ -249,6 +254,15 @@
   </section>
 
   <footer>Runs entirely offline in your browser. Single self-contained file — nothing else needed.</footer>
+</div>
+
+<div class="pvp-handoff" id="pvpCover" hidden role="dialog" aria-modal="true">
+  <div class="pvp-cover">
+    <span class="eyebrow">Pass the device</span>
+    <h2 id="pvpCoverName"></h2>
+    <p class="screen-lead" id="pvpCoverNote"></p>
+    <button class="primary" id="pvpCoverGo">Show my hand</button>
+  </div>
 </div>
 
 <div class="overlay" id="lanesOverlay" hidden role="dialog" aria-modal="true">

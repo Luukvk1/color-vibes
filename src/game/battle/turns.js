@@ -3,6 +3,8 @@
    the engine announces once it has finished. */
 
 import C from '../rules/index.js';
+import { discoverCard } from '../codex.js';
+import { finishPvpMatch, drawPvpRound, seatLabel } from '../pvp.js';
 import { advance, show } from '../run/flow.js';
 import { rollReward } from '../run/rewards.js';
 import { act, emit, getActiveRun, getBattleState, getRnd } from '../store.js';
@@ -27,7 +29,7 @@ var eachUnit = C.eachUnit;
 var evaluateBoard = C.evaluateBoard;
 var hasRelic = C.hasRelic;
 var otherSide = C.otherSide;
-var sideName = C.sideName;
+function sideName(side) { return seatLabel(getBattleState(), side); }
 var slotName = C.slotName;
 var unitAt = C.unitAt;
 
@@ -75,6 +77,8 @@ export var finishPlay = act(function finishPlay() {
   var card = pendingAction.card, cardDef = CARDS[card.id], side = pendingAction.side;
   markRewindPoint(side);
   resetChain(side);
+  // an opponent's card counts as met once it has been played against you
+  discoverCard(card.id);
   state.hands[side].splice(pendingAction.cardIndex, 1);
   var notes = resolveCard(state, side, card, pendingAction.tile, pendingAction.picks);
   state.pending = null; state.selectedCard = null;
@@ -264,7 +268,7 @@ export function runOpponentMove(decision) {
    should let it look like it is deciding, or null when it is nobody's business. */
 export function opponentThink() {
   var state = getBattleState();
-  if (!state || state.turn !== ENEMY || state.resolving || state.battleOver || state.opponentThinking) return null;
+  if (!state || state.pvp || state.turn !== ENEMY || state.resolving || state.battleOver || state.opponentThinking) return null;
   state.opponentThinking = true;
   state.decision = decideOpponentMove();
   return decisionDelay(state.decision.margin);
@@ -298,7 +302,7 @@ export var resolveRound = act(function resolveRound() {
   state.mode = 'place'; state.mixBase = null; state.selectedCard = null; state.pending = null;
   if (state.wins[result.winner] >= 2) state.battleOver = true;
   state.roundResult = { ev: ev, result: result };
-  addLog('Round ' + state.round + ' — You ' + result.bottom + ' : ' + result.top + '. ' + sideName(result.winner) + ' won it.');
+  addLog('Round ' + state.round + ' — ' + sideName(PLAYER) + ' ' + result.bottom + ' : ' + result.top + ' ' + (state.pvp ? sideName(ENEMY) + '. ' : '. ') + sideName(result.winner) + ' won it.');
 });
 
 /* The player has read the result: on to the next round, or out of the battle. */
@@ -329,6 +333,7 @@ export var nextRound = act(function nextRound(winner) {
   state.mixChain = 0; state.chains = { bottom: 0, top: 0 };
   state.mixesThisRound = 0; state.freeMixesThisRound = 0; state.echoUsedThisRound = false; state.cascadeDepth = 0;
   state.quickStudyUsed = false;
+  if (state.pvp) { state.otherSeat = { mixesThisRound: 0, freeMixesThisRound: 0, echoUsedThisRound: false, quickStudyUsed: false, wildPaletteUsed: state.otherSeat.wildPaletteUsed }; state.freshSeat = true; }
   state.quieted = null;                              // Cyan's reprieve lasts one round
   ['bottom', 'top'].forEach(function (side) { eachUnit(state.board, side, function (unit) { unit.temp = 0; }); });
   /* BOSS RULE — growth (The Verdant Crown). Everything of its that survived
@@ -387,7 +392,7 @@ export var nextRound = act(function nextRound(winner) {
      Wellspring alive is the cost of the engine \u2014 it is a frontline body like
      any other and the line still breaks around it. */
   var engineDraw = 0;
-  eachUnit(state.board, PLAYER, function (unit) {
+  if (!state.pvp) eachUnit(state.board, PLAYER, function (unit) {
     var cardDef = CARDS[unit.cardId];
     if (cardDef && cardDef.drawsEachRound) engineDraw += cardDef.drawsEachRound;
   });
@@ -396,14 +401,19 @@ export var nextRound = act(function nextRound(winner) {
      another card each round. At 15 cards that is two extra draws a round, so
      the endgame target size is something the relic actively argues for. */
   var lean = 0;
-  if (hasRelic(state.relics, 'deep_pockets')) {
+  if (!state.pvp && hasRelic(state.relics, 'deep_pockets')) {
     lean = Math.max(0, Math.floor((25 - getActiveRun().deck.length) / 5));
     if (lean) addLog('Deep Pockets draws ' + lean + ' extra \u2014 your deck is lean.');
   }
-  drawInto(state, PLAYER, C.ROUND_DRAW + engineDraw + lean + (hasRelic(state.relics, 'recycling_bin') ? 1 : 0));
-  drawInto(state, ENEMY, C.ROUND_DRAW);
+  if (state.pvp) drawPvpRound(state);
+  else {
+    drawInto(state, PLAYER, C.ROUND_DRAW + engineDraw + lean + (hasRelic(state.relics, 'recycling_bin') ? 1 : 0));
+    drawInto(state, ENEMY, C.ROUND_DRAW);
+  }
   if (fallen.bottom.length || fallen.top.length) {
-    addLog('The contested lines break — ' + fallen.bottom.length + ' of yours and ' +
+    addLog(state.pvp
+      ? 'The contested lines break — ' + sideName(PLAYER) + ' loses ' + fallen.bottom.length + ', ' + sideName(ENEMY) + ' loses ' + fallen.top.length + '.'
+      : 'The contested lines break — ' + fallen.bottom.length + ' of yours and ' +
       fallen.top.length + ' enemy frontline unit' + (fallen.top.length === 1 ? '' : 's') + ' fall.');
   } else addLog('No lane was contested, so every unit holds its ground.');
   addLog('Round ' + state.round + ' begins. ' + sideName(winner) + ' starts.');
@@ -413,6 +423,7 @@ export var nextRound = act(function nextRound(winner) {
 
 export var endBattle = act(function endBattle(won) {
   var state = getBattleState(), run = getActiveRun();
+  if (state.pvp) { finishPvpMatch(state, won); return; }
   if (won) {
     run.battlesWon++;
     rollReward(state.node);

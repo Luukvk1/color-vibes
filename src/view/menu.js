@@ -2,7 +2,7 @@
    button to the engine action it stands for. */
 
 import { rules as C } from '../game/index.js';
-import { advance, beginWild, cancelPending, cancelSelection, closeTutorial, dismissTutorial, getActiveRun, getBattleState, hasCheckpoint, newGame, onMixToggle, onPass, onRewind, resume, selectCard, setTutorial, skipReward, toggleShopRemoval, tutorial } from '../game/index.js';
+import { advance, beginWild, cancelPending, cancelSelection, closeTutorial, dismissTutorial, getActiveRun, getBattleState, enterPvp, hasCheckpoint, leavePvp, newGame, onMixToggle, onPass, onRewind, resume, selectCard, setTutorial, skipReward, toggleShopRemoval, tutorial } from '../game/index.js';
 import { buildBoard } from './battle/board.js';
 import { closeInfo } from './battle/info.js';
 import { alignRoomBackground, sizeBoardStage } from './battle/layout.js';
@@ -11,6 +11,7 @@ import { iconRow } from './icons.js';
 import { renderDeckModal } from './screens/chrome.js';
 import { closeGlossary, openGlossary, setGlossaryTab } from './screens/glossary.js';
 import { renderScreen } from './screens/index.js';
+import { setPvpExit } from './screens/pvp.js';
 import { tutorialStep } from './tutorial.js';
 
 var CARDS = C.CARDS;
@@ -57,6 +58,7 @@ async function runSelfTestUI() {
 /* Wipe everything and drop back to a fresh map. Any open modal is closed first,
    otherwise the old overlay keeps covering the new run. */
 export function startFreshRun() {
+  leaveMatch();
   els.overlay.hidden = true;
   els.deckOverlay.hidden = true;
   dismissTutorial();
@@ -76,6 +78,7 @@ function resumeSaved() {
    has to be constructed at that moment. Continue only appears when there is
    genuinely something to continue. */
 function showTitle() {
+  leaveMatch();
   var titleScreen = document.getElementById('titleScreen');
   var continueButton = document.getElementById('titleContinue');
   if (continueButton) continueButton.hidden = !hasCheckpoint();
@@ -84,6 +87,15 @@ function showTitle() {
   var newRunButton = document.getElementById('titleNew');
   if (newRunButton) { newRunButton.textContent = 'New run'; newRunButton.dataset.armed = ''; }
   if (titleScreen) titleScreen.hidden = false;
+}
+
+/* A match is not a run: leaving one simply gives the run back. */
+function leaveMatch() {
+  if (!getActiveRun() || !getActiveRun().pvp) return;
+  els.overlay.hidden = true;
+  els.pvpCover.hidden = true;
+  els.deckOverlay.hidden = true;
+  leavePvp();
 }
 
 function hideTitle() {
@@ -111,9 +123,9 @@ export function init() {
    'deckBtn', 'deckBtnCount', 'relicBtnCount', 'deckOverlay', 'deckModalBody', 'mapScroll', 'mapLegend',
    'tutorialOverlay', 'tutorialBody', 'tutorialBack', 'tutorialNext', 'tutorialSkip', 'tutorialOff',
    'tutorialToggle', 'easeNote', 'menuBtn', 'menuDropdown', 'logBtn',
-   'labBody', 'eventBody', 'gameoverBody', 'actBody', 'victoryBody'
+   'pvpBody', 'pvpCover', 'pvpCoverName', 'pvpCoverNote', 'pvpCoverGo', 'labBody', 'eventBody', 'gameoverBody', 'actBody', 'victoryBody'
   ].forEach(function (id) { els[id] = document.getElementById(id); });
-  ['map', 'act', 'victory', 'loadout', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (screenName) {
+  ['map', 'act', 'victory', 'loadout', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover', 'pvp'].forEach(function (screenName) {
     els['screen_' + screenName] = document.getElementById('screen-' + screenName);
   });
 
@@ -274,6 +286,11 @@ export function init() {
     startFreshRun();
     hideTitle();
   });
+  document.getElementById('titleVersus').addEventListener('click', function () {
+    enterPvp();
+    hideTitle();
+  });
+  setPvpExit(showTitle);
   document.getElementById('titleGlossary').addEventListener('click', function () {
     openGlossary();
   });

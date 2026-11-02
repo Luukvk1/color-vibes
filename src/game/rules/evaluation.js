@@ -207,7 +207,7 @@ function applyPassives(board, get, hazards, chains, ctx, topology) {
       if (!cardDef || !cardDef.passive) return;
       tileView.bonus += cardDef.passive({ board: board, hazards: hazards, side: side, row: row, index: index, unit: unit,
         mixChain: chains[side] || 0,
-        drawnExtra: (ctx.drawn && side === PLAYER) ? ctx.drawn.extra : 0,
+        drawnExtra: !ctx.drawn ? 0 : side === PLAYER ? ctx.drawn.extra : (ctx.drawn.top || 0),
         // read by curse-synergy payoffs: how many curses have actually resolved this fight
         cursesDrawn: (ctx.curseFired || []).filter(function (fired) { return fired.side === side; }).length,
         // read by Reliquary-style payoffs: how many curses the run itself is carrying
@@ -395,7 +395,7 @@ function computeLaneEffectiveness(lanes) {
    compounded when one enemy unit fronted several effective lanes and leaked
    into lanes where the player was not effective at all — it is lane-scoped
    now. */
-function applyMatchupPassives(lanes, relics, mod) {
+function applyMatchupPassives(lanes, relics, mod, relicsTop) {
   var frontlineCounts = {};
   lanes.forEach(function (lane) {
     ['bottom', 'top'].forEach(function (side) {
@@ -412,7 +412,7 @@ function applyMatchupPassives(lanes, relics, mod) {
       if (cardDef && cardDef.matchup) championView.bonus += cardDef.matchup({ isFrontline: true, isEffective: mine.effective,
         frontlineCount: frontlineCounts[side + '-' + championView.row + '-' + championView.index] || 1, view: championView }) || 0;
       // Glass Cannon only pays out on units actually holding the line
-      if (side === PLAYER && hasRelic(relics, 'glass_cannon') && !championView.glassPaid) {
+      if (hasRelic(side === PLAYER ? relics : relicsTop, 'glass_cannon') && !championView.glassPaid) {
         championView.glassPaid = true;
         championView.bonus += 1 - 2 * (championView.unit.cracked || 0);
       }
@@ -461,7 +461,7 @@ function computeShares(board, get, topology, strengthOf) {
   });
   return shares;
 }
-function finalizeLaneStrength(lanes, shares, mod, relics) {
+function finalizeLaneStrength(lanes, shares, mod, relics, relicsTop) {
   lanes.forEach(function (lane) {
     ['bottom', 'top'].forEach(function (side) {
       var mine = lane[side];
@@ -478,7 +478,7 @@ function finalizeLaneStrength(lanes, shares, mod, relics) {
       if (side === PLAYER && mod.supportPenalty) supportShare = supportShare * mod.supportPenalty;
       mine.frontStrength = championShare + punish; mine.support = supportShare; mine.strength = championShare + supportShare + punish;
       mine.multiplier = mine.effective ? 2 : 1;
-      if (side === PLAYER && !mine.effective && mine.champion.colorless && hasRelic(relics, 'empty_palette')) mine.multiplier = 1.25;
+      if (!mine.effective && mine.champion.colorless && hasRelic(side === PLAYER ? relics : relicsTop, 'empty_palette')) mine.multiplier = 1.25;
     });
   });
 }
@@ -517,11 +517,13 @@ function applyWardWeakLanes(lanes, mod) {
 }
 
 // Colour Lens upgrades the single biggest effective lane
-function applyColorLensRelic(lanes, relics) {
-  if (!hasRelic(relics, 'color_lens')) return;
-  var best = null;
-  lanes.forEach(function (lane) { if (lane.bottom && lane.bottom.effective && (!best || lane.bottom.strength > best.strength)) best = lane.bottom; });
-  if (best) { best.multiplier = 2.5; best.lensed = true; }
+function applyColorLensRelic(lanes, relics, relicsTop) {
+  ['bottom', 'top'].forEach(function (side) {
+    if (!hasRelic(side === 'bottom' ? relics : relicsTop, 'color_lens')) return;
+    var best = null;
+    lanes.forEach(function (lane) { if (lane[side] && lane[side].effective && (!best || lane[side].strength > best.strength)) best = lane[side]; });
+    if (best) { best.multiplier = 2.5; best.lensed = true; }
+  });
 }
 
 function finalizeLaneScores(lanes) {
@@ -547,7 +549,7 @@ export function evaluateBoard(board, hazards, ctx) {
 
   hazards = hazards || emptyHazards();
   ctx = ctx || {};
-  var relics = ctx.relics || [], mod = ctx.enemyMod || {};
+  var relics = ctx.relics || [], relicsTop = ctx.relicsTop || [], mod = ctx.enemyMod || {};
   // each side reads its own chain
   var chains = ctx.chains || { bottom: ctx.mixChain || 0, top: 0 };
   // how the board actually joins up now: null when it is still whole
@@ -578,15 +580,15 @@ export function evaluateBoard(board, hazards, ctx) {
   var lanes = buildLanes(board, topology, get, strengthOf);
   publishLaneColors(lanes);
   computeLaneEffectiveness(lanes);
-  applyMatchupPassives(lanes, relics, mod);
+  applyMatchupPassives(lanes, relics, mod, relicsTop);
   applyEnemyAurasToFrontlines(board, lanes, topology, applyDelta);
 
   var shares = computeShares(board, get, topology, strengthOf);
-  finalizeLaneStrength(lanes, shares, mod, relics);
+  finalizeLaneStrength(lanes, shares, mod, relics, relicsTop);
 
   applyEchoBestLane(lanes, mod);
   applyWardWeakLanes(lanes, mod);
-  applyColorLensRelic(lanes, relics);
+  applyColorLensRelic(lanes, relics, relicsTop);
   finalizeLaneScores(lanes);
 
   var totalsResult = computeTotals(board, lanes, get, strengthOf);

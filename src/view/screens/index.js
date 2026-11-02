@@ -9,6 +9,7 @@ import { applyGrey, renderRunBar } from './chrome.js';
 import { renderEvent } from './event.js';
 import { renderLab } from './lab.js';
 import { renderMap, renderMapLegend } from './map.js';
+import { renderPvp } from './pvp.js';
 import { renderReward } from './reward.js';
 import { renderShop } from './shop.js';
 
@@ -17,6 +18,7 @@ var renderedBattle = null, renderedAct = null;
 
 export function renderScreen() {
   var screen = getActiveRun().screen;
+  document.body.classList.toggle('pvp-mode', !!getActiveRun().pvp);
   // the battle screen is locked to one viewport; everything else scrolls normally
   document.body.classList.toggle('battle-mode', screen === 'battle');
   // also on the root, or its scrollbar gutter leaves a grey band beside the art
@@ -29,7 +31,7 @@ export function renderScreen() {
     var art = document.querySelector('.room-art');
     if (art) { art.style.backgroundPosition = ''; art.style.backgroundSize = ''; }
   }
-  ['map', 'act', 'victory', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover'].forEach(function (screenName) {
+  ['map', 'act', 'victory', 'battle', 'reward', 'shop', 'lab', 'event', 'gameover', 'pvp'].forEach(function (screenName) {
     var el = els['screen_' + screenName];
     if (el) el.hidden = (screenName !== screen);
   });
@@ -44,6 +46,7 @@ export function renderScreen() {
   else if (screen === 'lab') renderLab();
   else if (screen === 'event') renderEvent();
   else if (screen === 'gameover') renderGameOver();
+  else if (screen === 'pvp') renderPvp();
   else if (screen === 'battle') {
     if (getBattleState() !== renderedBattle) { renderedBattle = getBattleState(); buildBoard(); }
     render();

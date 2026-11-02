@@ -8,6 +8,7 @@ import { getActiveRun, getBattleState, rules, subscribe, tutorial, tutorialOpen 
 import { announce } from './battle/panels.js';
 import { newFissures, playFx } from './battle/board.js';
 import { maybeOpponentMove, render, showPassPuck } from './battle/index.js';
+import { syncHandoff } from './battle/handoff.js';
 import { syncResults } from './battle/results.js';
 import { els } from './dom.js';
 import { init, selfTest } from './menu.js';
@@ -27,10 +28,12 @@ function onGameEvent(type, payload) {
   if (type === 'fissure') { newFissures[payload.key] = 1; return; }
   if (type !== 'change' || !getActiveRun() || !els.mapBody) return;   // nothing to draw on yet
   renderScreen();
+  if (!getBattleState()) syncHandoff();
   if (tutorial.open !== tutorialView.open) renderTutorial();
   syncTutorialToggle();
   if (getActiveRun().screen === 'battle' && getBattleState()) {
     syncResults();
+    syncHandoff();
     // the enemy holds its move while a lesson is open, so nothing shifts under someone reading
     if (!tutorialOpen()) maybeOpponentMove();
   }

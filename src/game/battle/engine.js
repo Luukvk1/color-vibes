@@ -24,6 +24,12 @@ var unitAt = C.unitAt;
 /* ===================================================================
    MIXING — Free Mix and Mix Chain (GDD §17, §18)
    =================================================================== */
+/* In a run only the player has relics. In a friendly match each seat has its own. */
+function relicsFor(battleState, side) {
+  if (battleState.pvp) return battleState.seats[side].relics;
+  return (side === PLAYER && battleState.relics) ? battleState.relics : [];
+}
+
 export function canMix(board, side, base, other, fissures) {
   var unitA = unitAt(board, side, base.row, base.index), unitB = unitAt(board, side, other.row, other.index);
   if (!unitA || !unitB) return { ok: false, reason: 'Both tiles need a unit.' };
@@ -53,7 +59,7 @@ export function mixOptions(board, side, fissures) {
 
 /* battleState needs: board, hazards, hands, decks, relics (player), mixChain, mixesThisRound, freeMixesThisRound */
 export function applyMix(battleState, side, base, other, extra, isFree) {
-  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
+  var relics = relicsFor(battleState, side);
   var unitA = unitAt(battleState.board, side, base.row, base.index), unitB = unitAt(battleState.board, side, other.row, other.index);
   var color = mixResultColor(unitA.color, unitB.color);
   /* Chains belong to the side that built them. A shared counter meant the enemy
@@ -132,11 +138,13 @@ export function drawInto(battleState, side, count, opening) {
 
 function countDraws(battleState, side, got, opening) {
   if (opening || !got) return;
-  if (battleState.drawn && side === PLAYER) battleState.drawn.extra += got;
+  if (!battleState.drawn) return;
+  if (side === PLAYER) battleState.drawn.extra += got;
+  else if (battleState.pvp) battleState.drawn.top += got;
 }
 
 export function buildApi(battleState, side, notes) {
-  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
+  var relics = relicsFor(battleState, side);
   var api = {
     draw: function (drawSide, count) {
       var extra = 0;
@@ -166,7 +174,7 @@ export function buildApi(battleState, side, notes) {
       var shown = tileView ? evaluation.strengthOf(tileView) : unit.strength;
       var dealt = Math.max(0, Math.min(amount, shown - 1));
       unit.temp = (unit.temp || 0) - dealt;
-      if (side2 === PLAYER && hasRelic(relics, 'glass_cannon')) unit.cracked = (unit.cracked || 0) + 1;
+      if ((side2 === PLAYER || battleState.pvp) && hasRelic(battleState.pvp ? relicsFor(battleState, side2) : relics, 'glass_cannon')) unit.cracked = (unit.cracked || 0) + 1;
       return dealt;
     },
     buff: function (side2, tile, amount, permanent) {
@@ -181,7 +189,7 @@ export function buildApi(battleState, side, notes) {
            skipped for anything without a traceable deck slot (tokens, the
            enemy's disposable deck) since there's nothing persistent to
            write to. */
-        if (!battleState.sim && side2 === PLAYER && typeof unit.deckIndex === 'number' && store.run && store.run.deck && store.run.deck[unit.deckIndex]) {
+        if (!battleState.sim && !battleState.pvp && side2 === PLAYER && typeof unit.deckIndex === 'number' && store.run && store.run.deck && store.run.deck[unit.deckIndex]) {
           store.run.deck[unit.deckIndex] = liftStrength(store.run.deck[unit.deckIndex], amount);
         }
       } else {
@@ -203,7 +211,7 @@ export function buildApi(battleState, side, notes) {
        permanent buff on any of those cards would silently land on the
        wrong slot for the rest of the fight. */
     removeFromDeck: function (side2, tile) {
-      if (battleState.sim || side2 !== PLAYER || !store.run || !store.run.deck) return false;
+      if (battleState.sim || battleState.pvp || side2 !== PLAYER || !store.run || !store.run.deck) return false;
       var unit = unitAt(battleState.board, side2, tile.row, tile.index);
       if (!unit || typeof unit.deckIndex !== 'number' || !store.run.deck[unit.deckIndex]) return false;
       var removedIndex = unit.deckIndex;
@@ -229,16 +237,17 @@ export function buildApi(battleState, side, notes) {
       if (!unit || battleState.board[side2][to.row][to.index]) return;
       if (unit.strength + (unit.temp || 0) < ROW_INFO[to.row].min) return;
       battleState.board[side2][to.row][to.index] = unit; battleState.board[side2][from.row][from.index] = null;
-      if (side2 === PLAYER && hasRelic(relics, 'heavy_brush') && ROW_INFO[to.row].depth === 3) unit.strength += 1;
+      if ((side2 === PLAYER || battleState.pvp) && hasRelic(battleState.pvp ? relicsFor(battleState, side2) : relics, 'heavy_brush') && ROW_INFO[to.row].depth === 3) unit.strength += 1;
     },
     recolor: function (side2, tile, color) {
       var unit = unitAt(battleState.board, side2, tile.row, tile.index);
       if (!unit) return;
       var previousColor = unit.color;
       unit.color = color;
-      if (side2 === PLAYER && previousColor !== color) {
-        if (hasRelic(relics, 'chromatic_memory')) unit.temp = (unit.temp || 0) + Math.ceil((unit.strength + (unit.temp || 0)) / 4);
-        if (color === 'black' && hasRelic(relics, 'black_paint')) unit.temp = (unit.temp || 0) + 3;
+      if ((side2 === PLAYER || battleState.pvp) && previousColor !== color) {
+        var ownerRelics = battleState.pvp ? relicsFor(battleState, side2) : relics;
+        if (hasRelic(ownerRelics, 'chromatic_memory')) unit.temp = (unit.temp || 0) + Math.ceil((unit.strength + (unit.temp || 0)) / 4);
+        if (color === 'black' && hasRelic(ownerRelics, 'black_paint')) unit.temp = (unit.temp || 0) + 3;
       }
     },
     clearHazard: function (side2, row) { battleState.hazards[side2][row] = null; },
@@ -260,7 +269,7 @@ export function buildApi(battleState, side, notes) {
     },
     freeMix: function (side2, base, other, extra) { return doMixCascade(battleState, side2, base, other, extra, true, notes); },
     /* Tears the run's ground, which outlives this battle. */
-    spawnFissure: function (targetSide, board) { return spawnFissure(targetSide, board); },
+    spawnFissure: function (targetSide, board) { return battleState.pvp ? null : spawnFissure(targetSide, board); },
     enemyFrontlinesIn: function (laneList) {
       var evaluation = evaluateBoard(battleState.board, battleState.hazards, evalCtx(battleState));
       var foe = otherSide(side), frontlines = [], seen = {};
@@ -321,7 +330,7 @@ function activeFissures(battleState) {
 }
 
 export function evalCtx(battleState) {
-  return { relics: battleState.relics || [], enemyMod: battleState.enemyMod || {},
+  return { relicsTop: battleState.pvp ? battleState.seats.top.relics : [], relics: battleState.relics || [], enemyMod: battleState.enemyMod || {},
            chains: battleState.chains || { bottom: 0, top: 0 },
            drawn: battleState.drawn || { extra: 0 },
            hands: battleState.hands || null,
@@ -358,7 +367,7 @@ export function doMixCascade(battleState, side, base, other, extra, isFree, note
   if (notes) notes.push((isFree ? 'Free Mix' : 'Mix') + ' \u2192 ' + colorInfo(result.color).name + ' ' + result.strength + ' (chain ' + result.chain + ')');
   fireFriendlyMix(battleState, side, notes);
 
-  var relics = (side === PLAYER && battleState.relics) ? battleState.relics : [];
+  var relics = relicsFor(battleState, side);
   /* GDD §29 says "every third mix in a chain". With one Mix token a round a
      chain can never reach three on its own, so the relic could never fire.
      It now also triggers on the opening link, which is what makes chains
@@ -395,7 +404,7 @@ export function simGame(sourceState) {
   return { board: C.cloneBoard(sourceState.board), hazards: C.cloneHazards(sourceState.hazards),
     hands: { bottom: sourceState.hands.bottom.slice(), top: sourceState.hands.top.slice() },
     decks: { bottom: sourceState.decks.bottom.slice(), top: sourceState.decks.top.slice() },
-    relics: (sourceState.relics || []).slice(), enemyMod: sourceState.enemyMod, spectrumColor: sourceState.spectrumColor,
+    pvp: sourceState.pvp, seats: sourceState.seats, drawn: sourceState.pvp ? Object.assign({}, sourceState.drawn) : undefined, relics: (sourceState.relics || []).slice(), enemyMod: sourceState.enemyMod, spectrumColor: sourceState.spectrumColor,
     fissures: sourceState.fissures || [],
     // cloned: a simulated Cyan play must not quiet the real board
     quieted: sourceState.quieted ? Object.assign({}, sourceState.quieted) : null,

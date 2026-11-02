@@ -152,7 +152,7 @@ export function snapshotForRewind(state) {
 /* Only the player's own turns are rewindable, and only the most recent one. */
 export function markRewindPoint(side) {
   var state = getBattleState();
-  if (!state || side !== PLAYER || state.rewindUsedThisRound) return;
+  if (!state || state.pvp || side !== PLAYER || state.rewindUsedThisRound) return;
   state.rewindSnap = snapshotForRewind(state);
 }
 
@@ -179,7 +179,7 @@ export function restoreRewind(state, snap) {
 
 export function canRewind() {
   var state = getBattleState();
-  if (!state) return false;
+  if (!state || state.pvp) return false;
   return !!state.rewindSnap && !state.rewindUsedThisRound && state.turn === PLAYER &&
     !state.resolving && !state.battleOver && !state.opponentThinking && !state.pending;
 }

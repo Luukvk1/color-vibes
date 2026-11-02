@@ -114,6 +114,8 @@ export function renderControls(ev) {
   els.chainBadge.classList.toggle('live', ((state.chains && state.chains[PLAYER]) || 0) > 0);
   els.easeNote.hidden = !state.easeIn;
   els.enemyName.textContent = state.enemy.name;
+  var opponentLabel = document.getElementById('oppLabel');
+  if (opponentLabel) opponentLabel.textContent = state.pvp ? 'THEM' : 'ENEMY';
   /* The rank mark and the rule icons only change when the enemy does, so they
      are rebuilt on that key rather than every render \u2014 rebuilding mid-battle
      would drop any rule the player had tapped open. */

@@ -14,12 +14,13 @@ var CARDS = C.CARDS, ENEMIES = C.ENEMIES;
 /* Mutated in place, never reassigned, so a reference held before loadCodex()
    runs stays live after it. `omens` records the roads that have announced
    themselves; see noteActOmens. */
-export var codex = { cards: {}, foes: {}, omens: {} };
+export var codex = { cards: {}, foes: {}, omens: {}, decks: {} };
 
 export function loadCodex(saved) {
   if (!saved || !saved.cards || !saved.foes) return;
   codex.cards = saved.cards; codex.foes = saved.foes;
   codex.omens = saved.omens || {};
+  codex.decks = saved.decks || {};
 }
 export function discoverCard(id) {
   if (!id || codex.cards[id]) return;
